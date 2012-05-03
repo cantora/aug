@@ -1,19 +1,19 @@
 /* 
  * Copyright 2012 anthony cantor
- * This file is part of ncte.
+ * This file is part of aug.
  *
- * ncte is free software: you can redistribute it and/or modify
+ * aug is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  * 
- * ncte is distributed in the hope that it will be useful,
+ * aug is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with ncte.  If not, see <http://www.gnu.org/licenses/>.
+ * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "opt.h"
@@ -24,8 +24,8 @@
 #include <errno.h>
 #include <assert.h>
 
-#define NCTE_QUOTE(_EXP) #_EXP
-#define NCTE_EXPAND_QUOTE(_EXP) NCTE_QUOTE(_EXP)
+#define AUG_QUOTE(_EXP) #_EXP
+#define AUG_EXPAND_QUOTE(_EXP) AUG_QUOTE(_EXP)
 
 struct opt_desc {
 	const char *name;
@@ -36,12 +36,12 @@ struct opt_desc {
 };
 
 char opt_err_msg[64];
-static const char *default_argv[] = NCTE_DEFAULT_ARGV;
+static const char *default_argv[] = AUG_DEFAULT_ARGV;
 static const int default_argc = (sizeof(default_argv)/sizeof(char *)) - 1;
 
 #define LONG_ONLY_VAL(_index) ((1 << 11) + _index)
 
-static const struct opt_desc ncte_options[] = {
+static const struct opt_desc aug_options[] = {
 	{
 #define OPT_TERM "term"
 #define OPT_TERM_INDEX 0
@@ -80,8 +80,8 @@ static const struct opt_desc ncte_options[] = {
 		.default_val = NULL, 
 		.lopt = {OPT_HELP, 0, 0, 'h'}
 	}
-}; /* ncte_options */
-#define NCTE_OPTLEN 4
+}; /* aug_options */
+#define AUG_OPTLEN 4
 
 static void init_long_options(struct option *long_options, char *optstring) {
 	int i, os_i;
@@ -90,11 +90,11 @@ static void init_long_options(struct option *long_options, char *optstring) {
 	optstring[os_i++] = '+'; /* stop processing after first non-option */
 	optstring[os_i++] = ':'; /* return : for missing arg */
 
-	for(i = 0; i < NCTE_OPTLEN; i++) {
-		long_options[i] = ncte_options[i].lopt;
-		if(ncte_options[i].lopt.val > 0 && ncte_options[i].lopt.val < 256) {
-			optstring[os_i++] = ncte_options[i].lopt.val;
-			switch(ncte_options[i].lopt.has_arg) {
+	for(i = 0; i < AUG_OPTLEN; i++) {
+		long_options[i] = aug_options[i].lopt;
+		if(aug_options[i].lopt.val > 0 && aug_options[i].lopt.val < 256) {
+			optstring[os_i++] = aug_options[i].lopt.val;
+			switch(aug_options[i].lopt.has_arg) {
 			case 2:
 				optstring[os_i++] = ':';
 				/* fall through */
@@ -116,10 +116,10 @@ static void init_long_options(struct option *long_options, char *optstring) {
 	optstring[os_i++] = '\0'; 
 }
 
-void opt_init(struct ncte_conf *conf) {
+void opt_init(struct aug_conf *conf) {
 	const char *shell;
 
-#define DEFAULT_VAL(_name) ncte_options[OPT_##_name##_INDEX].default_val
+#define DEFAULT_VAL(_name) aug_options[OPT_##_name##_INDEX].default_val
 	conf->term = DEFAULT_VAL(TERM);
 	conf->ncterm = DEFAULT_VAL(NCTERM);
 	conf->debug_file = DEFAULT_VAL(DEBUG);
@@ -150,37 +150,37 @@ void opt_print_help(int argc, const char *const argv[]) {
 	
 	opt_print_usage(argc, argv);
 	
-	fprintf(stdout, "\n%-" NCTE_EXPAND_QUOTE(F1_WIDTH) "s%s\n", "  CMD", "run CMD with arguments instead of the default");
-	fprintf(stdout, "%-" NCTE_EXPAND_QUOTE(F1_WIDTH) "s\tdefault: the value of SHELL in the environment\n", "");
-	fprintf(stdout, "%-" NCTE_EXPAND_QUOTE(F1_WIDTH) "s\tor if SHELL undefined: ", "");
+	fprintf(stdout, "\n%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", "  CMD", "run CMD with arguments instead of the default");
+	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tdefault: the value of SHELL in the environment\n", "");
+	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tor if SHELL undefined: ", "");
 	for(k = 0; k < default_argc; k++)
 		fprintf(stdout, "%s ", default_argv[k]);
 	
 	fprintf(stdout, "\nOPTIONS:\n");
-	for(i = 0; i < NCTE_OPTLEN; i++) {
+	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
-		f1_amt += snprintf(f1, F1_SIZE, "  --%s", ncte_options[i].name);
-		if(f1_amt < F1_SIZE && ncte_options[i].lopt.val >= 0 && ncte_options[i].lopt.val < 256) 
-			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", ncte_options[i].lopt.val);
+		f1_amt += snprintf(f1, F1_SIZE, "  --%s", aug_options[i].name);
+		if(f1_amt < F1_SIZE && aug_options[i].lopt.val >= 0 && aug_options[i].lopt.val < 256) 
+			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", aug_options[i].lopt.val);
 		
-		if(f1_amt < F1_SIZE && ncte_options[i].lopt.has_arg && ncte_options[i].usage != NULL)
-			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", ncte_options[i].usage);
+		if(f1_amt < F1_SIZE && aug_options[i].lopt.has_arg && aug_options[i].usage != NULL)
+			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", aug_options[i].usage);
 
-		/*desc = ncte_options[i].desc;
+		/*desc = aug_options[i].desc;
 		do {
-			fprintf(stdout, "%-" NCTE_EXPAND_QUOTE(F1_WIDTH) "s%s\n", f1, *desc);
+			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", f1, *desc);
 		} while( *(desc++) != NULL );*/
-		for(k = 0; ncte_options[i].desc[k] != NULL; k++) 
-			fprintf(stdout, "%-" NCTE_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), ncte_options[i].desc[k]);
+		for(k = 0; aug_options[i].desc[k] != NULL; k++) 
+			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), aug_options[i].desc[k]);
 	}
 	
 	fputc('\n', stdout);
 }
 
-int opt_parse(int argc, char *const argv[], struct ncte_conf *conf) {
+int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 	int index, c;
 	char optstring[64];
-	struct option long_options[NCTE_OPTLEN+1];
+	struct option long_options[AUG_OPTLEN+1];
 		
 	/* dont print error message */
 	opterr = 0;

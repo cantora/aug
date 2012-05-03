@@ -1,19 +1,19 @@
 /* 
  * Copyright 2012 anthony cantor
- * This file is part of ncte.
+ * This file is part of aug.
  *
- * ncte is free software: you can redistribute it and/or modify
+ * aug is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  * 
- * ncte is distributed in the hope that it will be useful,
+ * aug is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with ncte.  If not, see <http://www.gnu.org/licenses/>.
+ * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <errno.h>
@@ -58,7 +58,7 @@ static struct {
 	int master;		/* master pty */
 	VTerm *vt;		/* libvterm virtual terminal pointer */
 	char buf[BUF_SIZE]; /* IO buffer */
-	struct ncte_conf conf;
+	struct aug_conf conf;
 } g; 
 
 static int set_nonblocking(int fd) {

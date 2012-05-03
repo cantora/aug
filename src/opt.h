@@ -1,25 +1,25 @@
 /* 
  * Copyright 2012 anthony cantor
- * This file is part of ncte.
+ * This file is part of aug.
  *
- * ncte is free software: you can redistribute it and/or modify
+ * aug is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  * 
- * ncte is distributed in the hope that it will be useful,
+ * aug is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with ncte.  If not, see <http://www.gnu.org/licenses/>.
+ * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef NCTE_OPT_H
-#define NCTE_OPT_H
+#ifndef AUG_OPT_H
+#define AUG_OPT_H
 
-struct ncte_conf {
+struct aug_conf {
 	const char *ncterm;
 	const char *term;
 	const char *debug_file;
@@ -36,9 +36,9 @@ enum opt_err {
 };
 
 extern char opt_err_msg[];
-void opt_init(struct ncte_conf *conf);
+void opt_init(struct aug_conf *conf);
 void opt_print_usage(int argc, const char *const argv[]);
 void opt_print_help(int argc, const char *const argv[]);
-int opt_parse(int argc, char *const argv[], struct ncte_conf *conf);
+int opt_parse(int argc, char *const argv[], struct aug_conf *conf);
 
-#endif /* NCTE_OPT_H */
+#endif /* AUG_OPT_H */
