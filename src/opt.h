@@ -20,6 +20,7 @@
 #define AUG_OPT_H
 
 struct aug_conf {
+	int nocolor;
 	const char *ncterm;
 	const char *term;
 	const char *debug_file;

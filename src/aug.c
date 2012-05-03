@@ -343,10 +343,11 @@ int main(int argc, char *argv[]) {
 	vterm_screen_set_callbacks(vts, &screen_cbs, NULL);
 	/*vterm_screen_set_damage_merge(vts, VTERM_DAMAGE_SCROLL);*/
 
-	if(screen_color_start() != 0) {
-		printf("failed to start color\n");
-		goto cleanup;
-	}
+	if(g.conf.nocolor == 0)
+		if(screen_color_start() != 0) {
+			printf("failed to start color\n");
+			goto cleanup;
+		}
 
 	child = forkpty(&g.master, NULL, &child_termios, &size);
 	if(child == 0) {

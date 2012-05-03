@@ -37,7 +37,10 @@
 #define SCN_REQ_PAIRS SCN_REQ_COLORS*SCN_REQ_COLORS
 #define SCN_TOTAL_ANSI_COLORS (SCN_ANSI_COLORS*2)
 
-static VTerm *g_vt;
+static struct {
+	VTerm *vt;
+	int color_on;
+} g;	
 
 /* just a place holder for the default 
  * ansi color, not actually the color
@@ -50,8 +53,9 @@ static const VTermColor DEFAULT_COLOR = {
 };
 
 int screen_init() {
-	g_vt = NULL;
-
+	g.vt = NULL;
+	g.color_on = 0;
+	
 	initscr();
 	if(raw() == ERR) 
 		goto fail;
@@ -71,7 +75,7 @@ fail:
 }
 
 void screen_free() {
-	g_vt = NULL;
+	g.vt = NULL;
 
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
@@ -80,8 +84,8 @@ void screen_free() {
 void screen_set_term(VTerm *term) {
 	VTermState *state;
 
-	g_vt = term;
-	state = vterm_obtain_state(g_vt);
+	g.vt = term;
+	state = vterm_obtain_state(g.vt);
 	/* have to cast default_color because the api isnt const correct */
 	vterm_state_set_default_colors(state, (VTermColor *) &DEFAULT_COLOR, (VTermColor *) &DEFAULT_COLOR);	
 }
@@ -170,7 +174,8 @@ int screen_color_start() {
 			}
 		}
 	}
-	
+
+	g.color_on = 1;
 	return 0;
 fail:
 	return -1;
@@ -282,6 +287,10 @@ static void to_curses_pair(VTermColor fg, VTermColor bg, attr_t *attr, short *pa
 		*attr |= A_BOLD;
 }
 
+/* take a libvterm cell and convert its attributes and color pair
+ * to corresponding ncurses attributes. attr and pair are output
+ * variables where *pair = 0 if color is not turned on.
+ */
 static void to_curses_attr(const VTermScreenCell *cell, attr_t *attr, short *pair) {
 	attr_t result = A_NORMAL;
 	
@@ -297,7 +306,11 @@ static void to_curses_attr(const VTermScreenCell *cell, attr_t *attr, short *pai
 	if(cell->attrs.reverse != 0)
 		result |= A_REVERSE;
 
-	to_curses_pair(cell->fg, cell->bg, &result, pair);
+	if(g.color_on)
+		to_curses_pair(cell->fg, cell->bg, &result, pair);
+	else
+		*pair = 0;
+		
 	*attr = result;
 }
 
@@ -365,7 +378,7 @@ void screen_refresh() {
 }
 
 int screen_damage(VTermRect rect, void *user) {
-	VTermScreen *vts = vterm_obtain_screen(g_vt);
+	VTermScreen *vts = vterm_obtain_screen(g.vt);
 	VTermPos pos;
 	int x,y,maxx,maxy;
 

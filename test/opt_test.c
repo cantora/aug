@@ -2,9 +2,10 @@
 #include <errno.h>
 #include "opt.h"
 
-void print_conf(struct ncte_conf *c) {
+void print_conf(struct aug_conf *c) {
 	int i;
-	
+
+	printf("nocolor: \t\t'%d'\n", c->nocolor);
 	printf("ncterm: \t\t'%s'\n", c->ncterm);
 	printf("term: \t\t\t'%s'\n", c->term);
 	printf("debug_file: \t\t'%s'\n", c->debug_file);
@@ -18,7 +19,7 @@ void print_conf(struct ncte_conf *c) {
 }
 
 int main(int argc, char *argv[]) {
-	struct ncte_conf c;
+	struct aug_conf c;
 
 	opt_init(&c);
 	
@@ -27,20 +28,24 @@ int main(int argc, char *argv[]) {
 	print_conf(&c);
 
 	if(opt_parse(argc, argv, &c) != 0) {
-		printf("error: ");
 		switch(errno) {
+		case OPT_ERR_HELP:
+		case OPT_ERR_USAGE:
+			goto parsed;
+			break;
 		case OPT_ERR_MISSING_ARG:
-			printf("missing arg\n");
+			printf("error: missing arg\n");
 			break;
 		case OPT_ERR_UNKNOWN_OPTION:
-			printf("unknown option\n");
+			printf("error: unknown option\n");
 			break;
 		}
 	
 		printf("error msg: %s\n", opt_err_msg);
 		goto done;
 	}
-	
+
+parsed:	
 	printf("AFTER PARSING:\n");
 	print_conf(&c);
 done:	

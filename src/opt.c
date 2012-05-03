@@ -31,7 +31,6 @@ struct opt_desc {
 	const char *name;
 	const char *usage;
 	const char *const desc[3];
-	const void *default_val;
 	const struct option lopt; 	/* getopt long option struct */
 };
 
@@ -41,47 +40,66 @@ static const int default_argc = (sizeof(default_argv)/sizeof(char *)) - 1;
 
 #define LONG_ONLY_VAL(_index) ((1 << 11) + _index)
 
+/* when adding a new option:
+ *    1. insert, append or prepend an opt_desc struct to the array below
+ *    2. make sure to create the defines:
+ *              OPT_* "somename"
+ *              OPT_*_INDEX (OPT_(previous opt)_INDEX+1)
+ *              OPT_*_DEFAULT somevalue
+ *    3. change opt_parse so that the option switch statement recognizes 
+ *       the value in .lopt.val
+ */
 static const struct opt_desc aug_options[] = {
 	{
+#define OPT_NOCOLOR "no-color"
+#define OPT_NOCOLOR_INDEX 0
+#define OPT_NOCOLOR_DEFAULT 0
+		.name = OPT_NOCOLOR,
+		.usage = NULL,
+		.desc = {"turns off color support", NULL},
+		.lopt = {OPT_NOCOLOR, 0, 0, LONG_ONLY_VAL(OPT_NOCOLOR_INDEX)}
+	},
+	{
 #define OPT_TERM "term"
-#define OPT_TERM_INDEX 0
+#define OPT_TERM_INDEX (OPT_NOCOLOR_INDEX+1)
+#define OPT_TERM_DEFAULT NULL /* use the value of TERM in current environment */
 		.name = OPT_TERM,
 		.usage = " TERMNAME",
 		.desc = {"sets the TERM environment variable to TERMNAME", 
 				 "\tdefault: the current value of TERM in the environment", NULL},
-		.default_val = NULL, /* when .default_val is NULL, use the value of TERM in current environment */
 		.lopt = {OPT_TERM, 1, 0, LONG_ONLY_VAL(OPT_TERM_INDEX)}
 	},
 	{
 #define OPT_NCTERM "ncterm"
-#define OPT_NCTERM_INDEX 1
+#define OPT_NCTERM_INDEX (OPT_TERM_INDEX+1)
+#define OPT_NCTERM_DEFAULT NULL /* use current TERM environment variable */
 		.name = OPT_NCTERM,
 		.usage = " TERMNAME",
 		.desc = {"sets the terminal profile used by ncurses",
 				 "\tdefault: the current value of TERM in the environment", NULL},
-		.default_val = NULL, /* use current TERM environment variable */
+
 		.lopt = {OPT_NCTERM, 1, 0, LONG_ONLY_VAL(OPT_NCTERM_INDEX)}
 	},
 	{
 #define OPT_DEBUG "debug"
-#define OPT_DEBUG_INDEX 2
+#define OPT_DEBUG_INDEX (OPT_NCTERM_INDEX+1)
+#define OPT_DEBUG_DEFAULT NULL /* redirect stderr to /dev/null */
 		.name = OPT_DEBUG,
 		.usage = " FILENAME",
 		.desc = {"collect debug messages into FILENAME", NULL},
-		.default_val = NULL, /* redirect stderr to /dev/null */
 		.lopt = {OPT_DEBUG, 1, 0, 'd'}
 	},
 	{
 #define OPT_HELP "help"
-#define OPT_HELP_INDEX 3
+#define OPT_HELP_INDEX (OPT_DEBUG_INDEX+1)
+#define OPT_HELP_DEFAULT NULL
 		.name = OPT_HELP,
 		.usage = NULL,
 		.desc = {"display this message", NULL},
-		.default_val = NULL, 
 		.lopt = {OPT_HELP, 0, 0, 'h'}
 	}
 }; /* aug_options */
-#define AUG_OPTLEN 4
+#define AUG_OPTLEN (OPT_HELP_INDEX+1)
 
 static void init_long_options(struct option *long_options, char *optstring) {
 	int i, os_i;
@@ -119,10 +137,10 @@ static void init_long_options(struct option *long_options, char *optstring) {
 void opt_init(struct aug_conf *conf) {
 	const char *shell;
 
-#define DEFAULT_VAL(_name) aug_options[OPT_##_name##_INDEX].default_val
-	conf->term = DEFAULT_VAL(TERM);
-	conf->ncterm = DEFAULT_VAL(NCTERM);
-	conf->debug_file = DEFAULT_VAL(DEBUG);
+	conf->term = OPT_TERM_DEFAULT;
+	conf->ncterm = OPT_NCTERM_DEFAULT;
+	conf->debug_file = OPT_DEBUG_DEFAULT;
+	conf->nocolor = OPT_NOCOLOR_DEFAULT;
 	
 	shell = getenv("SHELL");
 	if(shell != NULL) {
@@ -139,8 +157,6 @@ void opt_init(struct aug_conf *conf) {
 void opt_print_usage(int argc, const char *const argv[]) {
 	fprintf(stdout, "usage: %s [OPTIONS] [CMD [ARG1, ...]]\n", (argc > 0)? argv[0] : "");
 }
-
-
 
 void opt_print_help(int argc, const char *const argv[]) {
 	int i, k, f1_amt;
@@ -159,7 +175,7 @@ void opt_print_help(int argc, const char *const argv[]) {
 	fprintf(stdout, "\nOPTIONS:\n");
 	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
-		f1_amt += snprintf(f1, F1_SIZE, "  --%s", aug_options[i].name);
+		f1_amt += snprintf(f1, F1_SIZE, "  --%s", aug_options[i].lopt.name);
 		if(f1_amt < F1_SIZE && aug_options[i].lopt.val >= 0 && aug_options[i].lopt.val < 256) 
 			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", aug_options[i].lopt.val);
 		
@@ -197,6 +213,10 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 		switch (c) {
 		case 'd': /* debug file */
 			conf->debug_file = optarg;
+			break;
+		
+		case LONG_ONLY_VAL(OPT_NOCOLOR_INDEX):
+			conf->nocolor = 1;
 			break;
 
 		case LONG_ONLY_VAL(OPT_TERM_INDEX):
