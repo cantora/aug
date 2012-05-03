@@ -21,11 +21,11 @@
 #include <time.h>
 #include <sys/time.h>
 
-struct timer_t {
+struct timer {
 	struct timeval start;
 };
 
-int timer_init(struct timer_t *timer);
-int timer_thresh(struct timer_t *timer, int sec, int usec);
+int timer_init(struct timer *tmr);
+int timer_thresh(struct timer *tmr, int sec, int usec);
 
 #endif /* AUG_TIMER_H */

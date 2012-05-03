@@ -169,7 +169,7 @@ void loop(VTerm *vt, int master) {
 	fd_set in_fds;
 	int status, force_refresh, just_refreshed;
 
-	struct timer_t inter_io_timer, refresh_expire;
+	struct timer inter_io_timer, refresh_expire;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
 
