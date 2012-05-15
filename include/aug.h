@@ -41,7 +41,7 @@ struct aug_plugin_cb_t {
 	 * set action to AUG_ACTION_CANCEL and 
 	 * and prevent the cell from being 
 	 * updated. */
-	void (*update_cell)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
+	void (*cell_update)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
 			aug_action_t *action, int *row, int *col, wchar_t *wch, 
 			aug_attr_t *attr, int *color_pair);
 
@@ -51,8 +51,16 @@ struct aug_plugin_cb_t {
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
 	 * where the cursor is moved to. */
-	void (*move_cursor)(const struct aug_api_t *api, struct aug_plugin_t *plugin,
+	void (*cursor_move)(const struct aug_api_t *api, struct aug_plugin_t *plugin,
 			aug_action_t *action, int old_row, int old_col, int *new_row, int *new_col);
+
+	/* called when the screen dimensions change.
+	 * old_* hold the old dimensions and new_*
+	 * hold the new dimensions. note that the
+	 * dimensions are for the entire screen, not
+	 * the size of the main window. */
+	void (*screen_dims_change)(const struct aug_api_t *api, struct aug_plugin_t *plugin,
+			int old_height, int old_width, int new_height, int new_width);
 };
 
 /* this structure represents the 
@@ -89,6 +97,7 @@ struct aug_plugin_t {
 
 /* passed to the plugin to provide 
  * an interface to the core application.
+ * these functions are thread safe.
  */
 struct aug_api_t {
 
@@ -99,21 +108,39 @@ struct aug_api_t {
 	 * of the plugin, key is name of the 
 	 * configuration variable, and val is 
 	 * a pointer to the location of the
-	 * variable value. */
-	void (*aug_api_conf)(const char *name, const char *key, const void **val);
+	 * variable value. if the return value
+	 * is zero the key was successfully
+	 * found. */
+	int (*conf)(const char *name, const char *key, const void **val);
 	
 	/* query for the number of plugins
 	 * on the plugin stack */
-	void (*aug_api_stack_size)(int *size);
+	void (*stack_size)(int *size);
 
 	/* query for the position in the 
 	 * plugin stack of a plugin by
 	 * name. the plugin at position
 	 *  zero gets the first callbacks
 	 * and the plugin at the highest
-	 * position gets callbacks last. */
-	void (*aug_api_stack_pos)(const char *name, int *pos);
+	 * position gets callbacks last. 
+	 * a non-zero return value means
+	 * a plugin with name was not found */
+	int (*stack_pos)(const char *name, int *pos);
 
+	/* get the dimensions of the main terminal
+	 * window */
+	void (*terminal_dims)(int *rows, int *cols);
+
+	/* the user can configure a global command key
+	 * to use as a prefix and plugins can bind to
+	 * this key + some extension. for example, the 
+	 * user might set ^A as the command key, and a 
+	 * plugin might bind to ^A n by passing ch = 0x6e. 
+	 * if the return value is non-zero, the key is
+	 * reserved or already bound. */
+	int (*key_bind)(const aug_plugin_t *plugin, int ch, void (*on_key_fn)(void *user, int chr), void *user );
+
+			
 };
 
 #endif /* AUG_AUG_H */
