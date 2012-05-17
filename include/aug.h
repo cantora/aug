@@ -8,8 +8,6 @@
 struct aug_api_t;
 struct aug_plugin_t;
 
-typdef uint32_t aug_attr_t;
-
 typedef enum aug_action_t = { AUG_ACT_OK = 0, AUG_ACT_CANCEL };
 
 /* callbacks which a plugin can register
@@ -43,7 +41,7 @@ struct aug_plugin_cb_t {
 	 * updated. */
 	void (*cell_update)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
 			aug_action_t *action, int *row, int *col, wchar_t *wch, 
-			aug_attr_t *attr, int *color_pair);
+			attr_t *attr, int *color_pair);
 
 	/* called when the cursor is about to be
 	 * moved to some location on the screen.
@@ -111,7 +109,7 @@ struct aug_api_t {
 	 * variable value. if the return value
 	 * is zero the key was successfully
 	 * found. */
-	int (*conf)(const char *name, const char *key, const void **val);
+	int (*conf_val)(const char *name, const char *key, const void **val);
 	
 	/* query for the number of plugins
 	 * on the plugin stack */
@@ -129,7 +127,20 @@ struct aug_api_t {
 
 	/* get the dimensions of the main terminal
 	 * window */
-	void (*terminal_dims)(int *rows, int *cols);
+	void (*term_win_dims)(int *rows, int *cols);
+
+	/* refresh the main terminal window */
+	void (*term_win_refresh)();
+
+	/* write a cell in the main terminal window. this may
+	 * not accomplish all that much, as this cell will be
+	 * most likely rewritten when the terminal updates. a
+	 * call to term_win_refresh() should follow a call or
+	 * series of calls to this function. if a plugin wants
+	 * to present meaningful data to a user it should use
+	 * the screen_*_alloc api calls to reserve space for
+	 * its output.      */
+	void (*term_win_mvaddwch)(int x, int y, const wchar_t *wch, attr_t attr, int color_pair);
 
 	/* the user can configure a global command key
 	 * to use as a prefix and plugins can bind to
@@ -138,9 +149,46 @@ struct aug_api_t {
 	 * plugin might bind to ^A n by passing ch = 0x6e. 
 	 * if the return value is non-zero, the key is
 	 * reserved or already bound. */
-	int (*key_bind)(const aug_plugin_t *plugin, int ch, void (*on_key_fn)(void *user, int chr), void *user );
+	int (*key_bind)(const aug_plugin_t *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
 
-			
+
+	/* ======== screen windows/panels ======================== 
+	 * for this api there are two types of screen real estate
+	 * a plugin can request the aug core to allocate: panels and 
+	 * windows. panels correspond to the ncurses panels library
+	 * and will stack on top of the main terminal window in the 
+	 * order they are allocated (like a popup window for some
+	 * sort of transient interaction with the user). windows
+	 * correspond to ncurses windows and will not overlap the 
+	 * main terminal, but will only be allocated in ways such
+	 * that they occupy a number of lines at the top, bottom, left
+	 * or right of the screen (this is for peristent existence of 
+	 * plugin output on the screen, like a status bar or something).
+	 */
+
+	/* as described above, this allocates an ncurses window object
+	 * with a height of *nlines* on the top, bottom, or with a width 
+	 * of *ncols* on the left or right of the screen. the width/height
+	 * of this window will be whatever the screen width/height is,
+	 * so the plugin must register for screen_dims_change or call
+	 * api->screen_dims to know how much space it actually has in
+	 * its window(s). call the function with suffix top, bot, left
+	 * and right for a window on the top, bottom, left and right respectively. 
+	 * the *win* parameter is the output parameter that will point to
+	 * the ncurses window structure.            */
+	void (*screen_win_alloc_top)(int nlines, WINDOW **win); 
+	void (*screen_win_alloc_bot)(int nlines, WINDOW **win); 
+	void (*screen_win_alloc_left)(int ncols, WINDOW **win); 
+	void (*screen_win_alloc_right)(int ncols, WINDOW **win); 
+
+	/* allocate a panel on top of the main terminal window and
+	 * on top of all previously allocated (by this plugin or others)
+	 * panels.           */
+	void (*screen_panel_alloc)(int nlines, int ncols, int begin_y, int begin_x, PANEL **panel);
+	
+	/* for concurrency reasons, call this function instead of
+	 * calling update_panels() from the panels library. */
+	void (*screen_panels_update)();
 };
 
 #endif /* AUG_AUG_H */
