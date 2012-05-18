@@ -3,6 +3,8 @@
 
 #include <wchar.h>
 #include <stdint.h>
+#include <ncurses.h>
+#include <panel.h>
 
 /* defined below */
 struct aug_api_t;

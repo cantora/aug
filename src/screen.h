@@ -36,6 +36,7 @@ int screen_init();
 void screen_free();
 void screen_set_term(VTerm *term);
 void screen_dims(unsigned short *rows, unsigned short *cols);
+void screen_term_win_dims(unsigned short *rows, unsigned short *cols);
 int screen_getch(int *ch);
 /*void screen_err_msg(int error, char **msg);*/
 int screen_color_start();

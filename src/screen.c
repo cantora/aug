@@ -37,9 +37,20 @@
 #define SCN_REQ_PAIRS SCN_REQ_COLORS*SCN_REQ_COLORS
 #define SCN_TOTAL_ANSI_COLORS (SCN_ANSI_COLORS*2)
 
+static int term_win_free();
+static int term_win_init();
+static void color_index_to_curses_color_index(int index, short *curs_color, short *bright);
+static int to_curses_color(VTermColor color, short *curs_color, short *bright);
+static void to_nearest_curses_color(VTermColor color, short *curs_color, short *bright);
+static void to_curses_pair(VTermColor fg, VTermColor bg, attr_t *attr, short *pair);
+static void to_curses_attr(const VTermScreenCell *cell, attr_t *attr, short *pair);
+static void update_cell(VTermScreen *vts, VTermPos pos);
+
+/* globals */
 static struct {
 	VTerm *vt;
 	int color_on;
+	WINDOW *term_win;
 } g;	
 
 /* just a place holder for the default 
@@ -52,30 +63,67 @@ static const VTermColor DEFAULT_COLOR = {
 	.blue = 1
 };
 
+static inline int win_contained(WINDOW *win, int y, int x) {
+	int maxx, maxy;
+
+	getmaxyx(win, maxy, maxx);	
+	return (x < maxx) && (y < maxy);
+}
+
 int screen_init() {
 	g.vt = NULL;
 	g.color_on = 0;
+	g.term_win = NULL;
 	
 	initscr();
 	if(raw() == ERR) 
 		goto fail;
 	if(noecho() == ERR) 
 		goto fail;
-	if(nodelay(stdscr, true) == ERR) 
+	if(term_win_init() != 0)
 		goto fail;
-	if(keypad(stdscr, false) == ERR) /* libvterm interprets keys for us */
+	if(nodelay(g.term_win, true) == ERR) 
+		goto fail;
+	if(keypad(g.term_win, false) == ERR) /* libvterm interprets keys for us */
 		goto fail;
 	if(nonl() == ERR) 
 		goto fail;
-
+	
 	return 0;
 fail:
 	errno = SCN_ERR_INIT;
 	return -1;
 }
 
+static int term_win_free() {
+	if(g.term_win != NULL)
+		if(delwin(g.term_win) == ERR)
+			return -1;
+
+	return 0;	
+}
+
+static int term_win_init() {
+
+	if(term_win_free() != 0)
+		goto fail;
+
+	g.term_win = newwin(LINES, COLS, 0, 0);
+
+	if(g.term_win == NULL)
+		goto fail;
+
+	return 0;
+fail:
+	return -1;
+}
+
 void screen_free() {
 	g.vt = NULL;
+
+	if(term_win_free() != 0)
+		err_exit(0, "term_win_free failed!");
+	g.term_win = NULL;
 
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
@@ -91,11 +139,16 @@ void screen_set_term(VTerm *term) {
 }
 
 void screen_dims(unsigned short *rows, unsigned short *cols) {
-	getmaxyx(stdscr, *rows, *cols);
+	*rows = LINES;
+	*cols = COLS;
+}
+
+void screen_term_win_dims(unsigned short *rows, unsigned short *cols) {
+	getmaxyx(g.term_win, *rows, *cols);
 }
 
 int screen_getch(int *ch) {
-	*ch = getch();
+	*ch = wgetch(g.term_win);
 
 	/* resize will be handled by signal
 	 * so flush out all the resize keys
@@ -179,13 +232,6 @@ int screen_color_start() {
 	return 0;
 fail:
 	return -1;
-}
-
-static inline int contained(int y, int x) {
-	int maxx, maxy;
-
-	getmaxyx(stdscr, maxy, maxx);	
-	return (x < maxx) && (y < maxy);
 }
 
 static void color_index_to_curses_color_index(int index, short *curs_color, short *bright) {
@@ -323,12 +369,12 @@ static void update_cell(VTermScreen *vts, VTermPos pos) {
 	wchar_t erasech = L' ';
 	int maxx, maxy;
 
-	getmaxyx(stdscr, maxy, maxx);
+	getmaxyx(g.term_win, maxy, maxx);
 
 	/* sometimes this happens when
 	 * a window resize recently happened
 	 */
-	if(!contained(pos.row, pos.col) ) {
+	if(!win_contained(g.term_win, pos.row, pos.col) ) {
 		fprintf(stderr, "tried to update out of bounds cell at %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 		return;
 	}
@@ -340,41 +386,17 @@ static void update_cell(VTermScreen *vts, VTermPos pos) {
 	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
 		err_exit(0, "setcchar failed");
 
-	if(move(pos.row, pos.col) == ERR)
+	if(wmove(g.term_win, pos.row, pos.col) == ERR)
 		err_exit(0, "move failed: %d/%d, %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 
-	/*if(in_wch(&cur_cch) == ERR)
-		err_exit(0, "in_wch failed");
-	if(cch.attr == cur_cch.attr && wmemcmp(cch.chars, cur_cch.chars, CCHARW_MAX) == 0) {
-		fprintf(stderr, "cur was same\n");
-		return;
-	}*/
-
-	if(add_wch(&cch) == ERR && pos.row != (maxy-1) && pos.col != (maxx-1) )
+	if(wadd_wch(g.term_win, &cch) == ERR && pos.row != (maxy-1) && pos.col != (maxx-1) )
 		err_exit(0, "add_wch failed at %d/%d, %d/%d: ", pos.row, maxy-1, pos.col, maxx-1);
 
 }
 
-void screen_damage_win() {
-	VTermRect win = {
-		.start_row = 0,
-		.start_col = 0,
-		.end_row = 0,
-		.end_col = 0
-	};
-
-	screen_dims((unsigned short *) &win.end_row, (unsigned short *) &win.end_col);
-	screen_damage(win, NULL);
-}
-
-void screen_redraw() {
-	if(redrawwin(stdscr) == ERR)
-		err_exit(0, "redrawwin failed!");
-}
-
 void screen_refresh() {
-	if(refresh() == ERR)
-		err_exit(0, "refresh failed!");
+	if(wrefresh(g.term_win) == ERR)
+		err_exit(0, "wrefresh failed!");
 }
 
 int screen_damage(VTermRect rect, void *user) {
@@ -385,8 +407,8 @@ int screen_damage(VTermRect rect, void *user) {
 	(void)(user); /* user not used */
 
 	/* save cursor value */
-	getyx(stdscr, y, x);
-	getmaxyx(stdscr, maxy, maxx);
+	getyx(g.term_win, y, x);
+	getmaxyx(g.term_win, maxy, maxx);
 
 	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
 		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
@@ -395,7 +417,7 @@ int screen_damage(VTermRect rect, void *user) {
 	}
 
 	/* restore cursor (repainting shouldnt modify cursor) */
-	if(move(y,x) == ERR) 
+	if(wmove(g.term_win, y,x) == ERR) 
 		err_exit(0, "move failed: %d/%d %d/%d", y, maxy, x, maxx);
 
 	/*fprintf(stderr, "\tdamage: (%d,%d) (%d,%d) \n", rect.start_row, rect.start_col, rect.end_row, rect.end_col);*/
@@ -411,20 +433,23 @@ int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 }*/
 
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
+	int maxx, maxy;
 	(void)(user); /* user is not used */
 	(void)(oldpos); /* oldpos not used */
 	(void)(visible);
+
+	getmaxyx(g.term_win, maxy, maxx);
 		
 	/* sometimes this happens when
 	 * a window resize recently happened
 	 */
-	if(!contained(pos.row, pos.col) ) {
-		fprintf(stderr, "tried to move cursor out of bounds to %d/%d %d/%d\n", pos.row, LINES-1, pos.col, COLS-1);
+	if(!win_contained(g.term_win, pos.row, pos.col) ) {
+		fprintf(stderr, "tried to move cursor out of bounds to %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 		return 1;
 	}
 
-	if(move(pos.row, pos.col) == ERR)
-		err_exit(0, "move failed: %d/%d %d/%d", pos.row, LINES-1, pos.col, COLS-1);
+	if(wmove(g.term_win, pos.row, pos.col) == ERR)
+		err_exit(0, "move failed: %d/%d %d/%d", pos.row, maxy-1, pos.col, maxx-1);
 
 	/*fprintf(stderr, "\tmove cursor: %d, %d\n", pos.row, pos.col);*/
 
@@ -482,6 +507,8 @@ void screen_resize() {
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
 
-	if(refresh() == ERR)
-		err_exit(0, "refresh failed!");
+	/*if(refresh() == ERR)
+		err_exit(0, "refresh failed!");*/
+
+	screen_refresh();	
 }
