@@ -155,7 +155,7 @@ int screen_getch(int *ch) {
 	 */
 	if(*ch == KEY_RESIZE) 
 		while(*ch == KEY_RESIZE) {
-			*ch = getch();
+			*ch = wgetch(g.term_win);
 		}
 
 	if(*ch == ERR) 
