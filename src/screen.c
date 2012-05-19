@@ -27,23 +27,12 @@
 #	include <ncursesw/curses.h>
 #endif
 
+#include "util.h"
 #include "err.h"
-
-#include "vterm_util.h"
-#include "vterm_ansi_colors.h"
-
-#define SCN_ANSI_COLORS 8
-#define SCN_REQ_COLORS (SCN_ANSI_COLORS + 1) /* 8 ansi + default */
-#define SCN_REQ_PAIRS SCN_REQ_COLORS*SCN_REQ_COLORS
-#define SCN_TOTAL_ANSI_COLORS (SCN_ANSI_COLORS*2)
+#include "attr.h"
 
 static int term_win_free();
 static int term_win_init();
-static void color_index_to_curses_color_index(int index, short *curs_color, short *bright);
-static int to_curses_color(VTermColor color, short *curs_color, short *bright);
-static void to_nearest_curses_color(VTermColor color, short *curs_color, short *bright);
-static void to_curses_pair(VTermColor fg, VTermColor bg, attr_t *attr, short *pair);
-static void to_curses_attr(const VTermScreenCell *cell, attr_t *attr, short *pair);
 static void update_cell(VTermScreen *vts, VTermPos pos);
 
 /* globals */
@@ -53,15 +42,6 @@ static struct {
 	WINDOW *term_win;
 } g;	
 
-/* just a place holder for the default 
- * ansi color, not actually the color
- * 1,1,1.
- */
-static const VTermColor DEFAULT_COLOR = {
-	.red = 1,
-	.green = 1,
-	.blue = 1
-};
 
 static inline int win_contained(WINDOW *win, int y, int x) {
 	int maxx, maxy;
@@ -135,7 +115,7 @@ void screen_set_term(VTerm *term) {
 	g.vt = term;
 	state = vterm_obtain_state(g.vt);
 	/* have to cast default_color because the api isnt const correct */
-	vterm_state_set_default_colors(state, (VTermColor *) &DEFAULT_COLOR, (VTermColor *) &DEFAULT_COLOR);	
+	vterm_state_set_default_colors(state, (VTermColor *) &VTERM_DEFAULT_COLOR, (VTermColor *) &VTERM_DEFAULT_COLOR);	
 }
 
 void screen_dims(unsigned short *rows, unsigned short *cols) {
@@ -181,9 +161,11 @@ int screen_getch(int *ch) {
 } */
 
 int screen_color_start() {
-	int i,k;
-	short pair, fg, bg;
-
+	int colors[] = { COLOR_DEFAULT, COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+						 COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE };
+	size_t i, k;
+	int fg, bg, pair;
+		
 	if(has_colors() == ERR) {
 		errno = SCN_ERR_COLOR_NOT_SUPPORTED;
 		goto fail;
@@ -199,28 +181,28 @@ int screen_color_start() {
 		goto fail;		
 	}
 	
-	if(COLORS < SCN_REQ_COLORS-1) {
+	if(COLORS < AUG_REQ_COLORS-1) {
 		errno = SCN_ERR_COLOR_COLORS;
 		goto fail;
 	}
 
 	/* for some reason we can just use pairs above 63 and its fine... */
-	if(COLOR_PAIRS < SCN_REQ_PAIRS) {
-		/*errno = SCN_ERR_COLOR_PAIRS;
+	if(COLOR_PAIRS < AUG_REQ_PAIRS) {
+		/*errno = AUG_ERR_COLOR_PAIRS;
 		goto fail;*/
 		fprintf(stderr, "warning: your terminal may not support 81 color pairs. if problems arise, try setting TERM to 'xterm-256color'\n");
 	}
 
-	for(i = 0; i < SCN_REQ_COLORS; i++) {
-		for(k = 0; k < SCN_REQ_COLORS; k++) {
-			pair = i*SCN_REQ_COLORS + k;
-			if(pair == 0) { /* pair 0 already set to default fg on default bg */
+	for(i = 0; i < AUG_ARRAY_SIZE(colors); i++) {
+		fg = colors[i];
+		for(k = 0; k < AUG_ARRAY_SIZE(colors); k++) {
+			bg = colors[k];
+			attr_curses_colors_to_curses_pair(fg, bg, &pair);
+			/* pair 0 is default on default and is already defined */
+			if(pair == 0) { 
 				continue;
 			}
-			
-			fg = ((SCN_REQ_COLORS - 1)-i > (SCN_ANSI_COLORS - 1))? -1 : (SCN_REQ_COLORS - 1)-i; /* => pair 0 = -1,-1 */
-			bg = ((SCN_REQ_COLORS - 1)-k > (SCN_ANSI_COLORS - 1))? -1 : (SCN_REQ_COLORS - 1)-k;
-
+						
 			if(init_pair(pair, fg, bg) == ERR) {
 				errno = SCN_ERR_COLOR_PAIR_INIT;
 				goto fail;
@@ -234,136 +216,10 @@ fail:
 	return -1;
 }
 
-static void color_index_to_curses_color_index(int index, short *curs_color, short *bright) {
-	
-	assert(index >= -1 && index < 16);
-	
-	if(index > 7) {
-		index = index%8;
-		*bright = 1;
-	}
-	else
-		*bright = 0;
-
-	switch(index) {
-	case -1:
-		*curs_color = 0;
-		break;
-	case VTERM_ANSI_BLACK:
-		*curs_color = 8;
-		break;
-	case VTERM_ANSI_RED:
-		*curs_color = 7;
-		break;
-	case VTERM_ANSI_GREEN:
-		*curs_color = 6;
-		break;
-	case VTERM_ANSI_YELLOW:
-		*curs_color = 5;
-		break;
-	case VTERM_ANSI_BLUE:
-		*curs_color = 4;
-		break;
-	case VTERM_ANSI_MAGENTA:
-		*curs_color = 3;
-		break;
-	case VTERM_ANSI_CYAN:
-		*curs_color = 2;
-		break;
-	default: /* VTERM_ANSI_WHITE */
-		*curs_color = 1;
-	}
-}
-
-static int to_curses_color(VTermColor color, short *curs_color, short *bright) {
-	int i;
-
-	for(i = 0; i < SCN_TOTAL_ANSI_COLORS; i++) {
-		if( vterm_color_equal(&color, &vterm_ansi_colors[i]) )
-			break;
-	}
-	if(i == SCN_TOTAL_ANSI_COLORS) {
-		if( vterm_color_equal(&color, &DEFAULT_COLOR) )
-			i = -1;
-		else
-			goto fail;
-	}
-	
-	color_index_to_curses_color_index(i, curs_color, bright);
-
-	return 0;
-fail:
-	return -1;	
-}
-
-/* smallest dist^2 determines nearest
- * ansi color
- */
-static void to_nearest_curses_color(VTermColor color, short *curs_color, short *bright) {
-	int i, min_index, min_dist_sq, dist_sq;
-
-	min_dist_sq = vterm_color_dist_sq(&color, &vterm_ansi_colors[0]);
-	min_index = 0;
-	for(i = 1; i < SCN_TOTAL_ANSI_COLORS; i++) {
-		dist_sq = vterm_color_dist_sq(&color, &vterm_ansi_colors[i]);
-		if(dist_sq <= min_dist_sq) {
-			min_dist_sq = dist_sq;
-			min_index = i;
-		}
-	}
-
-	color_index_to_curses_color_index(min_index, curs_color, bright);
-}
-
-static void to_curses_pair(VTermColor fg, VTermColor bg, attr_t *attr, short *pair) {
-	short curs_fg, curs_bg, bright_fg, bright_bg;
-	
-	if(to_curses_color(fg, &curs_fg, &bright_fg) != 0) {
-		to_nearest_curses_color(fg, &curs_fg, &bright_fg);
-		fprintf(stderr, "to_curses_pair: mapped fg color %d,%d,%d to color %d\n", fg.red, fg.green, fg.blue, curs_fg);
-	}
-	if(to_curses_color(bg, &curs_bg, &bright_bg) != 0) {
-		to_nearest_curses_color(bg, &curs_bg, &bright_bg);
-		fprintf(stderr, "to_curses_pair: mapped bg color %d,%d,%d to color %d\n", bg.red, bg.green, bg.blue, curs_bg);
-	}
-	
-	*pair = SCN_REQ_COLORS*curs_fg + curs_bg;
-
-	if(bright_fg)
-		*attr |= A_BOLD;
-}
-
-/* take a libvterm cell and convert its attributes and color pair
- * to corresponding ncurses attributes. attr and pair are output
- * variables where *pair = 0 if color is not turned on.
- */
-static void to_curses_attr(const VTermScreenCell *cell, attr_t *attr, short *pair) {
-	attr_t result = A_NORMAL;
-	
-	if(cell->attrs.bold != 0)
-		result |= A_BOLD;
-
-	if(cell->attrs.underline != 0)
-		result |= A_UNDERLINE;
-
-	if(cell->attrs.blink != 0)
-		result |= A_BLINK;
-
-	if(cell->attrs.reverse != 0)
-		result |= A_REVERSE;
-
-	if(g.color_on)
-		to_curses_pair(cell->fg, cell->bg, &result, pair);
-	else
-		*pair = 0;
-		
-	*attr = result;
-}
-
 static void update_cell(VTermScreen *vts, VTermPos pos) {
 	VTermScreenCell cell;
 	attr_t attr;
-	short pair;
+	int pair;
 	cchar_t cch;
 	wchar_t *wch;
 	wchar_t erasech = L' ';
@@ -380,8 +236,13 @@ static void update_cell(VTermScreen *vts, VTermPos pos) {
 	}
 
 	vterm_screen_get_cell(vts, pos, &cell);	
-	to_curses_attr(&cell, &attr, &pair);
+	attr_vterm_attr_to_curses_attr(&cell, &attr);
+	if(g.color_on)
+		attr_vterm_pair_to_curses_pair(cell.fg, cell.bg, &attr, &pair);
+	else
+		pair = 0;
 
+	
 	wch = (cell.chars[0] == 0)? &erasech : (wchar_t *) &cell.chars[0];
 	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
 		err_exit(0, "setcchar failed");

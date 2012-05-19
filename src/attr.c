@@ -20,7 +20,7 @@
 #include "vterm_util.h"
 #include "vterm_ansi_colors.h"
 
-const VTermColor DEFAULT_COLOR = {
+const VTermColor VTERM_DEFAULT_COLOR = {
 	.red = 1,
 	.green = 1,
 	.blue = 1
@@ -60,6 +60,13 @@ void attr_curses_colors_to_curses_pair(int fg, int bg, int *pair) {
 	assert(*pair >= 0);
 }
 
+/* *vterm_index* is a index into the table of 
+ * libvterm ansi color definitions. *curses_index*
+ * is an output parameter that will hold the 
+ * equivalent ncurses color number. *bright* is
+ * an output parameter which will be non-zero if the 
+ * color is bright and 0 if it is normal.
+ */
 void attr_vterm_index_to_curses_index(int vterm_index, int *curses_index, int *bright) {
 	assert(vterm_index >= -1 && vterm_index < 16);
 	
@@ -108,8 +115,9 @@ int attr_vterm_color_to_curses_color(VTermColor color, int *curses_color, int *b
 			break;
 	}
 	if(i == AUG_TOTAL_ANSI_COLORS) {
-		if( vterm_color_equal(&color, &VTERM_DEFAULT_COLOR) )
+		if( vterm_color_equal(&color, &VTERM_DEFAULT_COLOR) ) {
 			i = -1;
+		}
 		else
 			goto fail;
 	}
