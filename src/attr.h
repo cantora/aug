@@ -32,8 +32,13 @@
 #define AUG_REQ_PAIRS AUG_REQ_COLORS*AUG_REQ_COLORS 
 #define AUG_TOTAL_ANSI_COLORS (AUG_ANSI_COLORS*2) /* normal + bright */
 
-const VTermColor DEFAULT_COLOR; /* placeholder for default color */
+const VTermColor VTERM_DEFAULT_COLOR; /* placeholder for default color */
 
+#ifndef COLOR_DEFAULT
+#	define COLOR_DEFAULT -1
+#endif
+
+void attr_curses_colors_to_curses_pair(int fg, int bg, int *pair);
 void attr_vterm_index_to_curses_index(int vterm_index, int *curses_index, int *bright);
 int attr_vterm_color_to_curses_color(VTermColor color, int *curses_color, int *bright);
 void attr_vterm_color_to_nearest_curses_color(VTermColor color, int *curses_color, int *bright);

@@ -26,6 +26,40 @@ const VTermColor DEFAULT_COLOR = {
 	.blue = 1
 };
 
+/* this relies on the ncurses implementation setting the
+ * COLOR_* variables to 0 through 7 with COLOR_DEFAULT = -1.
+ * it creates a bijection from {-1, 0, ..., 7} to 
+ * {0, ..., 8} such that -1 maps to 0. this is all
+ * done because the ncurses pair 0 is always 
+ * default foreground on default background, so 
+ * COLOR_DEFAULT, COLOR_DEFAULT = -1, -1, must map
+ * to pair 0.
+ */
+static int map_curses_color_index(int index) {
+	int result;
+
+	assert(index <= 7);
+	assert(index >= -1);
+
+	switch(index) {
+	case -1:
+		result = 0;
+	default:
+		result = index + 1;		
+	}		
+
+	return result;
+}
+
+/* assumes that curses COLOR_* variables are in the range 0-7
+ */
+void attr_curses_colors_to_curses_pair(int fg, int bg, int *pair) {
+	*pair = map_curses_color_index(fg)*AUG_REQ_COLORS + map_curses_color_index(bg);
+
+	assert(*pair < AUG_REQ_PAIRS);
+	assert(*pair >= 0);
+}
+
 void attr_vterm_index_to_curses_index(int vterm_index, int *curses_index, int *bright) {
 	assert(vterm_index >= -1 && vterm_index < 16);
 	
@@ -38,31 +72,31 @@ void attr_vterm_index_to_curses_index(int vterm_index, int *curses_index, int *b
 
 	switch(vterm_index) {
 	case -1:
-		*curses_index = 0;
+		*curses_index = COLOR_DEFAULT;
 		break;
 	case VTERM_ANSI_BLACK:
-		*curses_index = 8;
+		*curses_index = COLOR_BLACK;
 		break;
 	case VTERM_ANSI_RED:
-		*curses_index = 7;
+		*curses_index = COLOR_RED;
 		break;
 	case VTERM_ANSI_GREEN:
-		*curses_index = 6;
+		*curses_index = COLOR_GREEN;
 		break;
 	case VTERM_ANSI_YELLOW:
-		*curses_index = 5;
+		*curses_index = COLOR_YELLOW;
 		break;
 	case VTERM_ANSI_BLUE:
-		*curses_index = 4;
+		*curses_index = COLOR_BLUE;
 		break;
 	case VTERM_ANSI_MAGENTA:
-		*curses_index = 3;
+		*curses_index = COLOR_MAGENTA;
 		break;
 	case VTERM_ANSI_CYAN:
-		*curses_index = 2;
+		*curses_index = COLOR_CYAN;
 		break;
 	default: /* VTERM_ANSI_WHITE */
-		*curses_index = 1;
+		*curses_index = COLOR_WHITE;
 	}
 }
 
@@ -74,7 +108,7 @@ int attr_vterm_color_to_curses_color(VTermColor color, int *curses_color, int *b
 			break;
 	}
 	if(i == AUG_TOTAL_ANSI_COLORS) {
-		if( vterm_color_equal(&color, &DEFAULT_COLOR) )
+		if( vterm_color_equal(&color, &VTERM_DEFAULT_COLOR) )
 			i = -1;
 		else
 			goto fail;
@@ -118,7 +152,7 @@ void attr_vterm_pair_to_curses_pair(VTermColor fg, VTermColor bg, attr_t *attr, 
 		fprintf(stderr, "attr_vterm_pair_to_curses_pair: mapped bg color %d,%d,%d to color %d\n", bg.red, bg.green, bg.blue, curs_bg);
 	}
 	
-	*pair = AUG_REQ_COLORS*curs_fg + curs_bg;
+	attr_curses_colors_to_curses_pair(curs_fg, curs_bg, pair);
 
 	if(bright_fg)
 		*attr |= A_BOLD;
@@ -144,3 +178,4 @@ void attr_vterm_attr_to_curses_attr(const VTermScreenCell *cell, attr_t *attr) {
 
 	*attr = result;
 }
+
