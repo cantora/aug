@@ -110,12 +110,7 @@ void screen_free() {
 }
 
 void screen_set_term(VTerm *term) {
-	VTermState *state;
-
 	g.vt = term;
-	state = vterm_obtain_state(g.vt);
-	/* have to cast default_color because the api isnt const correct */
-	vterm_state_set_default_colors(state, (VTermColor *) &VTERM_DEFAULT_COLOR, (VTermColor *) &VTERM_DEFAULT_COLOR);	
 }
 
 void screen_dims(unsigned short *rows, unsigned short *cols) {

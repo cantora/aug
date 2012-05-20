@@ -18,6 +18,8 @@
 #ifndef AUG_TERM_H
 #define AUG_TERM_H
 
+#include "vterm.h"
+
 struct aug_term_io_callbacks_t {
 	void (*refresh)(void *user);
 };
@@ -26,11 +28,13 @@ struct aug_term_t {
 	VTerm *vt;
 	int master;
 	struct aug_term_io_callbacks_t io_callbacks;
+	void *user;
 };
 
 void term_init(struct aug_term_t *term, int rows, int cols);
-void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *callbacks, 
-							const aug_term_io_callbacks_t *io_callbacks, void *user);
+void term_free(struct aug_term_t *term);
+void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *screen_callbacks, 
+							const struct aug_term_io_callbacks_t *io_callbacks, void *user);
 void term_set_master(struct aug_term_t *term, int master);
 
 #endif /* AUG_TERM_H */

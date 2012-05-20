@@ -49,23 +49,44 @@
 #include "err.h"
 #include "timer.h"
 #include "opt.h"
+#include "term.h"
 
 #define BUF_SIZE 2048*4
 
 /* globals */
 static struct {
 	struct sigaction winch_act, prev_winch_act; /* structs for handing window size change */
-	int master;		/* master pty */
-	VTerm *vt;		/* libvterm virtual terminal pointer */
+	struct aug_term_t term;
 	char buf[BUF_SIZE]; /* IO buffer */
 	struct aug_conf conf;
 } g; 
+
+static void change_winch(int how) {
+	sigset_t set;
+
+	if(sigemptyset(&set) != 0) 
+		err_exit(errno, "sigemptyset failed"); 
+
+	if(sigaddset(&set, SIGWINCH) != 0) 
+		err_exit(errno, "sigaddset failed");
+
+	if(sigprocmask(how, &set, NULL) != 0)
+		err_exit(errno, "sigprocmask failed");
+}
+
+static inline void block_winch() {
+	change_winch(SIG_BLOCK);
+}
+
+static inline void unblock_winch() {
+	change_winch(SIG_UNBLOCK);
+}
 
 /* handler for SIGWINCH */
 static void handler_winch(int signo) {
 	struct winsize size;
 
-	vterm_screen_flush_damage(vterm_obtain_screen(g.vt) );
+	vterm_screen_flush_damage(vterm_obtain_screen(g.term.vt) );
 
 	if(g.prev_winch_act.sa_handler != NULL) {
 		(*g.prev_winch_act.sa_handler)(signo);
@@ -75,11 +96,11 @@ static void handler_winch(int signo) {
 	screen_dims(&size.ws_row, &size.ws_col);
 
 	fprintf(stderr, "resize to %d,%d\n", size.ws_row, size.ws_col);
-	if(ioctl(g.master, TIOCSWINSZ, &size) != 0) 
+	if(ioctl(g.term.master, TIOCSWINSZ, &size) != 0) 
 		err_exit(errno, "ioctl(TIOCSWINSZ) failed");
 
 	/* this should cause full screen damage and screen will be repainted */
-	vterm_set_size(g.vt, size.ws_row, size.ws_col);
+	vterm_set_size(g.term.vt, size.ws_row, size.ws_col);
 }
 
 static void process_input(VTerm *vt, int master) {
@@ -117,7 +138,7 @@ static int process_output(VTerm *vt, int master) {
 	return 0;
 }
 
-void loop(VTerm *vt, int master) {
+void loop(struct aug_term_t *term) {
 	fd_set in_fds;
 	int status, force_refresh, just_refreshed;
 
@@ -133,7 +154,7 @@ void loop(VTerm *vt, int master) {
 	while(1) {
 		FD_ZERO(&in_fds);
 		FD_SET(STDIN_FILENO, &in_fds);
-		FD_SET(master, &in_fds);
+		FD_SET(term->master, &in_fds);
 
 		/* if we just refreshed the screen there
 		 * is no need to timeout the select wait. 
@@ -150,7 +171,7 @@ void loop(VTerm *vt, int master) {
 		 * SIGWINCH signals here
 		 */
 		unblock_winch(); 
-		if(select(master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
+		if(select(term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
 				block_winch();
 				continue;
@@ -160,8 +181,8 @@ void loop(VTerm *vt, int master) {
 		}
 		block_winch();
 
-		if(FD_ISSET(master, &in_fds) ) {
-			if(process_output(vt, master) != 0)
+		if(FD_ISSET(term->master, &in_fds) ) {
+			if(process_output(term->vt, term->master) != 0)
 				return;
 
 			timer_init(&inter_io_timer);
@@ -183,7 +204,9 @@ void loop(VTerm *vt, int master) {
 		 * refreshing the screen with stuff that just gets scrolled off
 		 */
 		if(force_refresh != 0 || (status = timer_thresh(&inter_io_timer, 0, 10000) ) == 1 ) {
-			screen_refresh();
+			if(term->io_callbacks.refresh != NULL)
+				(*term->io_callbacks.refresh)(term->user); /* call the term refresh callback */
+
 			timer_init(&inter_io_timer);
 			timer_init(&refresh_expire);
 			force_refresh = 0;
@@ -195,37 +218,41 @@ void loop(VTerm *vt, int master) {
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
 		if(FD_ISSET(STDIN_FILENO, &in_fds) ) {
-			process_input(vt, master);
+			process_input(term->vt, term->master);
 
 			force_refresh = 1;
 		}
 	}
 }
 
-void err_exit_cleanup(int error) {
+static void err_exit_cleanup(int error) {
 	(void)(error);
 
 	screen_free();
 }
 
+static void refresh(void *user) {
+	(void)user;
+
+	screen_refresh();
+}
+
 int main(int argc, char *argv[]) {
-	VTermScreen *vts;
 	pid_t child;
 	struct winsize size;
 	const char *debug_file, *env_term;
 	struct termios child_termios;
-	
-	/* block winch right off the bat
-	 * because we want to defer 
-	 * processing of it until 
-	 * curses and vterm are set up
-	 */
-	block_winch();
+	int master;
+	VTermScreenCallbacks screen_cbs = {
+		.damage = screen_damage,
+		.movecursor = screen_movecursor,
+		.bell = screen_bell,
+		.settermprop = screen_settermprop
+	};
+	struct aug_term_io_callbacks_t term_io_cbs = {
+		.refresh = refresh
+	};
 
-	g.winch_act.sa_handler = handler_winch;
-	sigemptyset(&g.winch_act.sa_mask);
-	g.winch_act.sa_flags = 0;
-	
 	opt_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
 		switch(errno) {
@@ -250,12 +277,7 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "tcgetattr failed");
 	}
 
-  	VTermScreenCallbacks screen_cbs = {
-		.damage = screen_damage,  /* for now we refresh the screen at our own rate based on a timer */
-		.movecursor = screen_movecursor,
-		.bell = screen_bell,
-		.settermprop = screen_settermprop
-	};
+	
 
 	if(g.conf.debug_file != NULL)
 		debug_file = g.conf.debug_file;
@@ -275,25 +297,27 @@ int main(int argc, char *argv[]) {
 	if(g.conf.ncterm != NULL)
 		if(setenv("TERM", g.conf.ncterm, 1) != 0)
 			err_exit(errno, "error setting environment variable: %s", g.conf.ncterm);
-					
+
+
+	/* block winch right off the bat
+	 * because we want to defer 
+	 * processing of it until 
+	 * curses and vterm are set up
+	 */
+	block_winch();
+	g.winch_act.sa_handler = handler_winch;
+	sigemptyset(&g.winch_act.sa_mask);
+	g.winch_act.sa_flags = 0;
+
 	if(screen_init() != 0)
 		err_exit(0, "screen_init failure");
 
 	err_exit_cleanup_fn(err_exit_cleanup);
 
 	screen_dims(&size.ws_row, &size.ws_col);
-	g.vt = vterm_new(size.ws_row, size.ws_col);
-	screen_set_term(g.vt);
-
-	vterm_parser_set_utf8(g.vt, 1);
-
-	vts = vterm_obtain_screen(g.vt);
-	vterm_screen_enable_altscreen(vts, 1);
-	
-	vterm_screen_reset(vts);
-
-	vterm_screen_set_callbacks(vts, &screen_cbs, NULL);
-	/*vterm_screen_set_damage_merge(vts, VTERM_DAMAGE_SCROLL);*/
+	term_init(&g.term, size.ws_row, size.ws_col);
+	screen_set_term(g.term.vt);
+	term_set_callbacks(&g.term, &screen_cbs, &term_io_cbs, NULL);
 
 	if(g.conf.nocolor == 0)
 		if(screen_color_start() != 0) {
@@ -301,7 +325,7 @@ int main(int argc, char *argv[]) {
 			goto cleanup;
 		}
 
-	child = forkpty(&g.master, NULL, &child_termios, &size);
+	child = forkpty(&master, NULL, &child_termios, &size);
 	if(child == 0) {
 		const char *child_term;
 		/* set terminal profile for CHILD to supplied --term arg if exists 
@@ -328,16 +352,17 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "cannot exec %s", g.conf.cmd_argv[0]);
 	}
 
-	if(set_nonblocking(g.master) != 0)
+	if(set_nonblocking(master) != 0)
 		err_exit(errno, "failed to set master fd to non-blocking");
-	
+	term_set_master(&g.term, master);
+
 	if(sigaction(SIGWINCH, &g.winch_act, &g.prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 	
-	loop(g.vt, g.master);
+	loop(&g.term);
 
 cleanup:
-	vterm_free(g.vt);
+	term_free(&g.term);
 	screen_free();
 
 	return 0;
