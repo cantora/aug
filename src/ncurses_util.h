@@ -21,11 +21,24 @@
 /* return zero if point (x,y) is not contained in the 
  * window else return non-zero.
  */
-static inline int win_contained(WINDOW *win, int y, int x) {
-	int maxx, maxy;
+static inline int win_contained(const WINDOW *win, int y, int x) {
+	int maxx, maxy, begx, begy;
 
+	getbegyx(win, begy, begx);
 	getmaxyx(win, maxy, maxx);	
-	return (x < maxx) && (y < maxy);
+	return (x >= begx) && (y >= begy) && (x < maxx) && (y < maxy);
+}
+
+static inline void win_dims(const WINDOW *win, int *rows, int *cols) {
+	int maxx, maxy, begx, begy;
+
+	getbegyx(win, begy, begx);
+	getmaxyx(win, maxy, maxx);
+	*rows = maxy - begy;
+	*cols = maxx - begx;
+	
+	assert(*rows > 0);
+	assert(*cols > 0);	
 }
 
 #endif /* AUG_NCURSES_UTIL_H */
