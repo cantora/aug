@@ -92,9 +92,17 @@ static void handler_winch(int signo) {
 		(*g.prev_winch_act.sa_handler)(signo);
 	}
 
+	/* tell the screen manager to resize to whatever the new
+	 * size is (curses knows already). the screen manager
+	 * resizes all its windows, then tells the terminal window
+	 * manager and plugins about the resize */
 	screen_resize();
 	screen_dims(&size.ws_row, &size.ws_col);
 
+	/* this stuff needs to be moved out of here to somewhere
+	 * where it is known what size the terminal window 
+	 * ended up resizing to. that place also needs access to 
+	 * the master fd. */
 	fprintf(stderr, "resize to %d,%d\n", size.ws_row, size.ws_col);
 	if(ioctl(g.term.master, TIOCSWINSZ, &size) != 0) 
 		err_exit(errno, "ioctl(TIOCSWINSZ) failed");

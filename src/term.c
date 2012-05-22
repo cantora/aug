@@ -17,6 +17,7 @@
  */
 #include "term.h"
 #include "attr.h"
+#include <sys/ioctl.h>
 
 void term_init(struct aug_term_t *term, int rows, int cols) {
 	VTermScreen *vts;
@@ -53,4 +54,22 @@ void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *scr
 
 void term_set_master(struct aug_term_t *term, int master) {
 	term->master = master;
+}
+
+
+int term_resize(struct aug_term_t *term, int rows, int cols) {
+	struct winsize size = {
+		.ws_row = rows,
+		.ws_col = cols
+	};
+
+	if(ioctl(term->master, TIOCSWINSZ, &size) != 0) 
+		return -1;
+
+	/* this should cause full damage and the window will be repainted
+	 * by a .damage callback
+	 */
+	vterm_set_size(term->vt, size.ws_row, size.ws_col);
+
+	return 0;
 }
