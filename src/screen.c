@@ -30,6 +30,7 @@
 #include "util.h"
 #include "err.h"
 #include "attr.h"
+#include "ncurses_util.h"
 
 static int term_win_free();
 static int term_win_init();
@@ -41,14 +42,6 @@ static struct {
 	int color_on;
 	WINDOW *term_win;
 } g;	
-
-
-static inline int win_contained(WINDOW *win, int y, int x) {
-	int maxx, maxy;
-
-	getmaxyx(win, maxy, maxx);	
-	return (x < maxx) && (y < maxy);
-}
 
 int screen_init() {
 	g.vt = NULL;
