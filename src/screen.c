@@ -31,33 +31,30 @@
 #include "err.h"
 #include "attr.h"
 #include "ncurses_util.h"
+#include "term_win.h"
 
-static int term_win_free();
-static int term_win_init();
-static void update_cell(VTermScreen *vts, VTermPos pos);
+static int free_term_win();
+static int init_term_win();
 
 /* globals */
 static struct {
-	VTerm *vt;
 	int color_on;
-	WINDOW *term_win;
+	struct aug_term_win_t term_win;
 } g;	
 
 int screen_init() {
-	g.vt = NULL;
 	g.color_on = 0;
-	g.term_win = NULL;
 	
 	initscr();
 	if(raw() == ERR) 
 		goto fail;
 	if(noecho() == ERR) 
 		goto fail;
-	if(term_win_init() != 0)
+	if(init_term_win() != 0)
 		goto fail;
-	if(nodelay(g.term_win, true) == ERR) 
+	if(nodelay(g.term_win.win, true) == ERR) 
 		goto fail;
-	if(keypad(g.term_win, false) == ERR) /* libvterm interprets keys for us */
+	if(keypad(g.term_win.win, false) == ERR) /* libvterm interprets keys for us */
 		goto fail;
 	if(nonl() == ERR) 
 		goto fail;
@@ -68,23 +65,26 @@ fail:
 	return -1;
 }
 
-static int term_win_free() {
-	if(g.term_win != NULL)
-		if(delwin(g.term_win) == ERR)
+static int free_term_win() {
+	if(g.term_win.win != NULL)
+		if(delwin(g.term_win.win) == ERR)
 			return -1;
 
 	return 0;	
 }
 
-static int term_win_init() {
+static int init_term_win() {
+	WINDOW *win;
 
-	if(term_win_free() != 0)
+	if(free_term_win() != 0)
 		goto fail;
 
-	g.term_win = newwin(LINES, COLS, 0, 0);
+	win = newwin(LINES, COLS, 0, 0);
 
-	if(g.term_win == NULL)
+	if(win == NULL)
 		goto fail;
+
+	term_win_init(&g.term_win, win);
 
 	return 0;
 fail:
@@ -92,18 +92,15 @@ fail:
 }
 
 void screen_free() {
-	g.vt = NULL;
-
-	if(term_win_free() != 0)
-		err_exit(0, "term_win_free failed!");
-	g.term_win = NULL;
+	if(free_term_win() != 0)
+		err_exit(0, "free_term_win failed!");
 
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
 }
 
-void screen_set_term(VTerm *term) {
-	g.vt = term;
+void screen_set_term(struct aug_term_t *term) {
+	term_win_set_term(&g.term_win, term);
 }
 
 void screen_dims(unsigned short *rows, unsigned short *cols) {
@@ -111,19 +108,15 @@ void screen_dims(unsigned short *rows, unsigned short *cols) {
 	*cols = COLS;
 }
 
-void screen_term_win_dims(unsigned short *rows, unsigned short *cols) {
-	getmaxyx(g.term_win, *rows, *cols);
-}
-
 int screen_getch(int *ch) {
-	*ch = wgetch(g.term_win);
+	*ch = wgetch(g.term_win.win);
 
 	/* resize will be handled by signal
 	 * so flush out all the resize keys
 	 */
 	if(*ch == KEY_RESIZE) 
 		while(*ch == KEY_RESIZE) {
-			*ch = wgetch(g.term_win);
+			*ch = wgetch(g.term_win.win);
 		}
 
 	if(*ch == ERR) 
@@ -204,74 +197,14 @@ fail:
 	return -1;
 }
 
-static void update_cell(VTermScreen *vts, VTermPos pos) {
-	VTermScreenCell cell;
-	attr_t attr;
-	int pair;
-	cchar_t cch;
-	wchar_t *wch;
-	wchar_t erasech = L' ';
-	int maxx, maxy;
-
-	getmaxyx(g.term_win, maxy, maxx);
-
-	/* sometimes this happens when
-	 * a window resize recently happened
-	 */
-	if(!win_contained(g.term_win, pos.row, pos.col) ) {
-		fprintf(stderr, "tried to update out of bounds cell at %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
-		return;
-	}
-
-	vterm_screen_get_cell(vts, pos, &cell);	
-	attr_vterm_attr_to_curses_attr(&cell, &attr);
-	if(g.color_on)
-		attr_vterm_pair_to_curses_pair(cell.fg, cell.bg, &attr, &pair);
-	else
-		pair = 0;
-
-	
-	wch = (cell.chars[0] == 0)? &erasech : (wchar_t *) &cell.chars[0];
-	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
-		err_exit(0, "setcchar failed");
-
-	if(wmove(g.term_win, pos.row, pos.col) == ERR)
-		err_exit(0, "move failed: %d/%d, %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
-
-	if(wadd_wch(g.term_win, &cch) == ERR && pos.row != (maxy-1) && pos.col != (maxx-1) )
-		err_exit(0, "add_wch failed at %d/%d, %d/%d: ", pos.row, maxy-1, pos.col, maxx-1);
-
-}
-
 void screen_refresh() {
-	if(wrefresh(g.term_win) == ERR)
-		err_exit(0, "wrefresh failed!");
+	term_win_refresh(&g.term_win);
 }
 
 int screen_damage(VTermRect rect, void *user) {
-	VTermScreen *vts = vterm_obtain_screen(g.vt);
-	VTermPos pos;
-	int x,y,maxx,maxy;
+	(void)(user);
 
-	(void)(user); /* user not used */
-
-	/* save cursor value */
-	getyx(g.term_win, y, x);
-	getmaxyx(g.term_win, maxy, maxx);
-
-	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
-		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
-			update_cell(vts, pos);
-		}
-	}
-
-	/* restore cursor (repainting shouldnt modify cursor) */
-	if(wmove(g.term_win, y,x) == ERR) 
-		err_exit(0, "move failed: %d/%d %d/%d", y, maxy, x, maxx);
-
-	/*fprintf(stderr, "\tdamage: (%d,%d) (%d,%d) \n", rect.start_row, rect.start_col, rect.end_row, rect.end_col);*/
-
-	return 1;
+	return term_win_damage(&g.term_win, rect, g.color_on);
 }
 
 /*
@@ -282,27 +215,11 @@ int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 }*/
 
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
-	int maxx, maxy;
-	(void)(user); /* user is not used */
-	(void)(oldpos); /* oldpos not used */
+	(void)(oldpos);
 	(void)(visible);
+	(void)(user);
 
-	getmaxyx(g.term_win, maxy, maxx);
-		
-	/* sometimes this happens when
-	 * a window resize recently happened
-	 */
-	if(!win_contained(g.term_win, pos.row, pos.col) ) {
-		fprintf(stderr, "tried to move cursor out of bounds to %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
-		return 1;
-	}
-
-	if(wmove(g.term_win, pos.row, pos.col) == ERR)
-		err_exit(0, "move failed: %d/%d %d/%d", pos.row, maxy-1, pos.col, maxx-1);
-
-	/*fprintf(stderr, "\tmove cursor: %d, %d\n", pos.row, pos.col);*/
-
-	return 1;
+	return term_win_movecursor(&g.term_win, pos);
 }
 
 int screen_bell(void *user) {
@@ -355,9 +272,9 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user) {
 void screen_resize() {
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
+	
+	screen_refresh();
 
-	/*if(refresh() == ERR)
-		err_exit(0, "refresh failed!");*/
-
-	screen_refresh();	
+	wresize(g.term_win.win, LINES, COLS);
+	term_win_resize(&g.term_win);
 }

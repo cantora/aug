@@ -40,7 +40,7 @@ void term_win_set_term(struct aug_term_win_t *tw, struct aug_term_t *term) {
 	tw->term = term;
 }
 
-void term_win_dims(struct aug_term_win_t *tw, unsigned short *rows, unsigned short *cols) {
+void term_win_dims(const struct aug_term_win_t *tw, unsigned short *rows, unsigned short *cols) {
 	getmaxyx(tw->win, *rows, *cols);
 }
 

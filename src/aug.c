@@ -97,18 +97,6 @@ static void handler_winch(int signo) {
 	 * resizes all its windows, then tells the terminal window
 	 * manager and plugins about the resize */
 	screen_resize();
-	screen_dims(&size.ws_row, &size.ws_col);
-
-	/* this stuff needs to be moved out of here to somewhere
-	 * where it is known what size the terminal window 
-	 * ended up resizing to. that place also needs access to 
-	 * the master fd. */
-	fprintf(stderr, "resize to %d,%d\n", size.ws_row, size.ws_col);
-	if(ioctl(g.term.master, TIOCSWINSZ, &size) != 0) 
-		err_exit(errno, "ioctl(TIOCSWINSZ) failed");
-
-	/* this should cause full screen damage and screen will be repainted */
-	vterm_set_size(g.term.vt, size.ws_row, size.ws_col);
 }
 
 static void process_input(VTerm *vt, int master) {
@@ -324,7 +312,7 @@ int main(int argc, char *argv[]) {
 
 	screen_dims(&size.ws_row, &size.ws_col);
 	term_init(&g.term, size.ws_row, size.ws_col);
-	screen_set_term(g.term.vt);
+	screen_set_term(&g.term);
 	term_set_callbacks(&g.term, &screen_cbs, &term_io_cbs, NULL);
 
 	if(g.conf.nocolor == 0)

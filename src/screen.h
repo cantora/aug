@@ -20,6 +20,7 @@
 #define AUG_SCREEN_H
 
 #include "vterm.h"
+#include "term.h"
 
 enum screen_err {
 	SCN_ERR_NONE = 0,
@@ -34,9 +35,8 @@ enum screen_err {
 
 int screen_init();
 void screen_free();
-void screen_set_term(VTerm *term);
+void screen_set_term(struct aug_term_t *term);
 void screen_dims(unsigned short *rows, unsigned short *cols);
-void screen_term_win_dims(unsigned short *rows, unsigned short *cols);
 int screen_getch(int *ch);
 /*void screen_err_msg(int error, char **msg);*/
 int screen_color_start();
@@ -48,4 +48,5 @@ int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user);
 int screen_bell(void *user);
 int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
 void screen_resize();
+
 #endif /* AUG_SCREEN_H */
