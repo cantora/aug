@@ -130,14 +130,18 @@ static void write_n_or_exit(int fd, const void *buf, size_t n) {
 	}
 }
 
-static void process_input(VTerm *vt, int master) {
+static void process_keys(VTerm *vt, int master) {
 	int ch;
-	size_t buflen;
 
 	while(vterm_output_get_buffer_remaining(vt) > 0 && screen_getch(&ch) == 0 ) {
 		vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
 	}
-		
+	
+}
+
+static void process_vterm_output(VTerm *vt, int master) {
+	size_t buflen;
+
 	while( (buflen = vterm_output_get_buffer_current(vt) ) > 0) {
 		buflen = (buflen < BUF_SIZE)? buflen : BUF_SIZE;
 		buflen = vterm_output_bufferread(vt, g.buf, buflen);
@@ -145,7 +149,7 @@ static void process_input(VTerm *vt, int master) {
 	}
 }
 
-static int process_output(VTerm *vt, int master) {
+static int process_master_output(VTerm *vt, int master) {
 	ssize_t n_read, total_read;
 
 	total_read = 0;
@@ -190,7 +194,7 @@ void loop(VTerm *vt, int master) {
 		 * is given a chance to timeout and cause a refresh.
 		 */
 		tv_select.tv_sec = 0;
-		tv_select.tv_usec = 5000;
+		tv_select.tv_usec = 1000;
 		tv_select_p = (just_refreshed == 0)? &tv_select : NULL;
 
 		/* most of this process's time is spent waiting for
@@ -209,9 +213,10 @@ void loop(VTerm *vt, int master) {
 		block_winch();
 
 		if(FD_ISSET(master, &in_fds) ) {
-			if(process_output(vt, master) != 0)
+			if(process_master_output(vt, master) != 0)
 				return;
 
+			process_vterm_output(vt, master);
 			timer_init(&inter_io_timer);
 		}
 
@@ -219,8 +224,8 @@ void loop(VTerm *vt, int master) {
 		 * look like frozen I/O. the user should see characters
 		 * whizzing by if there is that much output.
 		 */
-		if( (status = timer_thresh(&refresh_expire, 0, 300000)) ) { 
-			force_refresh = 1; /* must refresh at least 3 times per second */
+		if( (status = timer_thresh(&refresh_expire, 0, 50000)) ) { 
+			force_refresh = 1; /* must refresh at least 20 times per second */
 		}
 		else if(status < 0)
 			err_exit(errno, "timer error");
@@ -230,7 +235,7 @@ void loop(VTerm *vt, int master) {
 		 * and then refresh the screen, otherwise we waste a bunch of time
 		 * refreshing the screen with stuff that just gets scrolled off
 		 */
-		if(force_refresh != 0 || (status = timer_thresh(&inter_io_timer, 0, 10000) ) == 1 ) {
+		if(force_refresh != 0 || (status = timer_thresh(&inter_io_timer, 0, 700) ) == 1 ) {
 			screen_refresh();
 			timer_init(&inter_io_timer);
 			timer_init(&refresh_expire);
@@ -243,8 +248,8 @@ void loop(VTerm *vt, int master) {
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
 		if(FD_ISSET(STDIN_FILENO, &in_fds) ) {
-			process_input(vt, master);
-
+			process_keys(vt, master);
+			process_vterm_output(vt, master);
 			force_refresh = 1;
 		}
 	}
