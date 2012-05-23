@@ -52,24 +52,35 @@ void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *scr
 	term->io_callbacks = *io_callbacks;
 }
 
-void term_set_master(struct aug_term_t *term, int master) {
-	term->master = master;
-}
-
-
-int term_resize(struct aug_term_t *term, int rows, int cols) {
+static int term_resize_master(struct aug_term_t *term, int rows, int cols) {
 	struct winsize size = {
 		.ws_row = rows,
 		.ws_col = cols
 	};
 
-	if(ioctl(term->master, TIOCSWINSZ, &size) != 0) 
-		return -1;
+	if(ioctl(term->master, TIOCSWINSZ, &size) != 0)
+		return -1; 
+
+	return 0;
+}
+
+void term_set_master(struct aug_term_t *term, int master) {
+	int rows, cols;
+
+	term->master = master;
+	vterm_get_size(term->vt, &rows, &cols);
+	term_resize_master(term, rows, cols);	
+}
+
+int term_resize(struct aug_term_t *term, int rows, int cols) {
+	fprintf(stderr, "term: resize %d, %d\n", rows, cols);
+	if(term->master != 0) /* only resize the master if we have a valid pty */
+		term_resize_master(term, rows, cols);
 
 	/* this should cause full damage and the window will be repainted
 	 * by a .damage callback
 	 */
-	vterm_set_size(term->vt, size.ws_row, size.ws_col);
+	vterm_set_size(term->vt, rows, cols);
 
 	return 0;
 }

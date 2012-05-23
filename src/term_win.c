@@ -51,10 +51,9 @@ void term_win_dims(const struct aug_term_win_t *tw, int *rows, int *cols) {
  * we have to add the offset). 
  */
 static int term_win_contained(struct aug_term_win_t *tw, int y, int x) {
-	int begx, begy;
-
-	getbegyx(tw->win, begy, begx);
-	return win_contained(tw->win, begy + y, begx + x);
+	//int begx, begy;
+	//getbegyx(tw->win, begy, begx);
+	return win_contained(tw->win, y, x);
 }
 
 void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on) {
@@ -65,10 +64,9 @@ void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on)
 	cchar_t cch;
 	wchar_t *wch;
 	wchar_t erasech = L' ';
-	int maxx, maxy, begx, begy;
+	int maxx, maxy;
 
 	getmaxyx(tw->win, maxy, maxx);
-	getbegyx(tw->win, begy, begx);
 
 	/* sometimes this happens when
 	 * a window resize recently happened
@@ -94,7 +92,7 @@ void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on)
 		err_exit(0, "move failed: %d/%d, %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 
 	/* sometimes writing to the last cell fails... but it doesnt matter? */
-	if(wadd_wch(tw->win, &cch) == ERR && (begy + pos.row) != (maxy-1) && (begx + pos.col) != (maxx-1) )
+	if(wadd_wch(tw->win, &cch) == ERR && (pos.row) != (maxy-1) && (pos.col) != (maxx-1) )
 		err_exit(0, "add_wch failed at %d/%d, %d/%d: ", pos.row, maxy-1, pos.col, maxx-1);
 
 }
@@ -150,6 +148,7 @@ void term_win_resize(struct aug_term_win_t *tw) {
 	/* get the size of the window */
 	win_dims(tw->win, &rows, &cols);
 
+	fprintf(stderr, "term_win: resize to %d, %d\n", rows, cols);
 	if(term_resize(tw->term, rows, cols) != 0)
 		err_exit(errno, "error resizing terminal!");
 }

@@ -78,16 +78,9 @@ static int init_term_win() {
 	if(free_term_win() != 0)
 		goto fail;
 
-	win = newwin(5, 5, 10, 10);
+	win = newwin(10, 100, 5, 25);
 
 	int begy, begx, maxy, maxx, y, x;
-	getyx(win, y, x);
-	fprintf(stderr, "curs: %d, %d\n", y, x);
-	wmove(win, 2, 3);
-	getyx(win, y, x);
-	fprintf(stderr, "curs: %d, %d\n", y, x);
-	getyx(curscr, y, x);
-	fprintf(stderr, "curs: %d, %d\n", y, x);
 	getbegyx(win, begy, begx);
 	getmaxyx(win, maxy, maxx);
 	fprintf(stderr, "win: %d->%d, %d->%d\n", begy, maxy, begx, maxx);
@@ -286,6 +279,7 @@ void screen_resize() {
 	
 	screen_refresh();
 
+	fprintf(stderr, "screen: resize to %d, %d\n", LINES, COLS);
 	wresize(g.term_win.win, LINES, COLS);
 	term_win_resize(&g.term_win);
 }

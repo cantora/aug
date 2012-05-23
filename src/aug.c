@@ -84,11 +84,13 @@ static inline void unblock_winch() {
 
 /* handler for SIGWINCH */
 static void handler_winch(int signo) {
-	struct winsize size;
 
+	fprintf(stderr, "handler_winch in process %d\n", getpid());
 	vterm_screen_flush_damage(vterm_obtain_screen(g.term.vt) );
 
+	/* in case curses installed a winch handler */
 	if(g.prev_winch_act.sa_handler != NULL) {
+		fprintf(stderr, "call previous winch handler\n");
 		(*g.prev_winch_act.sa_handler)(signo);
 	}
 
@@ -273,8 +275,6 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "tcgetattr failed");
 	}
 
-	
-
 	if(g.conf.debug_file != NULL)
 		debug_file = g.conf.debug_file;
 	else
@@ -285,7 +285,6 @@ int main(int argc, char *argv[]) {
 	}
 		
 	setlocale(LC_ALL,"");
-	
 	
 	env_term = getenv("TERM"); 
 	/* set the PARENT terminal profile to --ncterm if supplied.
@@ -307,11 +306,14 @@ int main(int argc, char *argv[]) {
 
 	if(screen_init() != 0)
 		err_exit(0, "screen_init failure");
+	fprintf(stderr, "initialized screen\n");
 
 	err_exit_cleanup_fn(err_exit_cleanup);
 
 	screen_dims(&size.ws_row, &size.ws_col);
+	fprintf(stderr, "screen dims: %d, %d\n", size.ws_row, size.ws_col);
 	term_init(&g.term, size.ws_row, size.ws_col);
+	fprintf(stderr, "initialized term\n");
 	screen_set_term(&g.term);
 	term_set_callbacks(&g.term, &screen_cbs, &term_io_cbs, NULL);
 

@@ -22,20 +22,18 @@
  * window else return non-zero.
  */
 static inline int win_contained(const WINDOW *win, int y, int x) {
-	int maxx, maxy, begx, begy;
+	int maxx, maxy;
 
-	getbegyx(win, begy, begx);
 	getmaxyx(win, maxy, maxx);	
-	return (x >= begx) && (y >= begy) && (x < maxx) && (y < maxy);
+	return (x < maxx) && (y < maxy);
 }
 
 static inline void win_dims(const WINDOW *win, int *rows, int *cols) {
-	int maxx, maxy, begx, begy;
+	int maxx, maxy;
 
-	getbegyx(win, begy, begx);
 	getmaxyx(win, maxy, maxx);
-	*rows = maxy - begy;
-	*cols = maxx - begx;
+	*rows = maxy;
+	*cols = maxx;
 	
 	assert(*rows > 0);
 	assert(*cols > 0);	
