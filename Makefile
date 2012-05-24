@@ -2,7 +2,11 @@
 
 DEFAULT_CMD		= '{"/bin/sh", NULL}'
 DEFAULT_TERM	= \"screen\"
-DEFINES			= -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE -DAUG_DEFAULT_TERM=$(DEFAULT_TERM) -DAUG_DEFAULT_ARGV=$(DEFAULT_CMD)
+
+DEFINES			= -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE
+DEFINES			+= -DAUG_DEFAULT_TERM=$(DEFAULT_TERM)
+DEFINES			+= -DAUG_DEFAULT_ARGV=$(DEFAULT_CMD)
+
 OUTPUT			= aug
 BUILD			= ./build
 MKBUILD			:= $(shell mkdir -p $(BUILD) )
@@ -10,13 +14,19 @@ LIBVTERM		= ./libvterm/.libs/libvterm.a
 CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
 LIB 			= -lutil -lncursesw $(LIBVTERM) $(LIBCCAN)
-INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -iquote"./src" -iquote"./include" -I$(CCAN_DIR)
+
+INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -I$(CCAN_DIR)
+INCLUDES		+= -iquote"./src" -iquote"./include"
+
 OPTIMIZE		= -ggdb #-O3
 CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES)
 CXX_CMD			= gcc $(CXX_FLAGS)
 
 SRCS			= $(notdir $(filter-out ./src/$(OUTPUT).c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
 OBJECTS			= $(patsubst %.c, $(BUILD)/%.o, $(SRCS) ) 
+
+PLUGIN_DIRS		= $(notdir $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) )
+PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), ./plugin/$(dir)/$(dir).so )
 
 TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*.c) ) )
 TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
@@ -25,7 +35,7 @@ TEST_OBJECTS	= $(OBJECTS)
 default: all
 
 .PHONY: all
-all: $(OUTPUT)
+all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
 $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm
@@ -70,6 +80,9 @@ $(BUILD)/%.o: ./src/%.c
 $(BUILD)/%.o: ./test/%.c
 	$(CXX_CMD) -c $< -o $@
 
+./plugin/%.so: 
+	$(MAKE) $(MFLAGS) -C ./$(dir $@)
+
 define test-template
 $$(BUILD)/$(1): $$(BUILD)/$(1).o $$(TEST_OBJECTS)
 	$(CXX_CMD) $$+ $$(LIB) -o $$@
@@ -85,6 +98,7 @@ $(foreach test, $(TESTS), $(eval $(call test-template,$(test)) ) )
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
+	for i in $(PLUGIN_DIRS); do dir=./plugin/$$i; echo "clean $$dir"; cd $$dir && $(MAKE) $(MFLAGS) clean; done
 
 .PHONY: libclean
 libclean: clean

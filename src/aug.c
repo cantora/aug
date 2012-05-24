@@ -53,6 +53,11 @@
 #include "aug.h"
 #include <ccan/list/list.h>
 
+/* expected shared symbols */
+static const char *AUG_PLUGIN_NAME = "aug_plugin_name";
+static const char *AUG_PLUGIN_INIT = "aug_plugin_init";
+static const char *AUG_PLUGIN_FREE = "aug_plugin_free";
+
 #define BUF_SIZE 2048*4
 
 /* ccan list structures */

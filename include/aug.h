@@ -6,6 +6,9 @@
 #include <ncurses.h>
 #include <panel.h>
 
+#define AUG_API_VERSION_MAJOR 0
+#define AUG_API_VERSION_MINOR 0
+
 /* defined below */
 struct aug_api_t;
 struct aug_plugin_t;
@@ -67,16 +70,18 @@ struct aug_plugin_cb_t {
  * application's view of the plugin
  */
 struct aug_plugin_t {
-	/* name of the plugin. this name
+	/* name symbol. this name
 	 * will be used for option parsing
 	 * and configuration file parsing
 	 * to automatically provide this 
 	 * plugin with user specified
-	 * configuration values. 
-	 * this should ONLY be modified
-	 * in the plugin_init function */
-	char *name;
+	 * configuration values. */
+	const char *const name;
 	
+	/* init and free symbols */
+	void (*const init)(const struct aug_api_t *api, struct aug_plugin_t *plugin);
+	void (*const free)(const struct aug_api_t *api, struct aug_plugin_t *plugin);
+
 	/* callback subscriptions for this
 	 * plugin. this structure will be
 	 * initialized with null function
