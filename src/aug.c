@@ -141,7 +141,7 @@ static int process_master_output(VTerm *vt, int master) {
 	return 0;
 }
 
-void loop(struct aug_term_t *term) {
+static void loop(struct aug_term_t *term) {
 	fd_set in_fds;
 	int status, force_refresh, just_refreshed;
 
@@ -234,6 +234,14 @@ static void err_exit_cleanup(int error) {
 
 	screen_free();
 }
+
+/* ============== API functions ==================== */
+
+static void term_win_dims(int *rows, int *cols) {
+	term_dims(&g.term, rows, cols);
+}
+
+/* ============== MAIN ==============================*/
 
 int main(int argc, char *argv[]) {
 	pid_t child;
