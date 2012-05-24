@@ -21,6 +21,16 @@
 
 static int term_resize_master(const struct aug_term_t *);
 
+static const VTermScreenCallbacks CB_SCREEN_NULL = {
+	.damage = NULL,
+	.moverect = NULL,
+	.movecursor = NULL,
+	.settermprop = NULL,
+	.setmousefunc = NULL,
+	.bell = NULL,
+	.resize = NULL		
+};
+
 void term_init(struct aug_term_t *term, int rows, int cols) {
 	VTermScreen *vts;
 	VTermState *state;
@@ -56,6 +66,14 @@ void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *scr
 	vts = vterm_obtain_screen(term->vt);
 	vterm_screen_set_callbacks(vts, screen_callbacks, user);
 	term->io_callbacks = *io_callbacks;
+}
+
+void term_clear_callbacks(struct aug_term_t *term) {
+	VTermScreen *vts;
+	
+	vts = vterm_obtain_screen(term->vt);
+	vterm_screen_set_callbacks(vts, &CB_SCREEN_NULL, term->user);
+	term->io_callbacks.refresh = NULL;	
 }
 
 static int term_resize_master(const struct aug_term_t *term) {

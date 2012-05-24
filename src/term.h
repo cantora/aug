@@ -36,6 +36,7 @@ void term_free(struct aug_term_t *term);
 void term_dims(const struct aug_term_t *term, int *rows, int *cols);
 void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *screen_callbacks, 
 							const struct aug_term_io_callbacks_t *io_callbacks, void *user);
+void term_clear_callbacks(struct aug_term_t *term);
 
 /* returns non-zero and sets errno if any errors occur. */
 int term_set_master(struct aug_term_t *term, int master);

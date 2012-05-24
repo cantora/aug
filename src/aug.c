@@ -229,27 +229,13 @@ static void err_exit_cleanup(int error) {
 	screen_free();
 }
 
-static void refresh(void *user) {
-	(void)user;
-
-	screen_refresh();
-}
-
 int main(int argc, char *argv[]) {
 	pid_t child;
 	struct winsize size;
 	const char *debug_file, *env_term;
 	struct termios child_termios;
 	int master;
-	VTermScreenCallbacks screen_cbs = {
-		.damage = screen_damage,
-		.movecursor = screen_movecursor,
-		.bell = screen_bell,
-		.settermprop = screen_settermprop
-	};
-	struct aug_term_io_callbacks_t term_io_cbs = {
-		.refresh = refresh
-	};
+	
 
 	opt_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
@@ -309,11 +295,9 @@ int main(int argc, char *argv[]) {
 	term_init(&g.term, 1, 1);
 	if(screen_init(&g.term) != 0)
 		err_exit(0, "screen_init failure");
-
-	screen_dims(&size.ws_row, &size.ws_col);
-
 	err_exit_cleanup_fn(err_exit_cleanup);
-	term_set_callbacks(&g.term, &screen_cbs, &term_io_cbs, NULL);
+	
+	term_dims(&g.term, (int *) &size.ws_row, (int *) &size.ws_col);
 
 	if(g.conf.nocolor == 0)
 		if(screen_color_start() != 0) {

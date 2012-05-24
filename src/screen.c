@@ -32,8 +32,20 @@
 #include "attr.h"
 #include "term_win.h"
 
+static void vterm_cb_refresh(void *user);
 static int free_term_win();
 static int init_term_win();
+
+static const VTermScreenCallbacks CB_SCREEN = {
+	.damage = screen_damage,
+	.movecursor = screen_movecursor,
+	.bell = screen_bell,
+	.settermprop = screen_settermprop
+};
+
+static const struct aug_term_io_callbacks_t CB_TERM_IO = {
+	.refresh = vterm_cb_refresh
+};
 
 /* globals */
 static struct {
@@ -100,8 +112,18 @@ void screen_free() {
 		err_exit(0, "endwin failed!");
 }
 
+static void vterm_cb_refresh(void *user) {
+	(void)user;
+
+	screen_refresh();
+}
+
 void screen_set_term(struct aug_term_t *term) {
-	term_win_set_term(&g.term_win, term);
+	if(g.term_win.term != NULL)
+		term_clear_callbacks(g.term_win.term);
+	
+	term_set_callbacks(term, &CB_SCREEN, &CB_TERM_IO, NULL);
+	term_win_set_term(&g.term_win, term);	
 }
 
 void screen_dims(unsigned short *rows, unsigned short *cols) {
