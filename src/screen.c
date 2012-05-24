@@ -41,7 +41,7 @@ static struct {
 	struct aug_term_win_t term_win;
 } g;	
 
-int screen_init() {
+int screen_init(struct aug_term_t *term) {
 	g.color_on = 0;
 	
 	initscr();
@@ -49,8 +49,11 @@ int screen_init() {
 		goto fail;
 	if(noecho() == ERR) 
 		goto fail;
+
 	if(init_term_win() != 0)
 		goto fail;
+	screen_set_term(term);
+
 	if(nodelay(g.term_win.win, true) == ERR) 
 		goto fail;
 	if(keypad(g.term_win.win, false) == ERR) /* libvterm interprets keys for us */
@@ -78,13 +81,7 @@ static int init_term_win() {
 	if(free_term_win() != 0)
 		goto fail;
 
-	win = newwin(10, 100, 5, 25);
-
-	int begy, begx, maxy, maxx, y, x;
-	getbegyx(win, begy, begx);
-	getmaxyx(win, maxy, maxx);
-	fprintf(stderr, "win: %d->%d, %d->%d\n", begy, maxy, begx, maxx);
-	
+	win = newwin(LINES, COLS, 0, 0);
 	if(win == NULL)
 		goto fail;
 

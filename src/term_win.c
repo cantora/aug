@@ -45,19 +45,8 @@ void term_win_dims(const struct aug_term_win_t *tw, int *rows, int *cols) {
 	win_dims(tw->win, rows, cols);
 }
 
-/* test whether zero relative (x,y)  
- * is contained within window
- * which may not be anchored at zero (so
- * we have to add the offset). 
- */
-static int term_win_contained(struct aug_term_win_t *tw, int y, int x) {
-	//int begx, begy;
-	//getbegyx(tw->win, begy, begx);
-	return win_contained(tw->win, y, x);
-}
-
 void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on) {
-	VTermScreen *vts = vterm_obtain_screen(tw->term->vt);
+	VTermScreen *vts;
 	VTermScreenCell cell;
 	attr_t attr;
 	int pair;
@@ -66,12 +55,16 @@ void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on)
 	wchar_t erasech = L' ';
 	int maxx, maxy;
 
+	if(tw->term == NULL)
+		return;
+
+	vts = vterm_obtain_screen(tw->term->vt);
 	getmaxyx(tw->win, maxy, maxx);
 
 	/* sometimes this happens when
 	 * a window resize recently happened
 	 */
-	if(!term_win_contained(tw, pos.row, pos.col) ) {
+	if(!win_contained(tw->win, pos.row, pos.col) ) {
 		fprintf(stderr, "tried to update out of bounds cell at %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 		return;
 	}
@@ -126,7 +119,7 @@ int term_win_movecursor(struct aug_term_win_t *tw, VTermPos pos) {
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
-	 if(!term_win_contained(tw, pos.row, pos.col) ) {
+	 if(!win_contained(tw->win, pos.row, pos.col) ) {
 		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos.row, pos.col);
 		return 1;
 	}
@@ -149,6 +142,7 @@ void term_win_resize(struct aug_term_win_t *tw) {
 	win_dims(tw->win, &rows, &cols);
 
 	fprintf(stderr, "term_win: resize to %d, %d\n", rows, cols);
-	if(term_resize(tw->term, rows, cols) != 0)
-		err_exit(errno, "error resizing terminal!");
+	if(tw->term != NULL)
+		if(term_resize(tw->term, rows, cols) != 0)
+			err_exit(errno, "error resizing terminal!");
 }

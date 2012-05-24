@@ -304,17 +304,15 @@ int main(int argc, char *argv[]) {
 	sigemptyset(&g.winch_act.sa_mask);
 	g.winch_act.sa_flags = 0;
 
-	if(screen_init() != 0)
+	/* screen will resize term to the right size,
+	 * so just initialize to 1x1. */
+	term_init(&g.term, 1, 1);
+	if(screen_init(&g.term) != 0)
 		err_exit(0, "screen_init failure");
-	fprintf(stderr, "initialized screen\n");
-
-	err_exit_cleanup_fn(err_exit_cleanup);
 
 	screen_dims(&size.ws_row, &size.ws_col);
-	fprintf(stderr, "screen dims: %d, %d\n", size.ws_row, size.ws_col);
-	term_init(&g.term, size.ws_row, size.ws_col);
-	fprintf(stderr, "initialized term\n");
-	screen_set_term(&g.term);
+
+	err_exit_cleanup_fn(err_exit_cleanup);
 	term_set_callbacks(&g.term, &screen_cbs, &term_io_cbs, NULL);
 
 	if(g.conf.nocolor == 0)
@@ -352,8 +350,8 @@ int main(int argc, char *argv[]) {
 
 	if(set_nonblocking(master) != 0)
 		err_exit(errno, "failed to set master fd to non-blocking");
-	term_set_master(&g.term, master);
-
+	if(term_set_master(&g.term, master) != 0)
+		err_exit(errno, "failed to set master pty in term structure");
 	if(sigaction(SIGWINCH, &g.winch_act, &g.prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 	

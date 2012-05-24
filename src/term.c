@@ -19,6 +19,8 @@
 #include "attr.h"
 #include <sys/ioctl.h>
 
+static int term_resize_master(const struct aug_term_t *);
+
 void term_init(struct aug_term_t *term, int rows, int cols) {
 	VTermScreen *vts;
 	VTermState *state;
@@ -42,6 +44,10 @@ void term_free(struct aug_term_t *term) {
 	vterm_free(term->vt);
 }
 
+void term_dims(const struct aug_term_t *term, int *rows, int *cols) {
+	vterm_get_size(term->vt, rows, cols);
+}
+
 void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *screen_callbacks, 
 							const struct aug_term_io_callbacks_t *io_callbacks, void *user) {
 	VTermScreen *vts;
@@ -52,35 +58,34 @@ void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *scr
 	term->io_callbacks = *io_callbacks;
 }
 
-static int term_resize_master(struct aug_term_t *term, int rows, int cols) {
-	struct winsize size = {
-		.ws_row = rows,
-		.ws_col = cols
-	};
+static int term_resize_master(const struct aug_term_t *term) {
+	struct winsize size;
 
+	term_dims(term, (int *) &size.ws_row, (int *) &size.ws_col);
 	if(ioctl(term->master, TIOCSWINSZ, &size) != 0)
 		return -1; 
 
 	return 0;
 }
 
-void term_set_master(struct aug_term_t *term, int master) {
-	int rows, cols;
-
+int term_set_master(struct aug_term_t *term, int master) {
 	term->master = master;
-	vterm_get_size(term->vt, &rows, &cols);
-	term_resize_master(term, rows, cols);	
+	if(term_resize_master(term) != 0)
+		return -1;
+
+	return 0;
 }
 
 int term_resize(struct aug_term_t *term, int rows, int cols) {
 	fprintf(stderr, "term: resize %d, %d\n", rows, cols);
-	if(term->master != 0) /* only resize the master if we have a valid pty */
-		term_resize_master(term, rows, cols);
-
+	
 	/* this should cause full damage and the window will be repainted
 	 * by a .damage callback
 	 */
 	vterm_set_size(term->vt, rows, cols);
-
+	if(term->master != 0) /* only resize the master if we have a valid pty */
+		if(term_resize_master(term) != 0)
+			return -1;
+	
 	return 0;
 }
