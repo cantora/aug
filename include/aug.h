@@ -32,7 +32,7 @@ struct aug_plugin_cb_t {
 	void (*input_char)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
 			aug_action_t *action, int *ch);
 	
-	/* called when a cell on the screen is
+	/* called when a cell in the terminal window is
 	 * about to be updated. the plugin can
 	 * alter (or not) any of the output 
 	 * variables and then
@@ -46,7 +46,7 @@ struct aug_plugin_cb_t {
 			attr_t *attr, int *color_pair);
 
 	/* called when the cursor is about to be
-	 * moved to some location on the screen.
+	 * moved to some location in the terminal window.
 	 * the plugin can change (or not) the 
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
@@ -130,19 +130,6 @@ struct aug_api_t {
 	/* get the dimensions of the main terminal
 	 * window */
 	void (*term_win_dims)(int *rows, int *cols);
-
-	/* refresh the main terminal window */
-	void (*term_win_refresh)();
-
-	/* write a cell in the main terminal window. this may
-	 * not accomplish all that much, as this cell will be
-	 * most likely rewritten when the terminal updates. a
-	 * call to term_win_refresh() should follow a call or
-	 * series of calls to this function. if a plugin wants
-	 * to present meaningful data to a user it should use
-	 * the screen_*_alloc api calls to reserve space for
-	 * its output.      */
-	void (*term_win_mvaddwch)(int x, int y, const wchar_t *wch, attr_t attr, int color_pair);
 
 	/* the user can configure a global command key
 	 * to use as a prefix and plugins can bind to
