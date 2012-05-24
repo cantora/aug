@@ -15,24 +15,31 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef AUG_OPT_H
-#define AUG_OPT_H
-
 #include "conf.h"
+#include <stdlib.h>
 
-enum opt_err {
-	OPT_ERR_NONE = 0,
-	OPT_ERR_UNKNOWN_OPTION,
-	OPT_ERR_MISSING_ARG,
-	OPT_ERR_USAGE, /* option requesting usage found */
-	OPT_ERR_HELP /* option requesting help found */
-};
+const char *CONF_DEFAULT_ARGV[] = AUG_DEFAULT_ARGV;
+const int CONF_DEFAULT_ARGC = (sizeof(CONF_DEFAULT_ARGV)/sizeof(char *)) - 1;
 
-extern char opt_err_msg[];
-void opt_init(struct aug_conf *conf);
-void opt_print_usage(int argc, const char *const argv[]);
-void opt_print_help(int argc, const char *const argv[]);
-int opt_parse(int argc, char *const argv[], struct aug_conf *conf);
+void conf_init(struct aug_conf *conf) {
+	const char *shell;
 
-#endif /* AUG_OPT_H */
+	objset_init(&conf->opt_set);
+
+	conf->term = CONF_TERM_DEFAULT;
+	conf->ncterm = CONF_NCTERM_DEFAULT;
+	conf->debug_file = CONF_DEBUG_FILE_DEFAULT;
+	conf->nocolor = !CONF_COLOR_DEFAULT;
+	conf->conf_file = CONF_CONFIG_FILE_DEFAULT;
+
+	shell = getenv("SHELL");
+	if(shell != NULL) {
+		CONF_DEFAULT_ARGV[0] = shell;
+		CONF_DEFAULT_ARGV[1] = NULL;
+		conf->cmd_argc = 1;
+	}
+	else {
+		conf->cmd_argc = CONF_DEFAULT_ARGC;
+	}
+	conf->cmd_argv = CONF_DEFAULT_ARGV;
+}

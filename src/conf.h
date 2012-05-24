@@ -1,0 +1,61 @@
+/* 
+ * Copyright 2012 anthony cantor
+ * This file is part of aug.
+ *
+ * aug is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * aug is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with aug.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#ifndef AUG_CONF_H
+#define AUG_CONF_H
+
+#include <ccan/objset/objset.h>
+
+#define CONF_CONFIG_FILE_DEFAULT "~/.augrc"
+
+#define CONF_COLOR "color"
+#define CONF_COLOR_DEFAULT 1
+
+#define CONF_TERM "term"
+#define CONF_TERM_DEFAULT NULL /* use the value of TERM in current environment */
+
+#define CONF_NCTERM "ncterm"
+#define CONF_NCTERM_DEFAULT NULL /* use current TERM environment variable */
+
+#define CONF_DEBUG_FILE "debug"
+#define CONF_DEBUG_FILE_DEFAULT NULL /* redirect stderr to /dev/null */
+
+struct aug_conf_opt_set {
+	OBJSET_MEMBERS(const void *);
+};
+
+struct aug_conf {
+/* configuration variables */
+	int nocolor;
+	const char *ncterm;
+	const char *term;
+	const char *debug_file;
+	const char *conf_file;
+	int cmd_argc;
+	const char *const *cmd_argv;
+
+/* objset to determine what was specified
+ * on the command line */
+	struct aug_conf_opt_set opt_set;
+};
+
+extern const char *CONF_DEFAULT_ARGV[];
+extern const int CONF_DEFAULT_ARGC;
+
+void conf_init(struct aug_conf *conf);
+
+#endif /* AUG_CONF_H */

@@ -52,6 +52,9 @@
 #include "term.h"
 #include "aug.h"
 #include <ccan/list/list.h>
+#include <ccan/ciniparser/ciniparser.h>
+
+static void term_win_dims(int *rows, int *cols);
 
 /* expected shared symbols */
 static const char *AUG_PLUGIN_NAME = "aug_plugin_name";
@@ -74,8 +77,9 @@ static struct {
 	struct sigaction winch_act, prev_winch_act; /* structs for handing window size change */
 	struct aug_term_t term;
 	char buf[BUF_SIZE]; /* IO buffer */
-	struct aug_conf conf;
+	struct aug_conf conf; /* structure of configuration variables */
 	struct plugin_stack_t plugin_stack;
+	dictionary *ini;
 } g; 
 
 static void change_winch(int how) {
@@ -251,22 +255,8 @@ static void err_exit_cleanup(int error) {
 	screen_free();
 }
 
-/* ============== API functions ==================== */
-
-static void term_win_dims(int *rows, int *cols) {
-	term_dims(&g.term, rows, cols);
-}
-
-/* ============== MAIN ==============================*/
-
-int main(int argc, char *argv[]) {
-	pid_t child;
-	struct winsize size;
-	const char *debug_file, *env_term;
-	struct termios child_termios;
-	int master;
-	
-	opt_init(&g.conf);
+static int init_conf(int argc, char *argv[]) {
+	conf_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
 		switch(errno) {
 		case OPT_ERR_HELP:
@@ -285,6 +275,47 @@ int main(int argc, char *argv[]) {
 		
 		return 1;
 	}
+
+	g.ini = ciniparser_load(g.conf.conf_file);
+	if(g.ini != NULL) {
+				
+	}
+
+	return 0;
+}
+
+static int init_plugin_stack() {
+	int i, nsec, nplugs;
+
+	if(g.ini == NULL)
+		return 0;	
+
+	if( (nsec = ciniparser_getnsec(g.ini) ) < 1)
+		return 0;
+
+	for(i = 1; i <= nsec; i++) {
+		//if(
+	}
+
+	return 0;
+}
+/* ============== API functions ==================== */
+
+static void term_win_dims(int *rows, int *cols) {
+	term_dims(&g.term, rows, cols);
+}
+
+/* ============== MAIN ==============================*/
+
+int main(int argc, char *argv[]) {
+	pid_t child;
+	struct winsize size;
+	const char *debug_file, *env_term;
+	struct termios child_termios;
+	int master;
+	
+	if(init_conf(argc, argv) != 0)
+		return 1;
 
 	if(tcgetattr(STDIN_FILENO, &child_termios) != 0) {
 		err_exit(errno, "tcgetattr failed");

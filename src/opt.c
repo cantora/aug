@@ -28,15 +28,12 @@
 #define AUG_EXPAND_QUOTE(_EXP) AUG_QUOTE(_EXP)
 
 struct opt_desc {
-	const char *name;
 	const char *usage;
 	const char *const desc[3];
 	const struct option lopt; 	/* getopt long option struct */
 };
 
 char opt_err_msg[64];
-static const char *default_argv[] = AUG_DEFAULT_ARGV;
-static const int default_argc = (sizeof(default_argv)/sizeof(char *)) - 1;
 
 #define LONG_ONLY_VAL(_index) ((1 << 11) + _index)
 
@@ -45,35 +42,37 @@ static const int default_argc = (sizeof(default_argv)/sizeof(char *)) - 1;
  *    2. make sure to create the defines:
  *              OPT_* "somename"
  *              OPT_*_INDEX (OPT_(previous opt)_INDEX+1)
- *              OPT_*_DEFAULT somevalue
  *    3. change opt_parse so that the option switch statement recognizes 
  *       the value in .lopt.val
+ *	  4. change opt_init so that the default value gets initialized.
  */
 static const struct opt_desc aug_options[] = {
 	{
+#define OPT_CONFIG "config"
+#define OPT_CONFIG_INDEX 0
+		.usage = " FILEPATH",
+		.desc = {"specify the path of the configuration file", 
+					"\tdefault: " CONF_CONFIG_FILE_DEFAULT, NULL},
+		.lopt = {OPT_CONFIG, 1, 0, 'c'}
+	},
+	{
 #define OPT_NOCOLOR "no-color"
-#define OPT_NOCOLOR_INDEX 0
-#define OPT_NOCOLOR_DEFAULT 0
-		.name = OPT_NOCOLOR,
+#define OPT_NOCOLOR_INDEX (OPT_CONFIG_INDEX+1)
 		.usage = NULL,
 		.desc = {"turns off color support", NULL},
 		.lopt = {OPT_NOCOLOR, 0, 0, LONG_ONLY_VAL(OPT_NOCOLOR_INDEX)}
 	},
 	{
-#define OPT_TERM "term"
+#define OPT_TERM CONF_TERM
 #define OPT_TERM_INDEX (OPT_NOCOLOR_INDEX+1)
-#define OPT_TERM_DEFAULT NULL /* use the value of TERM in current environment */
-		.name = OPT_TERM,
 		.usage = " TERMNAME",
 		.desc = {"sets the TERM environment variable to TERMNAME", 
 				 "\tdefault: the current value of TERM in the environment", NULL},
 		.lopt = {OPT_TERM, 1, 0, LONG_ONLY_VAL(OPT_TERM_INDEX)}
 	},
 	{
-#define OPT_NCTERM "ncterm"
+#define OPT_NCTERM CONF_NCTERM
 #define OPT_NCTERM_INDEX (OPT_TERM_INDEX+1)
-#define OPT_NCTERM_DEFAULT NULL /* use current TERM environment variable */
-		.name = OPT_NCTERM,
 		.usage = " TERMNAME",
 		.desc = {"sets the terminal profile used by ncurses",
 				 "\tdefault: the current value of TERM in the environment", NULL},
@@ -81,19 +80,15 @@ static const struct opt_desc aug_options[] = {
 		.lopt = {OPT_NCTERM, 1, 0, LONG_ONLY_VAL(OPT_NCTERM_INDEX)}
 	},
 	{
-#define OPT_DEBUG "debug"
+#define OPT_DEBUG CONF_DEBUG_FILE
 #define OPT_DEBUG_INDEX (OPT_NCTERM_INDEX+1)
-#define OPT_DEBUG_DEFAULT NULL /* redirect stderr to /dev/null */
-		.name = OPT_DEBUG,
-		.usage = " FILENAME",
+		.usage = " FILEPATH",
 		.desc = {"collect debug messages into FILENAME", NULL},
 		.lopt = {OPT_DEBUG, 1, 0, 'd'}
 	},
 	{
 #define OPT_HELP "help"
 #define OPT_HELP_INDEX (OPT_DEBUG_INDEX+1)
-#define OPT_HELP_DEFAULT NULL
-		.name = OPT_HELP,
 		.usage = NULL,
 		.desc = {"display this message", NULL},
 		.lopt = {OPT_HELP, 0, 0, 'h'}
@@ -134,25 +129,6 @@ static void init_long_options(struct option *long_options, char *optstring) {
 	optstring[os_i++] = '\0'; 
 }
 
-void opt_init(struct aug_conf *conf) {
-	const char *shell;
-
-	conf->term = OPT_TERM_DEFAULT;
-	conf->ncterm = OPT_NCTERM_DEFAULT;
-	conf->debug_file = OPT_DEBUG_DEFAULT;
-	conf->nocolor = OPT_NOCOLOR_DEFAULT;
-	
-	shell = getenv("SHELL");
-	if(shell != NULL) {
-		default_argv[0] = shell;
-		default_argv[1] = NULL;
-		conf->cmd_argc = 1;
-	}
-	else {
-		conf->cmd_argc = default_argc;
-	}
-	conf->cmd_argv = default_argv;
-}
 
 void opt_print_usage(int argc, const char *const argv[]) {
 	fprintf(stdout, "usage: %s [OPTIONS] [CMD [ARG1, ...]]\n", (argc > 0)? argv[0] : "");
@@ -169,8 +145,8 @@ void opt_print_help(int argc, const char *const argv[]) {
 	fprintf(stdout, "\n%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", "  CMD", "run CMD with arguments instead of the default");
 	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tdefault: the value of SHELL in the environment\n", "");
 	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tor if SHELL undefined: ", "");
-	for(k = 0; k < default_argc; k++)
-		fprintf(stdout, "%s ", default_argv[k]);
+	for(k = 0; k < CONF_DEFAULT_ARGC; k++)
+		fprintf(stdout, "%s ", CONF_DEFAULT_ARGV[k]);
 	
 	fprintf(stdout, "\nOPTIONS:\n");
 	for(i = 0; i < AUG_OPTLEN; i++) {
@@ -210,23 +186,29 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 			goto fail;
 		}
 			
+#define OPT_SET(_var, _value) objset_add(&conf->opt_set, &_var); _var = _value
 		switch (c) {
 		case 'd': /* debug file */
-			conf->debug_file = optarg;
+			OPT_SET(conf->debug_file, optarg);
 			break;
-		
+	
+		case 'c': /* configuration file */
+			OPT_SET(conf->conf_file, optarg);
+			break;
+	
 		case LONG_ONLY_VAL(OPT_NOCOLOR_INDEX):
-			conf->nocolor = 1;
+			OPT_SET(conf->nocolor, 1);
 			break;
 
 		case LONG_ONLY_VAL(OPT_TERM_INDEX):
-			conf->term = optarg;
+			OPT_SET(conf->term, optarg);
 			break;
 
 		case LONG_ONLY_VAL(OPT_NCTERM_INDEX):
-			conf->ncterm = optarg;
+			OPT_SET(conf->ncterm, optarg);
 			break;
 
+#undef OPT_SET
 		case 'h':
 			errno = OPT_ERR_HELP;
 			goto fail;
