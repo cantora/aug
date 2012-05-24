@@ -9,7 +9,8 @@ MKBUILD			:= $(shell mkdir -p $(BUILD) )
 LIBVTERM		= ./libvterm/.libs/libvterm.a
 LIB 			= -lutil -lncursesw $(LIBVTERM) 
 INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -iquote"./src"
-CXX_FLAGS		= -ggdb -Wall -Wextra $(INCLUDES) $(DEFINES)
+OPTIMIZE		= -ggdb #-O3
+CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES)
 CXX_CMD			= gcc $(CXX_FLAGS)
 
 SRCS			= $(notdir $(filter-out ./src/$(OUTPUT).c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
