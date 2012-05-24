@@ -10,7 +10,7 @@
 struct aug_api_t;
 struct aug_plugin_t;
 
-typedef enum aug_action_t = { AUG_ACT_OK = 0, AUG_ACT_CANCEL };
+typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action_t;
 
 /* callbacks which a plugin can register
  * interest in. unless otherwise specified
@@ -138,7 +138,7 @@ struct aug_api_t {
 	 * plugin might bind to ^A n by passing ch = 0x6e. 
 	 * if the return value is non-zero, the key is
 	 * reserved or already bound. */
-	int (*key_bind)(const aug_plugin_t *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
+	int (*key_bind)(const struct aug_plugin_t *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
 
 
 	/* ======== screen windows/panels ======================== 

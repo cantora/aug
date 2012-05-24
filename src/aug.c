@@ -50,6 +50,7 @@
 #include "timer.h"
 #include "opt.h"
 #include "term.h"
+#include "aug.h"
 
 #define BUF_SIZE 2048*4
 
@@ -101,7 +102,7 @@ static void handler_winch(int signo) {
 	screen_resize();
 }
 
-static void process_keys(VTerm *vt, int master) {
+static void process_keys(VTerm *vt) {
 	int ch;
 
 	while(vterm_output_get_buffer_remaining(vt) > 0 && screen_getch(&ch) == 0 ) {
@@ -221,7 +222,7 @@ void loop(struct aug_term_t *term) {
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
 		if(FD_ISSET(STDIN_FILENO, &in_fds) ) {
-			process_keys(term->vt, term->master);
+			process_keys(term->vt);
 			process_vterm_output(term->vt, term->master);
 			force_refresh = 1;
 		}
