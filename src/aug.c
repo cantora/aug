@@ -51,8 +51,18 @@
 #include "opt.h"
 #include "term.h"
 #include "aug.h"
+#include <ccan/list/list.h>
 
 #define BUF_SIZE 2048*4
+
+/* ccan list structures */
+struct plugin_stack_t {
+	struct list_head head;
+};
+struct plugin_item_t {
+	struct aug_plugin_t plugin;	
+	struct list_node list;
+};
 
 /* globals */
 static struct {
@@ -60,6 +70,7 @@ static struct {
 	struct aug_term_t term;
 	char buf[BUF_SIZE]; /* IO buffer */
 	struct aug_conf conf;
+	struct plugin_stack_t plugin_stack;
 } g; 
 
 static void change_winch(int how) {
@@ -250,7 +261,6 @@ int main(int argc, char *argv[]) {
 	struct termios child_termios;
 	int master;
 	
-
 	opt_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
 		switch(errno) {
@@ -352,7 +362,11 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "failed to set master pty in term structure");
 	if(sigaction(SIGWINCH, &g.winch_act, &g.prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
-	
+
+	/* initialized plugin stuff */
+	list_head_init(&g.plugin_stack.head);
+
+	/* main event loop */	
 	loop(&g.term);
 
 cleanup:
