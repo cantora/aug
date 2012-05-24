@@ -7,7 +7,9 @@ OUTPUT			= aug
 BUILD			= ./build
 MKBUILD			:= $(shell mkdir -p $(BUILD) )
 LIBVTERM		= ./libvterm/.libs/libvterm.a
-LIB 			= -lutil -lncursesw $(LIBVTERM) 
+CCAN_DIR		= ./libccan
+LIBCCAN			= $(CCAN_DIR)/libccan.a
+LIB 			= -lutil -lncursesw $(LIBVTERM) $(LIBCCAN)
 INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -iquote"./src" -iquote"./include"
 OPTIMIZE		= -ggdb #-O3
 CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES)
@@ -26,10 +28,18 @@ default: all
 all: $(OUTPUT)
 
 $(LIBVTERM): ./libvterm
-	make -C ./libvterm
+	$(MAKE) $(MFLAGS) -C ./libvterm
 
-libvterm:
+./libvterm:
 	bzr checkout lp:libvterm
+
+$(CCAN_DIR):
+	git clone 'https://github.com/rustyrussell/ccan.git' $(CCAN_DIR)
+
+$(LIBCCAN): $(CCAN_DIR)
+	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) -f ./tools/Makefile tools/configurator/configurator
+	$(CCAN_DIR)/tools/configurator/configurator > $(CCAN_DIR)/config.h
+	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS)
 
 $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 	{ \
@@ -42,7 +52,7 @@ $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 $(OUTPUT): $(BUILD)/$(OUTPUT).o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
-$(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM)
+$(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM) $(LIBCCAN)
 	$(CXX_CMD) -c $< -o $@
 
 $(BUILD)/screen.o: ./src/screen.c ./src/vterm_ansi_colors.h
@@ -79,3 +89,4 @@ clean:
 .PHONY: libclean
 libclean: clean
 	rm -rf ./libvterm
+	rm -rf $(CCAN_DIR)
