@@ -28,7 +28,7 @@
 
 struct opt_desc {
 	const char *usage;
-	const char *const desc[3];
+	const char *const desc[4];
 	const struct option lopt; 	/* getopt long option struct */
 };
 
@@ -41,9 +41,10 @@ char opt_err_msg[64];
  *    2. make sure to create the defines:
  *              OPT_* "somename"
  *              OPT_*_INDEX (OPT_(previous opt)_INDEX+1)
- *    3. change opt_parse so that the option switch statement recognizes 
- *       the value in .lopt.val
- *	  4. change opt_init so that the default value gets initialized.
+ *	  3. if necessary, add an element to aug_conf in conf.h and add a line
+ *		 to conf_init so that the default value gets initialized.
+ *    4. change opt_parse so that the option switch statement recognizes 
+ *       the value in .lopt.val and sets aug_conf accordingly.
  */
 const struct opt_desc AUG_OPTIONS[] = {
 	{
@@ -86,8 +87,16 @@ const struct opt_desc AUG_OPTIONS[] = {
 		.lopt = {OPT_DEBUG, 1, 0, 'd'}
 	},
 	{
+#define OPT_PLUGIN_PATH CONF_PLUGIN_PATH
+#define OPT_PLUGIN_PATH_INDEX (OPT_DEBUG_INDEX+1)
+		.usage = " PATH[:PATH]...[:PATH]",
+		.desc = {"a list of colon delimited directory paths to search for plugins", 
+					"\tdefault: " CONF_PLUGIN_PATH_DEFAULT, NULL},
+		.lopt = {OPT_PLUGIN_PATH, 1, 0, LONG_ONLY_VAL(OPT_PLUGIN_PATH_INDEX)}
+	},
+	{
 #define OPT_HELP "help"
-#define OPT_HELP_INDEX (OPT_DEBUG_INDEX+1)
+#define OPT_HELP_INDEX (OPT_PLUGIN_PATH_INDEX+1)
 		.usage = NULL,
 		.desc = {"display this message", NULL},
 		.lopt = {OPT_HELP, 0, 0, 'h'}
@@ -135,8 +144,8 @@ void opt_print_usage(int argc, const char *const argv[]) {
 
 void opt_print_help(int argc, const char *const argv[]) {
 	int i, k, f1_amt;
-#define F1_SIZE 32
-#define F1_WIDTH 26
+#define F1_SIZE 48
+#define F1_WIDTH 44
 	char f1[F1_SIZE];
 	
 	opt_print_usage(argc, argv);
@@ -205,6 +214,10 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 
 		case LONG_ONLY_VAL(OPT_NCTERM_INDEX):
 			OPT_SET(conf->ncterm, optarg);
+			break;
+
+		case LONG_ONLY_VAL(OPT_PLUGIN_PATH_INDEX):
+			OPT_SET(conf->plugin_path, optarg);
 			break;
 
 #undef OPT_SET

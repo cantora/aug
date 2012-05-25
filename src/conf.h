@@ -21,9 +21,19 @@
 #include <stdbool.h>
 #include <ccan/objset/objset.h>
 #include <ccan/ciniparser/ciniparser.h>
+#include <ccan/darray/darray.h>
 
 #define CONF_CONFIG_FILE_DEFAULT "~/.augrc"
 #define CONF_CONFIG_SECTION_CORE "aug"
+
+/* when adding a new config variable:
+ * 		1. create a CONF_* and CONF_*_DEFAULT variable
+ *		2. add an element to the aug_conf struct
+ *		3. add a line to conf_init to initialize the element
+ *			in aug_conf
+ * 		4. add a MERGE_VAR line to conf_merge_ini
+ * 		5. if desired, add necessary data to opt.c (following instructions there)
+ */
 #define CONF_COLOR "color"
 #define CONF_COLOR_DEFAULT true
 
@@ -36,6 +46,9 @@
 #define CONF_DEBUG_FILE "debug"
 #define CONF_DEBUG_FILE_DEFAULT NULL /* redirect stderr to /dev/null */
 
+#define CONF_PLUGIN_PATH "plugin-path"
+#define CONF_PLUGIN_PATH_DEFAULT "~/.aug-plugins"
+
 struct aug_conf_opt_set {
 	OBJSET_MEMBERS(const void *);
 };
@@ -46,6 +59,7 @@ struct aug_conf {
 	const char *ncterm;
 	const char *term;
 	const char *debug_file;
+	const char *plugin_path;
 
 	/* option (no config) */
 	const char *conf_file;

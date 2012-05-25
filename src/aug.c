@@ -52,7 +52,6 @@
 #include "term.h"
 #include "aug.h"
 #include <ccan/list/list.h>
-#include <ccan/ciniparser/ciniparser.h>
 
 static void term_win_dims(int *rows, int *cols);
 
@@ -258,6 +257,7 @@ static void err_exit_cleanup(int error) {
 static int init_conf(int argc, char *argv[]) {
 	const char *debug_file;
 	bool have_config = false;
+	int config_err = 0;
 
 	conf_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
@@ -286,6 +286,8 @@ static int init_conf(int argc, char *argv[]) {
 			conf_merge_ini(&g.conf, g.ini);
 		}
 	}
+	else
+		config_err = errno;
 
 	if(g.conf.debug_file != NULL)
 		debug_file = g.conf.debug_file;
@@ -297,27 +299,48 @@ static int init_conf(int argc, char *argv[]) {
 	}		
 	
 	if(have_config == false) {
-		fprintf(stderr, "unable to access config file at %s: %s\n", g.conf.conf_file, strerror(errno) );
+		fprintf(stderr, "unable to access config file at %s: %s\n", 
+					g.conf.conf_file, (config_err == 0? "ini parse error" : strerror(config_err) ) );
 	}
 
 	return 0;
 }
 
 static int init_plugin_stack() {
-	int i, nsec, nplugs;
+	int i, nsec, nplugs, result;
+	char *secname;
+	char *dir;
+	darray(char *) dirs;
+
+	result = 0;
+	dirs = darray_new();
 
 	if(g.ini == NULL)
-		return 0;	
+		goto done;
 
 	if( (nsec = ciniparser_getnsec(g.ini) ) < 1)
-		return 0;
+		goto done;
 
+	secname = NULL;
+	
 	for(i = 1; i <= nsec; i++) {
-		//if(
+		secname = ciniparser_getsecname(g.ini, 1);
+		assert(secname != NULL);
+
+		if( strcmp(secname, CONF_CONFIG_SECTION_CORE) == 0 )
+			continue;
+
+		/* this is a plugin section so we want to 
+		 * go looking for it in the plugin_path */
+		fprintf(stderr, "search for plugin: %s\n", secname);
+
 	}
 
-	return 0;
+done:
+	darray_free(dirs);
+	return result;
 }
+
 /* ============== API functions ==================== */
 
 static void term_win_dims(int *rows, int *cols) {
