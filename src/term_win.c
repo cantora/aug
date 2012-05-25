@@ -31,21 +31,21 @@
 #include "attr.h"
 #include "ncurses_util.h"
 
-void term_win_init(struct aug_term_win_t *tw, WINDOW *win) {
+void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 	tw->term = NULL;
 	tw->win = win;
 }
 
-void term_win_set_term(struct aug_term_win_t *tw, struct aug_term_t *term) {
+void term_win_set_term(struct aug_term_win *tw, struct aug_term *term) {
 	tw->term = term;
 	term_win_resize(tw);
 }
 
-void term_win_dims(const struct aug_term_win_t *tw, int *rows, int *cols) {
+void term_win_dims(const struct aug_term_win *tw, int *rows, int *cols) {
 	win_dims(tw->win, rows, cols);
 }
 
-void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on) {
+void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 	VTermScreen *vts;
 	VTermScreenCell cell;
 	attr_t attr;
@@ -90,12 +90,12 @@ void term_win_update_cell(struct aug_term_win_t *tw, VTermPos pos, int color_on)
 
 }
 
-void term_win_refresh(struct aug_term_win_t *tw) {
+void term_win_refresh(struct aug_term_win *tw) {
 	if(wrefresh(tw->win) == ERR)
 		err_exit(0, "wrefresh failed!");
 }
 
-int term_win_damage(struct aug_term_win_t *tw, VTermRect rect, int color_on) {
+int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	VTermPos pos;
 	int x,y;
 
@@ -115,7 +115,7 @@ int term_win_damage(struct aug_term_win_t *tw, VTermRect rect, int color_on) {
 	return 1;
 }
 
-int term_win_movecursor(struct aug_term_win_t *tw, VTermPos pos) {
+int term_win_movecursor(struct aug_term_win *tw, VTermPos pos) {
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
@@ -132,10 +132,10 @@ int term_win_movecursor(struct aug_term_win_t *tw, VTermPos pos) {
 
 /* tw->win is assumed to be the correct size 
  * when this function is called, so this simply
- * syncronizes the aug_term_t structure to the
+ * syncronizes the aug_term structure to the
  * right size according to tw->win 
  */
-void term_win_resize(struct aug_term_win_t *tw) {
+void term_win_resize(struct aug_term_win *tw) {
 	int rows, cols;
 	
 	/* get the size of the window */

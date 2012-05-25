@@ -10,10 +10,10 @@
 #define AUG_API_VERSION_MINOR 0
 
 /* defined below */
-struct aug_api_t;
-struct aug_plugin_t;
+struct aug_api;
+struct aug_plugin;
 
-typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action_t;
+typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
 
 /* callbacks which a plugin can register
  * interest in. unless otherwise specified
@@ -23,7 +23,7 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action_t;
  * pointer will be the same as a NULL 
  * callback. 
  */
-struct aug_plugin_cb_t {
+struct aug_plugin_cb {
 	/* called when a unit of input
 	 * is received from stdin. the plugin can
 	 * update the ch variable and set action
@@ -32,8 +32,8 @@ struct aug_plugin_cb_t {
 	 * the plugin can set action to 
 	 * AUG_ACT_CANCEL to cause the input
 	 * to be filtered from the terminal. */
-	void (*input_char)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
-			aug_action_t *action, int *ch);
+	void (*input_char)(const struct aug_api *api, struct aug_plugin *plugin, 
+			aug_action *action, int *ch);
 	
 	/* called when a cell in the terminal window is
 	 * about to be updated. the plugin can
@@ -44,8 +44,8 @@ struct aug_plugin_cb_t {
 	 * set action to AUG_ACTION_CANCEL and 
 	 * and prevent the cell from being 
 	 * updated. */
-	void (*cell_update)(const struct aug_api_t *api, struct aug_plugin_t *plugin, 
-			aug_action_t *action, int *row, int *col, wchar_t *wch, 
+	void (*cell_update)(const struct aug_api *api, struct aug_plugin *plugin, 
+			aug_action *action, int *row, int *col, wchar_t *wch, 
 			attr_t *attr, int *color_pair);
 
 	/* called when the cursor is about to be
@@ -54,22 +54,22 @@ struct aug_plugin_cb_t {
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
 	 * where the cursor is moved to. */
-	void (*cursor_move)(const struct aug_api_t *api, struct aug_plugin_t *plugin,
-			aug_action_t *action, int old_row, int old_col, int *new_row, int *new_col);
+	void (*cursor_move)(const struct aug_api *api, struct aug_plugin *plugin,
+			aug_action *action, int old_row, int old_col, int *new_row, int *new_col);
 
 	/* called when the screen dimensions change.
 	 * old_* hold the old dimensions and new_*
 	 * hold the new dimensions. note that the
 	 * dimensions are for the entire screen, not
 	 * the size of the main window. */
-	void (*screen_dims_change)(const struct aug_api_t *api, struct aug_plugin_t *plugin,
+	void (*screen_dims_change)(const struct aug_api *api, struct aug_plugin *plugin,
 			int old_height, int old_width, int new_height, int new_width);
 };
 
 /* this structure represents the 
  * application's view of the plugin
  */
-struct aug_plugin_t {
+struct aug_plugin {
 	/* name symbol. this name
 	 * will be used for option parsing
 	 * and configuration file parsing
@@ -79,8 +79,8 @@ struct aug_plugin_t {
 	const char *const name;
 	
 	/* init and free symbols */
-	void (*const init)(const struct aug_api_t *api, struct aug_plugin_t *plugin);
-	void (*const free)(const struct aug_api_t *api, struct aug_plugin_t *plugin);
+	void (*const init)(const struct aug_api *api, struct aug_plugin *plugin);
+	void (*const free)(const struct aug_api *api, struct aug_plugin *plugin);
 
 	/* callback subscriptions for this
 	 * plugin. this structure will be
@@ -91,7 +91,7 @@ struct aug_plugin_t {
 	 * callbacks.
 	 * this should ONLY be modifed in
 	 * the plugin_init function */
-	struct aug_plugin_cb_t callbacks;
+	struct aug_plugin_cb callbacks;
 	
 	/* a pointer to keep a private plugin
 	 * data structure. the core application
@@ -104,7 +104,7 @@ struct aug_plugin_t {
  * an interface to the core application.
  * these functions are thread safe.
  */
-struct aug_api_t {
+struct aug_api {
 
 	/* call this function to query for a
 	 * user specified configuration value
@@ -143,7 +143,7 @@ struct aug_api_t {
 	 * plugin might bind to ^A n by passing ch = 0x6e. 
 	 * if the return value is non-zero, the key is
 	 * reserved or already bound. */
-	int (*key_bind)(const struct aug_plugin_t *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
+	int (*key_bind)(const struct aug_plugin *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
 
 
 	/* ======== screen windows/panels ======================== 

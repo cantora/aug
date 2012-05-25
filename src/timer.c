@@ -17,7 +17,7 @@
  */
 #include "timer.h"
 
-int timer_init(struct timer *tmr) {
+int timer_init(struct aug_timer *tmr) {
 	if(gettimeofday(&tmr->start, NULL) != 0)
 		return -1;
 
@@ -29,7 +29,7 @@ int timer_init(struct timer *tmr) {
  * microseconds and return 0 otherwise.
  * returns -1 on error with errno set.
  */
-int timer_thresh(struct timer *tmr, int sec, int usec) {
+int timer_thresh(struct aug_timer *tmr, int sec, int usec) {
 	struct timeval now, diff, amt;
 	amt.tv_sec = sec;
 	amt.tv_usec = usec;

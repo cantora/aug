@@ -20,26 +20,26 @@
 
 #include "vterm.h"
 
-struct aug_term_io_callbacks_t {
+struct aug_term_io_callbacks {
 	void (*refresh)(void *user);
 };
 
-struct aug_term_t {
+struct aug_term {
 	VTerm *vt;
 	int master;
-	struct aug_term_io_callbacks_t io_callbacks;
+	struct aug_term_io_callbacks io_callbacks;
 	void *user;
 };
 
-void term_init(struct aug_term_t *term, int rows, int cols);
-void term_free(struct aug_term_t *term);
-void term_dims(const struct aug_term_t *term, int *rows, int *cols);
-void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *screen_callbacks, 
-							const struct aug_term_io_callbacks_t *io_callbacks, void *user);
-void term_clear_callbacks(struct aug_term_t *term);
+void term_init(struct aug_term *term, int rows, int cols);
+void term_free(struct aug_term *term);
+void term_dims(const struct aug_term *term, int *rows, int *cols);
+void term_set_callbacks(struct aug_term *term, const VTermScreenCallbacks *screen_callbacks, 
+							const struct aug_term_io_callbacks *io_callbacks, void *user);
+void term_clear_callbacks(struct aug_term *term);
 
 /* returns non-zero and sets errno if any errors occur. */
-int term_set_master(struct aug_term_t *term, int master);
-int term_resize(struct aug_term_t *term, int rows, int cols);
+int term_set_master(struct aug_term *term, int master);
+int term_resize(struct aug_term *term, int rows, int cols);
 
 #endif /* AUG_TERM_H */

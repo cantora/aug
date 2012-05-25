@@ -35,7 +35,7 @@ enum screen_err {
 
 int screen_init();
 void screen_free();
-void screen_set_term(struct aug_term_t *term);
+void screen_set_term(struct aug_term *term);
 void screen_dims(unsigned short *rows, unsigned short *cols);
 int screen_getch(int *ch);
 /*void screen_err_msg(int error, char **msg);*/

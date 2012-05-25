@@ -43,17 +43,17 @@ static const VTermScreenCallbacks CB_SCREEN = {
 	.settermprop = screen_settermprop
 };
 
-static const struct aug_term_io_callbacks_t CB_TERM_IO = {
+static const struct aug_term_io_callbacks CB_TERM_IO = {
 	.refresh = vterm_cb_refresh
 };
 
 /* globals */
 static struct {
 	int color_on;
-	struct aug_term_win_t term_win;
+	struct aug_term_win term_win;
 } g;	
 
-int screen_init(struct aug_term_t *term) {
+int screen_init(struct aug_term *term) {
 	g.color_on = 0;
 	
 	initscr();
@@ -118,7 +118,7 @@ static void vterm_cb_refresh(void *user) {
 	screen_refresh();
 }
 
-void screen_set_term(struct aug_term_t *term) {
+void screen_set_term(struct aug_term *term) {
 	if(g.term_win.term != NULL)
 		term_clear_callbacks(g.term_win.term);
 	

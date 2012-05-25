@@ -19,7 +19,7 @@
 #include "attr.h"
 #include <sys/ioctl.h>
 
-static int term_resize_master(const struct aug_term_t *);
+static int term_resize_master(const struct aug_term *);
 
 static const VTermScreenCallbacks CB_SCREEN_NULL = {
 	.damage = NULL,
@@ -31,7 +31,7 @@ static const VTermScreenCallbacks CB_SCREEN_NULL = {
 	.resize = NULL		
 };
 
-void term_init(struct aug_term_t *term, int rows, int cols) {
+void term_init(struct aug_term *term, int rows, int cols) {
 	VTermScreen *vts;
 	VTermState *state;
 
@@ -50,16 +50,16 @@ void term_init(struct aug_term_t *term, int rows, int cols) {
 	term->io_callbacks.refresh = NULL;
 }
 
-void term_free(struct aug_term_t *term) {
+void term_free(struct aug_term *term) {
 	vterm_free(term->vt);
 }
 
-void term_dims(const struct aug_term_t *term, int *rows, int *cols) {
+void term_dims(const struct aug_term *term, int *rows, int *cols) {
 	vterm_get_size(term->vt, rows, cols);
 }
 
-void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *screen_callbacks, 
-							const struct aug_term_io_callbacks_t *io_callbacks, void *user) {
+void term_set_callbacks(struct aug_term *term, const VTermScreenCallbacks *screen_callbacks, 
+							const struct aug_term_io_callbacks *io_callbacks, void *user) {
 	VTermScreen *vts;
 
 	term->user = user;
@@ -68,7 +68,7 @@ void term_set_callbacks(struct aug_term_t *term, const VTermScreenCallbacks *scr
 	term->io_callbacks = *io_callbacks;
 }
 
-void term_clear_callbacks(struct aug_term_t *term) {
+void term_clear_callbacks(struct aug_term *term) {
 	VTermScreen *vts;
 	
 	vts = vterm_obtain_screen(term->vt);
@@ -76,7 +76,7 @@ void term_clear_callbacks(struct aug_term_t *term) {
 	term->io_callbacks.refresh = NULL;	
 }
 
-static int term_resize_master(const struct aug_term_t *term) {
+static int term_resize_master(const struct aug_term *term) {
 	struct winsize size;
 
 	term_dims(term, (int *) &size.ws_row, (int *) &size.ws_col);
@@ -86,7 +86,7 @@ static int term_resize_master(const struct aug_term_t *term) {
 	return 0;
 }
 
-int term_set_master(struct aug_term_t *term, int master) {
+int term_set_master(struct aug_term *term, int master) {
 	term->master = master;
 	if(term_resize_master(term) != 0)
 		return -1;
@@ -94,7 +94,7 @@ int term_set_master(struct aug_term_t *term, int master) {
 	return 0;
 }
 
-int term_resize(struct aug_term_t *term, int rows, int cols) {
+int term_resize(struct aug_term *term, int rows, int cols) {
 	fprintf(stderr, "term: resize %d, %d\n", rows, cols);
 	
 	/* this should cause full damage and the window will be repainted

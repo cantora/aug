@@ -64,21 +64,21 @@ static const char *AUG_PLUGIN_FREE = "aug_plugin_free";
 #define BUF_SIZE 2048*4
 
 /* ccan list structures */
-struct plugin_stack_t {
+struct aug_plugin_stack {
 	struct list_head head;
 };
-struct plugin_item_t {
-	struct aug_plugin_t plugin;	
+struct aug_plugin_item {
+	struct aug_plugin plugin;	
 	struct list_node list;
 };
 
 /* globals */
 static struct {
 	struct sigaction winch_act, prev_winch_act; /* structs for handing window size change */
-	struct aug_term_t term;
+	struct aug_term term;
 	char buf[BUF_SIZE]; /* IO buffer */
 	struct aug_conf conf; /* structure of configuration variables */
-	struct plugin_stack_t plugin_stack;
+	struct aug_plugin_stack plugin_stack;
 	dictionary *ini;
 } g; 
 
@@ -161,11 +161,11 @@ static int process_master_output(VTerm *vt, int master) {
 	return 0;
 }
 
-static void loop(struct aug_term_t *term) {
+static void loop(struct aug_term *term) {
 	fd_set in_fds;
 	int status, force_refresh, just_refreshed;
 
-	struct timer inter_io_timer, refresh_expire;
+	struct aug_timer inter_io_timer, refresh_expire;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
 
@@ -256,6 +256,9 @@ static void err_exit_cleanup(int error) {
 }
 
 static int init_conf(int argc, char *argv[]) {
+	const char *debug_file;
+	bool have_config = false;
+
 	conf_init(&g.conf);
 	if(opt_parse(argc, argv, &g.conf) != 0) {
 		switch(errno) {
@@ -276,11 +279,25 @@ static int init_conf(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if(stat(g.conf.conf_file) == 0) {
+	if(access(g.conf.conf_file, R_OK) == 0) {
 		g.ini = ciniparser_load(g.conf.conf_file);
 		if(g.ini != NULL) {
+			have_config = true;
 			conf_merge_ini(&g.conf, g.ini);
 		}
+	}
+
+	if(g.conf.debug_file != NULL)
+		debug_file = g.conf.debug_file;
+	else
+		debug_file = "/dev/null";
+		
+	if(freopen(debug_file, "w", stderr) == NULL) {
+		err_exit(errno, "redirect stderr");
+	}		
+	
+	if(have_config == false) {
+		fprintf(stderr, "unable to access config file at %s: %s\n", g.conf.conf_file, strerror(errno) );
 	}
 
 	return 0;
@@ -312,7 +329,7 @@ static void term_win_dims(int *rows, int *cols) {
 int main(int argc, char *argv[]) {
 	pid_t child;
 	struct winsize size;
-	const char *debug_file, *env_term;
+	const char *env_term;
 	struct termios child_termios;
 	int master;
 	
@@ -323,15 +340,6 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "tcgetattr failed");
 	}
 
-	if(g.conf.debug_file != NULL)
-		debug_file = g.conf.debug_file;
-	else
-		debug_file = "/dev/null";
-		
-	if(freopen(debug_file, "w", stderr) == NULL) {
-		err_exit(errno, "redirect stderr");
-	}
-		
 	setlocale(LC_ALL,"");
 	
 	env_term = getenv("TERM"); 
