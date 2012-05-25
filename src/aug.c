@@ -276,9 +276,11 @@ static int init_conf(int argc, char *argv[]) {
 		return 1;
 	}
 
-	g.ini = ciniparser_load(g.conf.conf_file);
-	if(g.ini != NULL) {
-		conf_merge_ini(&g.conf, g.ini);
+	if(stat(g.conf.conf_file) == 0) {
+		g.ini = ciniparser_load(g.conf.conf_file);
+		if(g.ini != NULL) {
+			conf_merge_ini(&g.conf, g.ini);
+		}
 	}
 
 	return 0;
