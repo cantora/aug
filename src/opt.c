@@ -20,7 +20,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -46,7 +45,7 @@ char opt_err_msg[64];
  *       the value in .lopt.val
  *	  4. change opt_init so that the default value gets initialized.
  */
-static const struct opt_desc aug_options[] = {
+const struct opt_desc AUG_OPTIONS[] = {
 	{
 #define OPT_CONFIG "config"
 #define OPT_CONFIG_INDEX 0
@@ -93,7 +92,7 @@ static const struct opt_desc aug_options[] = {
 		.desc = {"display this message", NULL},
 		.lopt = {OPT_HELP, 0, 0, 'h'}
 	}
-}; /* aug_options */
+}; /* AUG_OPTIONS */
 #define AUG_OPTLEN (OPT_HELP_INDEX+1)
 
 static void init_long_options(struct option *long_options, char *optstring) {
@@ -104,10 +103,10 @@ static void init_long_options(struct option *long_options, char *optstring) {
 	optstring[os_i++] = ':'; /* return : for missing arg */
 
 	for(i = 0; i < AUG_OPTLEN; i++) {
-		long_options[i] = aug_options[i].lopt;
-		if(aug_options[i].lopt.val > 0 && aug_options[i].lopt.val < 256) {
-			optstring[os_i++] = aug_options[i].lopt.val;
-			switch(aug_options[i].lopt.has_arg) {
+		long_options[i] = AUG_OPTIONS[i].lopt;
+		if(AUG_OPTIONS[i].lopt.val > 0 && AUG_OPTIONS[i].lopt.val < 256) {
+			optstring[os_i++] = AUG_OPTIONS[i].lopt.val;
+			switch(AUG_OPTIONS[i].lopt.has_arg) {
 			case 2:
 				optstring[os_i++] = ':';
 				/* fall through */
@@ -151,19 +150,19 @@ void opt_print_help(int argc, const char *const argv[]) {
 	fprintf(stdout, "\nOPTIONS:\n");
 	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
-		f1_amt += snprintf(f1, F1_SIZE, "  --%s", aug_options[i].lopt.name);
-		if(f1_amt < F1_SIZE && aug_options[i].lopt.val >= 0 && aug_options[i].lopt.val < 256) 
-			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", aug_options[i].lopt.val);
+		f1_amt += snprintf(f1, F1_SIZE, "  --%s", AUG_OPTIONS[i].lopt.name);
+		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.val >= 0 && AUG_OPTIONS[i].lopt.val < 256) 
+			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", AUG_OPTIONS[i].lopt.val);
 		
-		if(f1_amt < F1_SIZE && aug_options[i].lopt.has_arg && aug_options[i].usage != NULL)
-			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", aug_options[i].usage);
+		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.has_arg && AUG_OPTIONS[i].usage != NULL)
+			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", AUG_OPTIONS[i].usage);
 
-		/*desc = aug_options[i].desc;
+		/*desc = AUG_OPTIONS[i].desc;
 		do {
 			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", f1, *desc);
 		} while( *(desc++) != NULL );*/
-		for(k = 0; aug_options[i].desc[k] != NULL; k++) 
-			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), aug_options[i].desc[k]);
+		for(k = 0; AUG_OPTIONS[i].desc[k] != NULL; k++) 
+			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), AUG_OPTIONS[i].desc[k]);
 	}
 	
 	fputc('\n', stdout);
@@ -186,7 +185,7 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 			goto fail;
 		}
 			
-#define OPT_SET(_var, _value) objset_add(&conf->opt_set, &_var); _var = _value
+#define OPT_SET(_var, _value) conf_opt_set(conf, &_var); _var = _value
 		switch (c) {
 		case 'd': /* debug file */
 			OPT_SET(conf->debug_file, optarg);
@@ -197,7 +196,7 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 			break;
 	
 		case LONG_ONLY_VAL(OPT_NOCOLOR_INDEX):
-			OPT_SET(conf->nocolor, 1);
+			OPT_SET(conf->nocolor, true);
 			break;
 
 		case LONG_ONLY_VAL(OPT_TERM_INDEX):

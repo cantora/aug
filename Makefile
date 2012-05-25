@@ -19,7 +19,7 @@ INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -I$(CCAN_DIR)
 INCLUDES		+= -iquote"./src" -iquote"./include"
 
 OPTIMIZE		= -ggdb #-O3
-CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES)
+CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES) 
 CXX_CMD			= gcc $(CXX_FLAGS)
 
 SRCS			= $(notdir $(filter-out ./src/$(OUTPUT).c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
@@ -40,11 +40,15 @@ all: $(OUTPUT) $(PLUGIN_OBJECTS)
 $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm
 
+
 ./libvterm:
 	bzr checkout lp:libvterm
 
+CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
 $(CCAN_DIR):
 	git clone 'https://github.com/rustyrussell/ccan.git' $(CCAN_DIR)
+	sed 's/return hashfn(keyof((const type \*)elem));/(void)(priv); return hashfn(keyof((const type *)elem));/' \
+		$(CCAN_WARNING_PATCH) > $(CCAN_WARNING_PATCH).tmp && mv $(CCAN_WARNING_PATCH).tmp $(CCAN_WARNING_PATCH)
 
 $(LIBCCAN): $(CCAN_DIR)
 	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) -f ./tools/Makefile tools/configurator/configurator

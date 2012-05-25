@@ -18,12 +18,14 @@
 #ifndef AUG_CONF_H
 #define AUG_CONF_H
 
+#include <stdbool.h>
 #include <ccan/objset/objset.h>
+#include <ccan/ciniparser/ciniparser.h>
 
 #define CONF_CONFIG_FILE_DEFAULT "~/.augrc"
-
+#define CONF_CONFIG_SECTION_CORE "aug"
 #define CONF_COLOR "color"
-#define CONF_COLOR_DEFAULT 1
+#define CONF_COLOR_DEFAULT true
 
 #define CONF_TERM "term"
 #define CONF_TERM_DEFAULT NULL /* use the value of TERM in current environment */
@@ -39,17 +41,21 @@ struct aug_conf_opt_set {
 };
 
 struct aug_conf {
-/* configuration variables */
-	int nocolor;
+	/* options/config variables */
+	bool nocolor;
 	const char *ncterm;
 	const char *term;
 	const char *debug_file;
+
+	/* option (no config) */
 	const char *conf_file;
+
+	/* args */
 	int cmd_argc;
 	const char *const *cmd_argv;
 
-/* objset to determine what was specified
- * on the command line */
+	/* objset to determine what was specified
+	 * on the command line */
 	struct aug_conf_opt_set opt_set;
 };
 
@@ -57,5 +63,7 @@ extern const char *CONF_DEFAULT_ARGV[];
 extern const int CONF_DEFAULT_ARGC;
 
 void conf_init(struct aug_conf *conf);
+void conf_opt_set(struct aug_conf *conf, void *addr);
+void conf_merge_ini(struct aug_conf *conf, dictionary *ini);
 
 #endif /* AUG_CONF_H */

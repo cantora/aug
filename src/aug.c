@@ -278,7 +278,7 @@ static int init_conf(int argc, char *argv[]) {
 
 	g.ini = ciniparser_load(g.conf.conf_file);
 	if(g.ini != NULL) {
-				
+		conf_merge_ini(&g.conf, g.ini);
 	}
 
 	return 0;
@@ -359,7 +359,7 @@ int main(int argc, char *argv[]) {
 	
 	term_dims(&g.term, (int *) &size.ws_row, (int *) &size.ws_col);
 
-	if(g.conf.nocolor == 0)
+	if(g.conf.nocolor == false)
 		if(screen_color_start() != 0) {
 			printf("failed to start color\n");
 			goto cleanup;
@@ -408,6 +408,8 @@ int main(int argc, char *argv[]) {
 cleanup:
 	term_free(&g.term);
 	screen_free();
+	if(g.ini != NULL)
+		ciniparser_freedict(g.ini);
 
 	return 0;
 }

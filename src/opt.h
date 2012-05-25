@@ -20,6 +20,7 @@
 #define AUG_OPT_H
 
 #include "conf.h"
+#include <getopt.h>
 
 enum opt_err {
 	OPT_ERR_NONE = 0,
@@ -30,7 +31,6 @@ enum opt_err {
 };
 
 extern char opt_err_msg[];
-void opt_init(struct aug_conf *conf);
 void opt_print_usage(int argc, const char *const argv[]);
 void opt_print_help(int argc, const char *const argv[]);
 int opt_parse(int argc, char *const argv[], struct aug_conf *conf);
