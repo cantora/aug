@@ -78,31 +78,3 @@ void conf_merge_ini(struct aug_conf *conf, dictionary *ini) {
 
 #undef MERGE_VAR
 }
-
-
-void conf_plugin_path_next(struct aug_conf *conf, char **current, size_t *size, char **next) {
-	char delim = ':';
-	
-	if(*current == NULL)
-		*current = conf->plugin_path;
-
-	*next = strchr(*current, delim);
-	if(next == NULL)
-		*size = strlen(*current);
-	else
-		*size = *next - *current;
-}
-void conf_plugin_path_dirs(struct aug_conf *conf, darray(char *) *dirs) {
-	char *plugin_path, *delim;
-
-	delim = ":";
-	plugin_path = strdup(conf->plugin_path);
-	if(plugin_path == NULL)
-		err_exit(errno, "memory error!");
-
-	for(itr = strtok(plugin_path, delim); itr != NULL; itr = strtok(NULL, delim) ) {
-		darray_append()
-	}
-
-	free(plugin_path);
-}

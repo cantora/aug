@@ -51,6 +51,7 @@
 #include "opt.h"
 #include "term.h"
 #include "aug.h"
+#include "tok_itr.h"
 #include <ccan/list/list.h>
 
 static void term_win_dims(int *rows, int *cols);
@@ -309,11 +310,10 @@ static int init_conf(int argc, char *argv[]) {
 static int init_plugin_stack() {
 	int i, nsec, nplugs, result;
 	char *secname;
-	char *dir;
-	darray(char *) dirs;
+	char path[1024];
+	TOK_ITR_USE_FOREACH_FUNCTION();
 
 	result = 0;
-	dirs = darray_new();
 
 	if(g.ini == NULL)
 		goto done;
@@ -333,11 +333,13 @@ static int init_plugin_stack() {
 		/* this is a plugin section so we want to 
 		 * go looking for it in the plugin_path */
 		fprintf(stderr, "search for plugin: %s\n", secname);
-
+		TOK_ITR_FOREACH(path, 1024, g.conf.plugin_path, ':') {
+			fprintf(stderr, "searching in %s...", path);
+		}	
 	}
 
+	
 done:
-	darray_free(dirs);
 	return result;
 }
 
