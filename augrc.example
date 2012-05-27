@@ -1,0 +1,9 @@
+[aug]
+
+term = xterm;
+ncterm = screen;
+
+[hello]
+
+# nothing to configure
+

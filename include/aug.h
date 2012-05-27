@@ -79,8 +79,10 @@ struct aug_plugin {
 	const char *const name;
 	
 	/* init and free symbols */
-	void (*const init)(const struct aug_api *api, struct aug_plugin *plugin);
-	void (*const free)(const struct aug_api *api, struct aug_plugin *plugin);
+#define AUG_API_INIT_ARG_PROTO const struct aug_api *api, struct aug_plugin *plugin
+	void (*const init)( AUG_API_INIT_ARG_PROTO );
+#define AUG_API_FREE_ARG_PROTO AUG_API_INIT_ARG_PROTO 
+	void (*const free)( AUG_API_FREE_ARG_PROTO );
 
 	/* callback subscriptions for this
 	 * plugin. this structure will be

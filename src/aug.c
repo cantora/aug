@@ -52,25 +52,11 @@
 #include "term.h"
 #include "aug.h"
 #include "tok_itr.h"
-#include <ccan/list/list.h>
+#include "plugin_list.h"
 
 static void term_win_dims(int *rows, int *cols);
 
-/* expected shared symbols */
-static const char *AUG_PLUGIN_NAME = "aug_plugin_name";
-static const char *AUG_PLUGIN_INIT = "aug_plugin_init";
-static const char *AUG_PLUGIN_FREE = "aug_plugin_free";
-
 #define BUF_SIZE 2048*4
-
-/* ccan list structures */
-struct aug_plugin_stack {
-	struct list_head head;
-};
-struct aug_plugin_item {
-	struct aug_plugin plugin;	
-	struct list_node list;
-};
 
 /* globals */
 static struct {
@@ -78,7 +64,7 @@ static struct {
 	struct aug_term term;
 	char buf[BUF_SIZE]; /* IO buffer */
 	struct aug_conf conf; /* structure of configuration variables */
-	struct aug_plugin_stack plugin_stack;
+	struct aug_plugin_list plugin_list;
 	dictionary *ini;
 } g; 
 
@@ -307,40 +293,63 @@ static int init_conf(int argc, char *argv[]) {
 	return 0;
 }
 
-static int init_plugin_stack() {
-	int i, nsec, nplugs, result;
+void load_plugins() {
+	int i, nsec, result;
 	char *secname;
-	char path[1024];
+	size_t seclen;
+	char path[2048];
 	TOK_ITR_USE_FOREACH_FUNCTION();
 
-	result = 0;
-
+	fprintf(stderr, "load plugins...\n");
 	if(g.ini == NULL)
-		goto done;
+		return;
 
 	if( (nsec = ciniparser_getnsec(g.ini) ) < 1)
-		goto done;
+		return;
 
 	secname = NULL;
 	
 	for(i = 1; i <= nsec; i++) {
-		secname = ciniparser_getsecname(g.ini, 1);
+		secname = ciniparser_getsecname(g.ini, i);
 		assert(secname != NULL);
 
+		/*fprintf(stderr, "section %d: %s\n", i, secname);*/
 		if( strcmp(secname, CONF_CONFIG_SECTION_CORE) == 0 )
 			continue;
 
+		seclen = strlen(secname);
+		if(seclen >= 256)  /* seems a bit excessive... */
+			continue;
+
+		result = 0;
 		/* this is a plugin section so we want to 
 		 * go looking for it in the plugin_path */
 		fprintf(stderr, "search for plugin: %s\n", secname);
-		TOK_ITR_FOREACH(path, 1024, g.conf.plugin_path, ':') {
-			fprintf(stderr, "searching in %s...", path);
-		}	
-	}
+		TOK_ITR_FOREACH(path, (1024-seclen-2-1), g.conf.plugin_path, ':') {
+			size_t len;
 
-	
-done:
-	return result;
+			len = strlen(path);
+			fprintf(stderr, "\tsearching in %s\n", path);
+			if(path[len-1] != '/') {
+				path[len++] = '/';
+				path[len] = '\0';
+			}
+				
+			strcat(path, secname);
+			strcat(path, ".so");
+
+			if(access(path, R_OK) == 0) {
+				fprintf(stderr, "\tfound %s.so\n", secname);
+				/* load the plugin */
+				result = 1;
+				break;
+			}
+		} /* FOREACH */
+		
+		if(!result)	
+			fprintf(stderr, "could not find plugin %s\n", secname);
+	} /* for each section */
+
 }
 
 /* ============== API functions ==================== */
@@ -435,12 +444,14 @@ int main(int argc, char *argv[]) {
 		err_exit(errno, "sigaction failed");
 
 	/* initialized plugin stuff */
-	list_head_init(&g.plugin_stack.head);
+	plugin_list_init(&g.plugin_list);
+	load_plugins();
 
 	/* main event loop */	
 	loop(&g.term);
 
 cleanup:
+	plugin_list_free(&g.plugin_list);
 	term_free(&g.term);
 	screen_free();
 	if(g.ini != NULL)
