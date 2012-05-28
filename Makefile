@@ -40,7 +40,6 @@ all: $(OUTPUT) $(PLUGIN_OBJECTS)
 $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm
 
-
 ./libvterm:
 	bzr checkout lp:libvterm
 
@@ -53,7 +52,7 @@ $(CCAN_DIR):
 $(LIBCCAN): $(CCAN_DIR)
 	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) -f ./tools/Makefile tools/configurator/configurator
 	$(CCAN_DIR)/tools/configurator/configurator > $(CCAN_DIR)/config.h
-	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS)
+	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) 
 
 $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 	{ \
@@ -102,7 +101,7 @@ $(foreach test, $(TESTS), $(eval $(call test-template,$(test)) ) )
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
-	for i in $(PLUGIN_DIRS); do dir=./plugin/$$i; echo "clean $$dir"; cd $$dir && $(MAKE) $(MFLAGS) clean; done
+	for i in $(PLUGIN_DIRS); do dir=./plugin/$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
 
 .PHONY: libclean
 libclean: clean

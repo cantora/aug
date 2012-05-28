@@ -1,8 +1,8 @@
 #ifndef AUG_AUG_H
 #define AUG_AUG_H
 
-#include <wchar.h>
 #include <stdint.h>
+#include <wchar.h>
 #include <ncurses.h>
 #include <panel.h>
 
@@ -32,9 +32,8 @@ struct aug_plugin_cb {
 	 * the plugin can set action to 
 	 * AUG_ACT_CANCEL to cause the input
 	 * to be filtered from the terminal. */
-	void (*input_char)(const struct aug_api *api, struct aug_plugin *plugin, 
-			aug_action *action, int *ch);
-	
+	void (*input_char)(int *ch, aug_action *action, void *user);
+
 	/* called when a cell in the terminal window is
 	 * about to be updated. the plugin can
 	 * alter (or not) any of the output 
@@ -44,9 +43,8 @@ struct aug_plugin_cb {
 	 * set action to AUG_ACTION_CANCEL and 
 	 * and prevent the cell from being 
 	 * updated. */
-	void (*cell_update)(const struct aug_api *api, struct aug_plugin *plugin, 
-			aug_action *action, int *row, int *col, wchar_t *wch, 
-			attr_t *attr, int *color_pair);
+	void (*cell_update)(int *row, int *col, wchar_t *wch, attr_t *attr, 
+							int *color_pair, aug_action *action, void *user);
 
 	/* called when the cursor is about to be
 	 * moved to some location in the terminal window.
@@ -54,22 +52,28 @@ struct aug_plugin_cb {
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
 	 * where the cursor is moved to. */
-	void (*cursor_move)(const struct aug_api *api, struct aug_plugin *plugin,
-			aug_action *action, int old_row, int old_col, int *new_row, int *new_col);
+	void (*cursor_move)(int old_row, int old_col, int *new_row, int *new_col, 
+							aug_action *action, void *user);
+
 
 	/* called when the screen dimensions change.
 	 * old_* hold the old dimensions and new_*
 	 * hold the new dimensions. note that the
 	 * dimensions are for the entire screen, not
 	 * the size of the main window. */
-	void (*screen_dims_change)(const struct aug_api *api, struct aug_plugin *plugin,
-			int old_height, int old_width, int new_height, int new_width);
+	void (*screen_dims_change)(int old_height, int old_width, int new_height, 
+								int new_width, void *user);
 };
 
 /* this structure represents the 
- * application's view of the plugin
+ * application's view of the plugin.
+ * plugins should not modify this 
+ * directly, but rather should only
+ * pass it to api functions.
  */
 struct aug_plugin {
+
+#define AUG_MAX_PLUGIN_NAME_LEN 255
 	/* name symbol. this name
 	 * will be used for option parsing
 	 * and configuration file parsing
@@ -78,28 +82,18 @@ struct aug_plugin {
 	 * configuration values. */
 	const char *const name;
 	
-	/* init and free symbols */
-#define AUG_API_INIT_ARG_PROTO const struct aug_api *api, struct aug_plugin *plugin
-	void (*const init)( AUG_API_INIT_ARG_PROTO );
-#define AUG_API_FREE_ARG_PROTO AUG_API_INIT_ARG_PROTO 
+	/* init and free symbols.
+	 * return non-zero to signal error and result in 
+	 * plugin getting unloaded from the plugin stack.
+	 */
+#define AUG_API_INIT_ARG_PROTO struct aug_plugin *plugin, const struct aug_api *api
+	int (*const init)( AUG_API_INIT_ARG_PROTO );
+#define AUG_API_FREE_ARG_PROTO     /* empty */
 	void (*const free)( AUG_API_FREE_ARG_PROTO );
 
 	/* callback subscriptions for this
-	 * plugin. this structure will be
-	 * initialized with null function
-	 * ptrs and the plugin_init function
-	 * should override the pointers for 
-	 * which the plugin wants to receive
-	 * callbacks.
-	 * this should ONLY be modifed in
-	 * the plugin_init function */
+	 * plugin. */
 	struct aug_plugin_cb callbacks;
-	
-	/* a pointer to keep a private plugin
-	 * data structure. the core application
-	 * doesnt touch this, so the plugin can 
-	 * modify it at any time. 	*/
-	void *user;
 };
 
 /* passed to the plugin to provide 
@@ -107,6 +101,12 @@ struct aug_plugin {
  * these functions are thread safe.
  */
 struct aug_api {
+
+	/* log a message to the debug log file. 
+	 * returns the number of characters printed or
+	 * a negative value on error.
+	 */
+	int (*log)(struct aug_plugin *plugin, const char *format, ...);
 
 	/* call this function to query for a
 	 * user specified configuration value
@@ -117,26 +117,31 @@ struct aug_api {
 	 * a pointer to the location of the
 	 * variable value. if the return value
 	 * is zero the key was successfully
-	 * found. */
-	int (*conf_val)(const char *name, const char *key, const void **val);
+	 * found. note that you can pass the name of
+	 * a different plugin to find out configuration 
+	 * info of other plugins or to find out if a
+	 * specific plugin is loaded or not. 
+	 */
+#define AUG_MAX_PLUGIN_KEY_LEN 255
+	int (*conf_val)(struct aug_plugin *plugin, const char *name, const char *key, const char **val);
 	
 	/* query for the number of plugins
 	 * on the plugin stack */
-	void (*stack_size)(int *size);
+	void (*stack_size)(struct aug_plugin *plugin, int *size);
 
 	/* query for the position in the 
 	 * plugin stack of a plugin by
 	 * name. the plugin at position
-	 *  zero gets the first callbacks
+	 * zero gets the first callbacks
 	 * and the plugin at the highest
 	 * position gets callbacks last. 
 	 * a non-zero return value means
 	 * a plugin with name was not found */
-	int (*stack_pos)(const char *name, int *pos);
+	int (*stack_pos)(struct aug_plugin *plugin, const char *name, int *pos);
 
 	/* get the dimensions of the main terminal
 	 * window */
-	void (*term_win_dims)(int *rows, int *cols);
+	void (*term_win_dims)(struct aug_plugin *plugin, int *rows, int *cols);
 
 	/* the user can configure a global command key
 	 * to use as a prefix and plugins can bind to
@@ -172,19 +177,19 @@ struct aug_api {
 	 * and right for a window on the top, bottom, left and right respectively. 
 	 * the *win* parameter is the output parameter that will point to
 	 * the ncurses window structure.            */
-	void (*screen_win_alloc_top)(int nlines, WINDOW **win); 
-	void (*screen_win_alloc_bot)(int nlines, WINDOW **win); 
-	void (*screen_win_alloc_left)(int ncols, WINDOW **win); 
-	void (*screen_win_alloc_right)(int ncols, WINDOW **win); 
+	void (*screen_win_alloc_top)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
+	void (*screen_win_alloc_bot)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
+	void (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
+	void (*screen_win_alloc_right)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
 
 	/* allocate a panel on top of the main terminal window and
 	 * on top of all previously allocated (by this plugin or others)
 	 * panels.           */
-	void (*screen_panel_alloc)(int nlines, int ncols, int begin_y, int begin_x, PANEL **panel);
+	void (*screen_panel_alloc)(struct aug_plugin *plugin, int nlines, int ncols, int begin_y, int begin_x, PANEL **panel);
 	
 	/* for concurrency reasons, call this function instead of
 	 * calling update_panels() from the panels library. */
-	void (*screen_panels_update)();
+	void (*screen_panels_update)(struct aug_plugin *plugin);
 };
 
 #endif /* AUG_AUG_H */

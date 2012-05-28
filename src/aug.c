@@ -15,13 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <errno.h>
 #include <poll.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -44,29 +44,99 @@
 #endif
 
 #include "vterm.h"
+
+#define AUG_CORE
+
 #include "util.h"
 #include "screen.h"
 #include "err.h"
 #include "timer.h"
 #include "opt.h"
 #include "term.h"
-#include "aug.h"
 #include "tok_itr.h"
+#include "aug.h"
 #include "plugin_list.h"
 
-static void term_win_dims(int *rows, int *cols);
+static struct aug_conf g_conf; /* structure of configuration variables */
+static struct aug_plugin_list g_plugin_list;
+static struct aug_term g_term;
+static dictionary *g_ini;	
 
 #define BUF_SIZE 2048*4
+static char g_buf[BUF_SIZE]; /* IO buffer */
+/* static globals */
+static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
 
-/* globals */
-static struct {
-	struct sigaction winch_act, prev_winch_act; /* structs for handing window size change */
-	struct aug_term term;
-	char buf[BUF_SIZE]; /* IO buffer */
-	struct aug_conf conf; /* structure of configuration variables */
-	struct aug_plugin_list plugin_list;
-	dictionary *ini;
-} g; 
+
+/* ================= API FUNCTIONS ==================================== */
+
+static int api_log(struct aug_plugin *plugin, const char *format, ...) {
+	va_list args;
+	int result;
+
+	fprintf(stderr, "%s: ", plugin->name);
+	va_start(args, format);
+	result = vfprintf(stderr, format, args);
+	va_end(args);
+
+	return result;
+}
+
+static int api_conf_val(struct aug_plugin *plugin, const char *name, const char *key, const char **val) {
+	const char *result;
+	char full_key[AUG_MAX_PLUGIN_NAME_LEN + AUG_MAX_PLUGIN_KEY_LEN + 1 + 1]; /* + ':' + '\0' */ 
+	size_t len;
+	(void)(plugin);
+	
+	/* if g_ini is null then how did this plugin get loaded? */
+	assert(g_ini != NULL);
+	
+	if(strncmp(CONF_CONFIG_SECTION_CORE, name, sizeof(CONF_CONFIG_SECTION_CORE) ) == 0)
+		return -1;
+	
+	strncpy(full_key, name, AUG_MAX_PLUGIN_NAME_LEN);
+	full_key[AUG_MAX_PLUGIN_NAME_LEN] = '\0'; /* terminate in case name was too long */
+	len = strlen(full_key);
+	full_key[len++] = ':';
+	strncpy(full_key + len, key, AUG_MAX_PLUGIN_KEY_LEN);
+	full_key[sizeof(full_key)-1] = '\0'; /* terminate in case key was too long */
+
+	/*fprintf(stderr, "lookup key %s for plugin %s\n", full_key, plugin->name);*/
+	result = ciniparser_getstring(g_ini, full_key, NULL);
+
+	if(result == NULL)
+		return -1;
+
+	/*fprintf(stderr, "found value: %s\n", result);*/
+
+	*val = result;
+	return 0;
+}
+
+static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) {
+	struct aug_plugin_item *itr;
+	int i;
+	(void)(plugin);
+
+	i = 0;
+	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
+		if(strncmp(itr->plugin.name, name, AUG_MAX_PLUGIN_NAME_LEN) == 0) {
+			*pos = i;
+			return 0;	
+		}
+		i++;
+	}
+
+	return -1;
+}
+
+static void api_term_win_dims(struct aug_plugin *plugin, int *rows, int *cols) {
+	(void)(plugin);
+	term_dims(&g_term, rows, cols);
+}
+
+
+/* =================== end API functions ==================== */
 
 static void change_winch(int how) {
 	sigset_t set;
@@ -93,12 +163,12 @@ static inline void unblock_winch() {
 static void handler_winch(int signo) {
 
 	fprintf(stderr, "handler_winch in process %d\n", getpid());
-	vterm_screen_flush_damage(vterm_obtain_screen(g.term.vt) );
+	vterm_screen_flush_damage(vterm_obtain_screen(g_term.vt) );
 
 	/* in case curses installed a winch handler */
-	if(g.prev_winch_act.sa_handler != NULL) {
+	if(g_prev_winch_act.sa_handler != NULL) {
 		fprintf(stderr, "call previous winch handler\n");
-		(*g.prev_winch_act.sa_handler)(signo);
+		(*g_prev_winch_act.sa_handler)(signo);
 	}
 
 	/* tell the screen manager to resize to whatever the new
@@ -114,7 +184,6 @@ static void process_keys(VTerm *vt) {
 	while(vterm_output_get_buffer_remaining(vt) > 0 && screen_getch(&ch) == 0 ) {
 		vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
 	}
-	
 }
 
 static void process_vterm_output(VTerm *vt, int master) {
@@ -122,8 +191,8 @@ static void process_vterm_output(VTerm *vt, int master) {
 
 	while( (buflen = vterm_output_get_buffer_current(vt) ) > 0) {
 		buflen = (buflen < BUF_SIZE)? buflen : BUF_SIZE;
-		buflen = vterm_output_bufferread(vt, g.buf, buflen);
-		write_n_or_exit(master, g.buf, buflen);
+		buflen = vterm_output_bufferread(vt, g_buf, buflen);
+		write_n_or_exit(master, g_buf, buflen);
 	}
 }
 
@@ -132,7 +201,7 @@ static int process_master_output(VTerm *vt, int master) {
 
 	total_read = 0;
 	do {
-		n_read = read(master, g.buf + total_read, 512);
+		n_read = read(master, g_buf + total_read, 512);
 	} while(n_read > 0 && ( (total_read += n_read) + 512 <= BUF_SIZE) );
 	
 	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
@@ -142,7 +211,7 @@ static int process_master_output(VTerm *vt, int master) {
 		err_exit(errno, "error reading from pty master (n_read = %d)", n_read);
 	}
 
-	vterm_push_bytes(vt, g.buf, total_read);
+	vterm_push_bytes(vt, g_buf, total_read);
 	
 	return 0;
 }
@@ -246,8 +315,8 @@ static int init_conf(int argc, char *argv[]) {
 	bool have_config = false;
 	int config_err = 0;
 
-	conf_init(&g.conf);
-	if(opt_parse(argc, argv, &g.conf) != 0) {
+	conf_init(&g_conf);
+	if(opt_parse(argc, argv, &g_conf) != 0) {
 		switch(errno) {
 		case OPT_ERR_HELP:
 			opt_print_help(argc, (const char *const *) argv);
@@ -266,18 +335,18 @@ static int init_conf(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if(access(g.conf.conf_file, R_OK) == 0) {
-		g.ini = ciniparser_load(g.conf.conf_file);
-		if(g.ini != NULL) {
+	if(access(g_conf.conf_file, R_OK) == 0) {
+		g_ini = ciniparser_load(g_conf.conf_file);
+		if(g_ini != NULL) {
 			have_config = true;
-			conf_merge_ini(&g.conf, g.ini);
+			conf_merge_ini(&g_conf, g_ini);
 		}
 	}
 	else
 		config_err = errno;
 
-	if(g.conf.debug_file != NULL)
-		debug_file = g.conf.debug_file;
+	if(g_conf.debug_file != NULL)
+		debug_file = g_conf.debug_file;
 	else
 		debug_file = "/dev/null";
 		
@@ -287,30 +356,31 @@ static int init_conf(int argc, char *argv[]) {
 	
 	if(have_config == false) {
 		fprintf(stderr, "unable to access config file at %s: %s\n", 
-					g.conf.conf_file, (config_err == 0? "ini parse error" : strerror(config_err) ) );
+					g_conf.conf_file, (config_err == 0? "ini parse error" : strerror(config_err) ) );
 	}
 
 	return 0;
 }
 
-void load_plugins() {
-	int i, nsec, result;
+static void load_plugins() {
+	int i, nsec;
 	char *secname;
+	const char *err;
 	size_t seclen;
 	char path[2048];
 	TOK_ITR_USE_FOREACH_FUNCTION();
 
 	fprintf(stderr, "load plugins...\n");
-	if(g.ini == NULL)
+	if(g_ini == NULL)
 		return;
 
-	if( (nsec = ciniparser_getnsec(g.ini) ) < 1)
+	if( (nsec = ciniparser_getnsec(g_ini) ) < 1)
 		return;
 
 	secname = NULL;
 	
 	for(i = 1; i <= nsec; i++) {
-		secname = ciniparser_getsecname(g.ini, i);
+		secname = ciniparser_getsecname(g_ini, i);
 		assert(secname != NULL);
 
 		/*fprintf(stderr, "section %d: %s\n", i, secname);*/
@@ -318,14 +388,16 @@ void load_plugins() {
 			continue;
 
 		seclen = strlen(secname);
-		if(seclen >= 256)  /* seems a bit excessive... */
+		if(seclen > AUG_MAX_PLUGIN_NAME_LEN) {  /* seems a bit excessive... */
+			fprintf(stderr, "plugin section name exceeds maximum plugin name length of %d\n", AUG_MAX_PLUGIN_NAME_LEN);
 			continue;
+		}
 
-		result = 0;
+		err = "could not find plugin in search path";
 		/* this is a plugin section so we want to 
 		 * go looking for it in the plugin_path */
 		fprintf(stderr, "search for plugin: %s\n", secname);
-		TOK_ITR_FOREACH(path, (1024-seclen-2-1), g.conf.plugin_path, ':') {
+		TOK_ITR_FOREACH(path, (1024-seclen-3-1), g_conf.plugin_path, ':') {
 			size_t len;
 
 			len = strlen(path);
@@ -339,23 +411,77 @@ void load_plugins() {
 			strcat(path, ".so");
 
 			if(access(path, R_OK) == 0) {
-				fprintf(stderr, "\tfound %s.so\n", secname);
 				/* load the plugin */
-				result = 1;
+				err = NULL;
+				plugin_list_push(&g_plugin_list, path, secname, seclen, &err);
+				if(err == NULL)
+					fprintf(stderr, "\tloaded %s.so\n", secname);
+
 				break;
 			}
 		} /* FOREACH */
 		
-		if(!result)	
-			fprintf(stderr, "could not find plugin %s\n", secname);
+		if(err != NULL)	
+			fprintf(stderr, "\terror loading plugin %s: %s\n", secname, err);
+
 	} /* for each section */
 
 }
 
-/* ============== API functions ==================== */
+static void child_init(const char *env_term) {
+	const char *child_term;
 
-static void term_win_dims(int *rows, int *cols) {
-	term_dims(&g.term, rows, cols);
+	/* set terminal profile for CHILD to supplied --term arg if exists 
+	 * otherwise make sure to reset the TERM variable to the initial
+	 * environment, even if it was null.
+	 */
+	child_term = NULL;
+	if(g_conf.term != NULL) 
+		child_term = g_conf.term;
+	else if(env_term != NULL) 
+		child_term = env_term;
+		
+	if(child_term != NULL) {
+		if(setenv("TERM", child_term, 1) != 0)
+			err_exit(errno, "error setting environment variable: %s", child_term);
+	}
+	else {
+		if(unsetenv("TERM") != 0)
+			err_exit(errno, "error unsetting environment variable: TERM");
+	}
+
+	unblock_winch();	
+	execvp(g_conf.cmd_argv[0], (char *const *) g_conf.cmd_argv);
+}
+
+void init_plugins(struct aug_api *api) {
+	struct aug_plugin_item *i, *next;
+
+	plugin_list_init(&g_plugin_list);
+	load_plugins();
+	api->log = api_log;
+	api->conf_val = api_conf_val;
+	api->stack_pos = api_stack_pos;
+	api->term_win_dims = api_term_win_dims;
+			
+	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
+		fprintf(stderr, "initialize %s...\n", i->plugin.name);
+		if( (*i->plugin.init)(&i->plugin, api) != 0) {
+			fprintf(stderr, "\tinit for %s failed\n", i->plugin.name);
+			plugin_list_del(&g_plugin_list, i);
+		}
+	}
+}
+
+void free_plugins() {
+	struct aug_plugin_item *i;
+
+	PLUGIN_LIST_FOREACH_REV(&g_plugin_list, i) {
+		fprintf(stderr, "free %s...\n", i->plugin.name);
+		(*i->plugin.free)();
+	}
+
+	plugin_list_free(&g_plugin_list);
 }
 
 /* ============== MAIN ==============================*/
@@ -366,7 +492,8 @@ int main(int argc, char *argv[]) {
 	const char *env_term;
 	struct termios child_termios;
 	int master;
-	
+	struct aug_api api;
+
 	if(init_conf(argc, argv) != 0)
 		return 1;
 
@@ -379,31 +506,30 @@ int main(int argc, char *argv[]) {
 	env_term = getenv("TERM"); 
 	/* set the PARENT terminal profile to --ncterm if supplied.
 	 * have to set this before calling screen_init to affect ncurses */
-	if(g.conf.ncterm != NULL)
-		if(setenv("TERM", g.conf.ncterm, 1) != 0)
-			err_exit(errno, "error setting environment variable: %s", g.conf.ncterm);
+	if(g_conf.ncterm != NULL)
+		if(setenv("TERM", g_conf.ncterm, 1) != 0)
+			err_exit(errno, "error setting environment variable: %s", g_conf.ncterm);
 
 
-	/* block winch right off the bat
-	 * because we want to defer 
-	 * processing of it until 
-	 * curses and vterm are set up
+	/* block winch right off the bat because we want to defer 
+	 * processing of it until curses and vterm are set up. winch
+	 * will get unblocked in the loop function.
 	 */
 	block_winch();
-	g.winch_act.sa_handler = handler_winch;
-	sigemptyset(&g.winch_act.sa_mask);
-	g.winch_act.sa_flags = 0;
+	g_winch_act.sa_handler = handler_winch;
+	sigemptyset(&g_winch_act.sa_mask);
+	g_winch_act.sa_flags = 0;
 
 	/* screen will resize term to the right size,
 	 * so just initialize to 1x1. */
-	term_init(&g.term, 1, 1);
-	if(screen_init(&g.term) != 0)
+	term_init(&g_term, 1, 1);
+	if(screen_init(&g_term) != 0)
 		err_exit(0, "screen_init failure");
 	err_exit_cleanup_fn(err_exit_cleanup);
 	
-	term_dims(&g.term, (int *) &size.ws_row, (int *) &size.ws_col);
+	term_dims(&g_term, (int *) &size.ws_row, (int *) &size.ws_col);
 
-	if(g.conf.nocolor == false)
+	if(g_conf.nocolor == false)
 		if(screen_color_start() != 0) {
 			printf("failed to start color\n");
 			goto cleanup;
@@ -411,51 +537,30 @@ int main(int argc, char *argv[]) {
 
 	child = forkpty(&master, NULL, &child_termios, &size);
 	if(child == 0) {
-		const char *child_term;
-		/* set terminal profile for CHILD to supplied --term arg if exists 
-		 * otherwise make sure to reset the TERM variable to the initial
-		 * environment, even if it was null.
-		 */
-		child_term = NULL;
-		if(g.conf.term != NULL) 
-			child_term = g.conf.term;
-		else if(env_term != NULL) 
-			child_term = env_term;
-			
-		if(child_term != NULL) {
-			if(setenv("TERM", child_term, 1) != 0)
-				err_exit(errno, "error setting environment variable: %s", child_term);
-		}
-		else {
-			if(unsetenv("TERM") != 0)
-				err_exit(errno, "error unsetting environment variable: TERM");
-		}
-
-		unblock_winch();	
-		execvp(g.conf.cmd_argv[0], (char *const *) g.conf.cmd_argv);
-		err_exit(errno, "cannot exec %s", g.conf.cmd_argv[0]);
+		child_init(env_term);
+		err_exit(errno, "cannot exec %s", g_conf.cmd_argv[0]);
 	}
 
 	if(set_nonblocking(master) != 0)
 		err_exit(errno, "failed to set master fd to non-blocking");
-	if(term_set_master(&g.term, master) != 0)
+	if(term_set_master(&g_term, master) != 0)
 		err_exit(errno, "failed to set master pty in term structure");
-	if(sigaction(SIGWINCH, &g.winch_act, &g.prev_winch_act) != 0)
+	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 
-	/* initialized plugin stuff */
-	plugin_list_init(&g.plugin_list);
-	load_plugins();
+	init_plugins(&api);
 
+	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
-	loop(&g.term);
+	loop(&g_term);
+	fprintf(stderr, "end main event loop, exiting...\n");
 
 cleanup:
-	plugin_list_free(&g.plugin_list);
-	term_free(&g.term);
+	free_plugins();
+	term_free(&g_term);
 	screen_free();
-	if(g.ini != NULL)
-		ciniparser_freedict(g.ini);
+	if(g_ini != NULL)
+		ciniparser_freedict(g_ini);
 
 	return 0;
 }

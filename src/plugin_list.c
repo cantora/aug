@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dlfcn.h>
-#include "aug.h"
 #include "err.h"
 
 /* expected shared symbols */
@@ -12,11 +11,7 @@ static const char AUG_PLUGIN_FREE[] = "aug_plugin_free";
 static const char AUG_PLUGIN_MAJOR[] = "aug_plugin_api_version_major";
 
 static const char ERR_VERSION_MISMATCH[] = "version mismatch";
-
-struct aug_plugin_item {
-	struct aug_plugin plugin;	
-	struct list_node node;
-};
+static const char ERR_NAME_MISMATCH[] = "name mismatch";
 
 void plugin_list_init(struct aug_plugin_list *pl) {
 	list_head_init(&pl->head);
@@ -35,13 +30,14 @@ void plugin_list_free(struct aug_plugin_list *pl) {
 /* returns non-zero and sets *err_msg* (if *err_msg* non-null) if
  * an error occurs while loading 
  */
-int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char **err_msg) {
+int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char *name, 
+						size_t namelen, const char **err_msg) {
 	void *handle;
 	const char *err;
-	char *name;
+	char *so_name;
 	struct aug_plugin_item *item;
 	int (*major_version)();
-	void (*init)( AUG_API_INIT_ARG_PROTO );
+	int (*init)( AUG_API_INIT_ARG_PROTO );
 	void (*free)( AUG_API_FREE_ARG_PROTO );
 	
 #	define CHECK_DLERR() \
@@ -62,9 +58,14 @@ int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char **
 		goto fail;
 	}
 		
-	name = dlsym(handle, AUG_PLUGIN_NAME);
+	so_name = dlsym(handle, AUG_PLUGIN_NAME);
 	CHECK_DLERR();
 	
+	if(strncmp(name, so_name, namelen) != 0) {
+		err = ERR_NAME_MISMATCH;
+		goto fail;
+	}
+		
 	init = dlsym(handle, AUG_PLUGIN_INIT);
 	CHECK_DLERR();
 
@@ -77,17 +78,24 @@ int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char **
 
 	/* hack to initialize the constant 
 	 * members of the plugin struct */
-	*( (void **) &item->plugin.name) = name;
+	*( (void **) &item->plugin.name) = so_name;
 	*( (void **) &item->plugin.init) = init;
 	*( (void **) &item->plugin.free) = free;
 	memset(&item->plugin.callbacks, 0, sizeof( struct aug_plugin_cb ) );
 	
-	list_add(&pl->head, &item->node);
+	list_add_tail(&pl->head, &item->node);
+
+#	undef CHECK_DLERR
+
 	return 0;
 fail:
 	if(err_msg != NULL)
 		*err_msg = err;
-	return -1;
 
-#undef CHECK_DLERR
+	return -1;
+}
+
+void plugin_list_del(struct aug_plugin_list *pl, struct aug_plugin_item *item) {
+	list_del_from(&pl->head, &item->node);
+	free(item);
 }

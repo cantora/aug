@@ -97,7 +97,6 @@ void test2() {
 
 void test3() {
 	struct aug_conf c;
-	int i;
 	int argc = 1;
 	char *argv[] = {g_argv[0], NULL};
 	const char *path = "/tmp/augrc";
@@ -141,7 +140,6 @@ void test3() {
 
 void test4() {
 	struct aug_conf c;
-	int i;
 	char *argv[] = {g_argv[0], "--ncterm", "xterm", NULL};
 	int argc = AUG_ARRAY_SIZE(argv) - 1;
 
