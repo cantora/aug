@@ -191,9 +191,11 @@ void opt_print_help(int argc, const char *const argv[]) {
 	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
 		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.val >= 0 && AUG_OPTIONS[i].lopt.val < 256) 
-			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "  -%c", AUG_OPTIONS[i].lopt.val);
+			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "  -%c|", AUG_OPTIONS[i].lopt.val);
 		else
-			f1_amt += snprintf(f1, F1_SIZE, "  --%s", AUG_OPTIONS[i].lopt.name);
+			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "  ");
+
+		f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "--%s", AUG_OPTIONS[i].lopt.name);
 		
 		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.has_arg && AUG_OPTIONS[i].usage != NULL)
 			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", AUG_OPTIONS[i].usage);

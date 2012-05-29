@@ -111,7 +111,10 @@ extern const int CONF_DEFAULT_ARGC;
 
 void conf_init(struct aug_conf *conf);
 void conf_opt_set(struct aug_conf *conf, void *addr);
+int conf_opt_isset(const struct aug_conf *conf, void *addr);
 void conf_merge_ini(struct aug_conf *conf, dictionary *ini);
 int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg);
+void conf_fprint(struct aug_conf *c, FILE *f);
+
 
 #endif /* AUG_CONF_H */

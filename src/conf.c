@@ -57,6 +57,13 @@ void conf_opt_set(struct aug_conf *conf, void *addr) {
 	objset_add(&conf->opt_set, addr);
 }
 
+int conf_opt_isset(const struct aug_conf *conf, void *addr) {
+	assert(addr > (void *)conf);
+	assert(addr < (void *) (conf + sizeof(struct aug_conf) ) );
+	
+	return (objset_get(&conf->opt_set, addr) != NULL);
+}
+
 void conf_merge_ini(struct aug_conf *conf, dictionary *ini) {
 
 	/* we keep track of what was specified on the command
@@ -121,4 +128,29 @@ int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg) {
 		conf->escape_key = -1;
 
 	return 0;	
+}
+
+void conf_fprint(struct aug_conf *c, FILE *f) {
+	int i;
+
+	fprintf(f, "nocolor: \t\t'%d'\n", c->nocolor);
+	fprintf(f, "ncterm: \t\t'%s'\n", c->ncterm);
+	fprintf(f, "term: \t\t\t'%s'\n", c->term);
+	fprintf(f, "debug_file: \t\t'%s'\n", c->debug_file);
+	fprintf(f, "conf_file: \t\t'%s'\n", c->conf_file);
+	fprintf(f, "cmd_prefix: \t\t'%s'\n", c->cmd_prefix);
+	fprintf(f, "cmd_prefix_escape: \t'%s'\n", c->cmd_prefix_escape);
+	fprintf(f, "cmd: \t\t\t[");
+	for(i = 0; i < c->cmd_argc; i++) {
+		fprintf(f, "'%s'", c->cmd_argv[i]);
+		if(i < c->cmd_argc - 1)
+			fprintf(f, ", ");
+	}
+	fprintf(f, "]\n");
+
+	fprintf(f, "cmd_key: 0x%02x\n", c->cmd_key);
+	if(c->escape_key >= 0)
+		fprintf(f, "escape_key: 0x%02x\n", c->escape_key);
+	else
+		fprintf(f, "pass through mode = on\n");
 }

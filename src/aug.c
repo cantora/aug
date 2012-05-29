@@ -218,9 +218,32 @@ static void handler_winch(int signo) {
 
 static void process_keys(VTerm *vt) {
 	int ch;
+	static bool command_key = false;
+	aug_on_key_fn command_fn;
+	void *user;
 
-	while(vterm_output_get_buffer_remaining(vt) > 0 && screen_getch(&ch) == 0 ) {
-		vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+	/* we need at least two spots in the buffer because in 'pass through' 
+	 * command prefix mode we will send both the command key and the following
+	 * key at the same time after finding a non-command */
+	while(vterm_output_get_buffer_remaining(vt) > 1 && screen_getch(&ch) == 0 ) {
+		if(command_key == true) { /* treat *ch* as a command extension */
+			fprintf(stderr, "check for command extension 0x%02x\n", ch);
+			keymap_binding(&g_keymap, ch, &command_fn, &user);
+			if(command_fn == NULL) { /* this is not a bound key */
+				vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) g_conf.cmd_key);
+				vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+			}
+			else { /* invoke the command */
+				(*command_fn)(ch, user);
+			}
+			command_key = false;
+		}
+		else if(ch == g_conf.cmd_key) {
+			command_key = true;	
+		}
+		else {
+			vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+		}
 	}
 }
 
@@ -374,13 +397,6 @@ static int init_conf(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if(conf_set_derived_vars(&g_conf, &errmsg) != 0) {
-		fprintf(stdout, "%s\n", errmsg);
-		opt_print_usage(argc, (const char *const *) argv);
-		fputc('\n', stdout);
-		return 1;
-	}
-
 	if(access(g_conf.conf_file, R_OK) == 0) {
 		g_ini = ciniparser_load(g_conf.conf_file);
 		if(g_ini != NULL) {
@@ -403,6 +419,11 @@ static int init_conf(int argc, char *argv[]) {
 	if(have_config == false) {
 		fprintf(stderr, "unable to access config file at %s: %s\n", 
 					g_conf.conf_file, (config_err == 0? "ini parse error" : strerror(config_err) ) );
+	}
+
+	if(conf_set_derived_vars(&g_conf, &errmsg) != 0) {
+		fprintf(stdout, "%s\n", errmsg);
+		return 1;
 	}
 
 	return 0;
@@ -601,6 +622,8 @@ int main(int argc, char *argv[]) {
 	keymap_init(&g_keymap);
 	init_plugins(&api);
 
+	fprintf(stderr, "configuration:\n");
+	conf_fprint(&g_conf, stderr);
 	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
 	loop(&g_term);

@@ -3,6 +3,7 @@
 #include "opt.h"
 #include "util.h"
 
+/*
 void print_conf(struct aug_conf *c) {
 	int i;
 
@@ -27,6 +28,7 @@ void print_conf(struct aug_conf *c) {
 	else
 		printf("pass through mode = on\n");
 }
+*/
 
 struct addr_name_pair {
 	void *addr;
@@ -63,7 +65,7 @@ int main(int argc, char *argv[]) {
 
 	opt_print_help(argc, argv);
 	printf("DEFAULT:\n");
-	print_conf(&c);
+	conf_fprint(&c, stdout);
 
 	if(opt_parse(argc, argv, &c) != 0) {
 		switch(errno) {
@@ -88,7 +90,7 @@ int main(int argc, char *argv[]) {
 
 parsed:	
 	printf("AFTER PARSING:\n");
-	print_conf(&c);
+	conf_fprint(&c, stdout);
 	print_opt_set(&c);
 done:	
 	return 0;

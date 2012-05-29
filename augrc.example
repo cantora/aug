@@ -2,6 +2,7 @@
 
 term = xterm;
 ncterm = screen;
+cmd-prefix = ^Q
 
 [hello]
 
