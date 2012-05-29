@@ -56,11 +56,13 @@
 #include "tok_itr.h"
 #include "aug.h"
 #include "plugin_list.h"
+#include "keymap.h"
 
 static struct aug_conf g_conf; /* structure of configuration variables */
 static struct aug_plugin_list g_plugin_list;
 static struct aug_term g_term;
 static dictionary *g_ini;	
+static struct aug_keymap g_keymap;
 
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
@@ -113,6 +115,19 @@ static int api_conf_val(struct aug_plugin *plugin, const char *name, const char 
 	return 0;
 }
 
+static void api_stack_size(struct aug_plugin *plugin, int *size) {
+	struct aug_plugin_item *itr;
+	int i;
+	(void)(plugin);
+
+	i = 0;
+	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
+		i++;
+	}
+	
+	*size = i;
+}
+
 static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) {
 	struct aug_plugin_item *itr;
 	int i;
@@ -130,11 +145,34 @@ static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) 
 	return -1;
 }
 
+
 static void api_term_win_dims(struct aug_plugin *plugin, int *rows, int *cols) {
 	(void)(plugin);
 	term_dims(&g_term, rows, cols);
 }
 
+static int api_key_bind(const struct aug_plugin *plugin, int ch, 
+							aug_on_key_fn on_key, void *user) {
+	aug_on_key_fn ok;
+	(void)(plugin);
+
+	assert(on_key != NULL);
+	ok = NULL;
+	
+	keymap_binding(&g_keymap, ch, &ok, NULL);
+	if(ok != NULL) /* this key is already bound */
+		return -1;
+	
+	keymap_bind(&g_keymap, ch, on_key, user);
+
+	return 0;
+}
+
+int api_key_unbind(const struct aug_plugin *plugin, int ch) {
+	(void)(plugin);
+
+	return keymap_unbind(&g_keymap, ch);
+}
 
 /* =================== end API functions ==================== */
 
@@ -368,7 +406,7 @@ static void load_plugins() {
 	const char *err;
 	size_t seclen;
 	char path[2048];
-	TOK_ITR_USE_FOREACH_FUNCTION();
+	struct aug_tok_itr tok_itr;
 
 	fprintf(stderr, "load plugins...\n");
 	if(g_ini == NULL)
@@ -397,7 +435,7 @@ static void load_plugins() {
 		/* this is a plugin section so we want to 
 		 * go looking for it in the plugin_path */
 		fprintf(stderr, "search for plugin: %s\n", secname);
-		TOK_ITR_FOREACH(path, (1024-seclen-3-1), g_conf.plugin_path, ':') {
+		TOK_ITR_FOREACH(path, (1024-seclen-3-1), g_conf.plugin_path, ':', &tok_itr) {
 			size_t len;
 
 			len = strlen(path);
@@ -461,8 +499,11 @@ void init_plugins(struct aug_api *api) {
 	load_plugins();
 	api->log = api_log;
 	api->conf_val = api_conf_val;
+	api->stack_size = api_stack_size;
 	api->stack_pos = api_stack_pos;
 	api->term_win_dims = api_term_win_dims;
+	api->key_bind = api_key_bind;
+	api->key_unbind = api_key_unbind;
 			
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);
@@ -548,6 +589,8 @@ int main(int argc, char *argv[]) {
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 
+	/* init keymap structure */
+	keymap_init(&g_keymap);
 	init_plugins(&api);
 
 	fprintf(stderr, "start main event loop\n");
@@ -557,6 +600,7 @@ int main(int argc, char *argv[]) {
 
 cleanup:
 	free_plugins();
+	keymap_free(&g_keymap);
 	term_free(&g_term);
 	screen_free();
 	if(g_ini != NULL)

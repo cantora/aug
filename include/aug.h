@@ -67,8 +67,8 @@ struct aug_plugin_cb {
 
 /* this structure represents the 
  * application's view of the plugin.
- * plugins should not modify this 
- * directly, but rather should only
+ * PLUGINS SHOULD NOT MODIFY THIS 
+ * DIRECTLY, but rather should only
  * pass it to api functions.
  */
 struct aug_plugin {
@@ -94,7 +94,13 @@ struct aug_plugin {
 	/* callback subscriptions for this
 	 * plugin. */
 	struct aug_plugin_cb callbacks;
+
+	/* handle to the loaded library */
+	void *so_handle;
 };
+
+/* function pointer type for callbacks on key extensions */
+typedef void (*aug_on_key_fn)(int chr, void *user);
 
 /* passed to the plugin to provide 
  * an interface to the core application.
@@ -149,9 +155,14 @@ struct aug_api {
 	 * user might set ^A as the command key, and a 
 	 * plugin might bind to ^A n by passing ch = 0x6e. 
 	 * if the return value is non-zero, the key is
-	 * reserved or already bound. */
-	int (*key_bind)(const struct aug_plugin *plugin, int ch, void (*on_key_fn)(int chr, void *user), void *user );
-
+	 * reserved or already bound. 
+	 * a call to key_bind should be matched by a call
+	 * to key_unbind as soon as the plugin no longer 
+	 * needs to use the binding or when aug_plugin_free
+	 * function is called.
+	 */
+	int (*key_bind)(const struct aug_plugin *plugin, int ch, aug_on_key_fn on_key, void *user );
+	int (*key_unbind)(const struct aug_plugin *plugin, int ch);
 
 	/* ======== screen windows/panels ======================== 
 	 * for this api there are two types of screen real estate

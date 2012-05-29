@@ -21,8 +21,8 @@ void plugin_list_free(struct aug_plugin_list *pl) {
 	struct aug_plugin_item *next, *i;
 
 	list_for_each_safe(&pl->head, i, next, node) {
-		/* todo: call i->plugin.free here? */
 		list_del(&i->node);
+		dlclose(i->plugin.so_handle);
 		free(i);
 	}
 }
@@ -82,6 +82,7 @@ int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char *n
 	*( (void **) &item->plugin.init) = init;
 	*( (void **) &item->plugin.free) = free;
 	memset(&item->plugin.callbacks, 0, sizeof( struct aug_plugin_cb ) );
+	item->plugin.so_handle = handle;
 	
 	list_add_tail(&pl->head, &item->node);
 
@@ -97,5 +98,6 @@ fail:
 
 void plugin_list_del(struct aug_plugin_list *pl, struct aug_plugin_item *item) {
 	list_del_from(&pl->head, &item->node);
+	dlclose(item->plugin.so_handle);
 	free(item);
 }

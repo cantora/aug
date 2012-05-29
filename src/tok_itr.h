@@ -8,19 +8,10 @@ struct aug_tok_itr {
 	const char *curr;
 };
 
-#define TOK_ITR_USE_FOREACH_FUNCTION() \
-	struct aug_tok_itr TOK_ITR_foreach	
-
-/* probably not thread safe to do this
- * globally
- */
-#define TOK_ITR_USE_FOREACH_GLOBAL() \
-	static TOK_ITR_USE_FOREACH_FUNCTION
-
-#define TOK_ITR_FOREACH(_str, _str_size, _list, _delim) \
-	for(tok_itr_init(&TOK_ITR_foreach, _list, _delim); \
-		!tok_itr_end(&TOK_ITR_foreach) && tok_itr_val_TRUE(&TOK_ITR_foreach, _str, _str_size); \
-		 tok_itr_next(&TOK_ITR_foreach) \
+#define TOK_ITR_FOREACH(_str, _str_size, _list, _delim, _tok_itr_ptr) \
+	for(tok_itr_init(_tok_itr_ptr, _list, _delim); \
+		!tok_itr_end(_tok_itr_ptr) && tok_itr_val_TRUE(_tok_itr_ptr, _str, _str_size); \
+		tok_itr_next(_tok_itr_ptr) \
 		)
 
 /* initialize iterator on *list*, a null terminated string
