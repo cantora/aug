@@ -20,6 +20,6 @@
 #define AUG_ERR_H
 
 void err_exit_cleanup_fn(void (*cleanup_fn)(int error) );
-void err_exit(int error, char *format, ...);
+void err_exit(int error, const char *format, ...);
 
 #endif

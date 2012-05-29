@@ -21,7 +21,6 @@
 #include <stdbool.h>
 #include <ccan/objset/objset.h>
 #include <ccan/ciniparser/ciniparser.h>
-#include <ccan/darray/darray.h>
 
 #define CONF_CONFIG_FILE_DEFAULT "~/.augrc"
 #define CONF_CONFIG_SECTION_CORE "aug"
@@ -49,6 +48,34 @@
 #define CONF_PLUGIN_PATH "plugin-path"
 #define CONF_PLUGIN_PATH_DEFAULT "~/.aug-plugins"
 
+#define CONF_CMD_PREFIX "cmd-prefix"
+#define CONF_CMD_PREFIX_DEFAULT "^A"
+
+/* if no escape is defined, then aug will be in
+ * 'pass-through' mode where if a command-prefix + 
+ * following character are not a recognized command,
+ * the command character and the following character
+ * will simply pass through to the terminal.
+ * this allows aug to use the same command character as a
+ * screen/tmux session running inside aug with the appearance
+ * of having simply 'rebound' certain key combinations to aug.
+ * for example, suppose both aug and screen use command
+ * character ^A, and screen is running inside of aug, and some
+ * plugin command is bound to ^A-r, then typing ^A-r would of course
+ * invoke the plugin command, typing ^A-^A would pass through
+ * aug because it is unbound in the aug context (and thus invoke
+ * the screen previous window command) and typing ^A-a would
+ * pass through and cause screen to output a literal ^A to the 
+ * terminal. 
+ * if prefix escape is non-null, then aug will act like screen/tmux
+ * where a command key followed by an unbound extension will simply
+ * get filtered out and do nothing, and typing the command key
+ * followed by the escape will output a literal command key to the
+ * terminal.
+ */
+#define CONF_CMD_PREFIX_ESCAPE "cmd-prefix-escape"
+#define CONF_CMD_PREFIX_ESCAPE_DEFAULT NULL
+
 struct aug_conf_opt_set {
 	OBJSET_MEMBERS(const void *);
 };
@@ -60,6 +87,8 @@ struct aug_conf {
 	const char *term;
 	const char *debug_file;
 	const char *plugin_path;
+	const char *cmd_prefix;
+	const char *cmd_prefix_escape;
 
 	/* option (no config) */
 	const char *conf_file;
@@ -67,6 +96,10 @@ struct aug_conf {
 	/* args */
 	int cmd_argc;
 	const char *const *cmd_argv;
+
+	/* values derived from variables above */
+	int cmd_key;
+	int escape_key;
 
 	/* objset to determine what was specified
 	 * on the command line */
@@ -79,5 +112,6 @@ extern const int CONF_DEFAULT_ARGC;
 void conf_init(struct aug_conf *conf);
 void conf_opt_set(struct aug_conf *conf, void *addr);
 void conf_merge_ini(struct aug_conf *conf, dictionary *ini);
+int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg);
 
 #endif /* AUG_CONF_H */

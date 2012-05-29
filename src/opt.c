@@ -22,13 +22,15 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
+#include "screen.h"
+#include "err.h"
 
 #define AUG_QUOTE(_EXP) #_EXP
 #define AUG_EXPAND_QUOTE(_EXP) AUG_QUOTE(_EXP)
 
 struct opt_desc {
 	const char *usage;
-	const char *const desc[4];
+	const char *const desc[8];
 	const struct option lopt; 	/* getopt long option struct */
 };
 
@@ -51,31 +53,60 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_CONFIG "config"
 #define OPT_CONFIG_INDEX 0
 		.usage = " FILEPATH",
-		.desc = {"specify the path of the configuration file", 
+		.desc = {"specify the path of the configuration file.", 
 					"\tdefault: " CONF_CONFIG_FILE_DEFAULT, NULL},
 		.lopt = {OPT_CONFIG, 1, 0, 'c'}
 	},
 	{
-#define OPT_NOCOLOR "no-color"
-#define OPT_NOCOLOR_INDEX (OPT_CONFIG_INDEX+1)
+#define OPT_CMD_PREFIX_USAGE " <char>"
+#define OPT_CMD_PREFIX CONF_CMD_PREFIX
+#define OPT_CMD_PREFIX_INDEX (OPT_CONFIG_INDEX+1)
+		.usage = OPT_CMD_PREFIX_USAGE,
+		.desc = {"set prefix key for core commands and plugin extension commands.",
+					"see option --char-rep for a list of valid character representation",
+					"strings that can be passed in as an argument here.",
+					"\tdefault: " CONF_CMD_PREFIX_DEFAULT, NULL},
+		.lopt = {OPT_CMD_PREFIX, 1, 0, 'e' }
+	},
+	{
+#define OPT_CMD_PREFIX_ESCAPE CONF_CMD_PREFIX_ESCAPE
+#define OPT_CMD_PREFIX_ESCAPE_INDEX (OPT_CMD_PREFIX_INDEX+1)
+		.usage = OPT_CMD_PREFIX_USAGE,
+		.desc = {"set prefix key escape extension, i.e. if set to 'a' then typing",
+					"^A-a will output a literal ^A to the terminal.",
+					"see man page for details on 'pass through' mode.", 
+					"\tdefault: 'pass through' mode.", NULL},
+		.lopt = {OPT_CMD_PREFIX_ESCAPE, 1, 0, 'E' }
+	},
+	{
+#define OPT_CHAR_REP "char-rep"
+#define OPT_CHAR_REP_INDEX (OPT_CMD_PREFIX_ESCAPE_INDEX+1)
 		.usage = NULL,
-		.desc = {"turns off color support", NULL},
+		.desc = {"show a list of character representation strings which",
+					"are valid arguments for -e and -E.", NULL},
+		.lopt = {OPT_CHAR_REP, 0, 0, LONG_ONLY_VAL(OPT_CHAR_REP_INDEX)}
+	},
+	{
+#define OPT_NOCOLOR "no-color"
+#define OPT_NOCOLOR_INDEX (OPT_CHAR_REP_INDEX+1)
+		.usage = NULL,
+		.desc = {"turn off color support.", NULL},
 		.lopt = {OPT_NOCOLOR, 0, 0, LONG_ONLY_VAL(OPT_NOCOLOR_INDEX)}
 	},
 	{
 #define OPT_TERM CONF_TERM
 #define OPT_TERM_INDEX (OPT_NOCOLOR_INDEX+1)
 		.usage = " TERMNAME",
-		.desc = {"sets the TERM environment variable to TERMNAME", 
-				 "\tdefault: the current value of TERM in the environment", NULL},
+		.desc = {"set the TERM environment variable to TERMNAME.", 
+				 "\tdefault: the current value of TERM in the environment.", NULL},
 		.lopt = {OPT_TERM, 1, 0, LONG_ONLY_VAL(OPT_TERM_INDEX)}
 	},
 	{
 #define OPT_NCTERM CONF_NCTERM
 #define OPT_NCTERM_INDEX (OPT_TERM_INDEX+1)
 		.usage = " TERMNAME",
-		.desc = {"sets the terminal profile used by ncurses",
-				 "\tdefault: the current value of TERM in the environment", NULL},
+		.desc = {"set the terminal profile used by ncurses.",
+				 "\tdefault: the current value of TERM in the environment.", NULL},
 
 		.lopt = {OPT_NCTERM, 1, 0, LONG_ONLY_VAL(OPT_NCTERM_INDEX)}
 	},
@@ -83,14 +114,14 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_DEBUG CONF_DEBUG_FILE
 #define OPT_DEBUG_INDEX (OPT_NCTERM_INDEX+1)
 		.usage = " FILEPATH",
-		.desc = {"collect debug messages into FILENAME", NULL},
+		.desc = {"collect debug messages into FILENAME.", NULL},
 		.lopt = {OPT_DEBUG, 1, 0, 'd'}
 	},
 	{
 #define OPT_PLUGIN_PATH CONF_PLUGIN_PATH
 #define OPT_PLUGIN_PATH_INDEX (OPT_DEBUG_INDEX+1)
 		.usage = " PATH[:PATH]...[:PATH]",
-		.desc = {"a list of colon delimited directory paths to search for plugins", 
+		.desc = {"a list of colon delimited directory paths to search for plugins.", 
 					"\tdefault: " CONF_PLUGIN_PATH_DEFAULT, NULL},
 		.lopt = {OPT_PLUGIN_PATH, 1, 0, LONG_ONLY_VAL(OPT_PLUGIN_PATH_INDEX)}
 	},
@@ -98,7 +129,7 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_HELP "help"
 #define OPT_HELP_INDEX (OPT_PLUGIN_PATH_INDEX+1)
 		.usage = NULL,
-		.desc = {"display this message", NULL},
+		.desc = {"display this message.", NULL},
 		.lopt = {OPT_HELP, 0, 0, 'h'}
 	}
 }; /* AUG_OPTIONS */
@@ -159,9 +190,10 @@ void opt_print_help(int argc, const char *const argv[]) {
 	fprintf(stdout, "\nOPTIONS:\n");
 	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
-		f1_amt += snprintf(f1, F1_SIZE, "  --%s", AUG_OPTIONS[i].lopt.name);
 		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.val >= 0 && AUG_OPTIONS[i].lopt.val < 256) 
-			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "|-%c", AUG_OPTIONS[i].lopt.val);
+			f1_amt += snprintf(f1+f1_amt, F1_SIZE-f1_amt, "  -%c", AUG_OPTIONS[i].lopt.val);
+		else
+			f1_amt += snprintf(f1, F1_SIZE, "  --%s", AUG_OPTIONS[i].lopt.name);
 		
 		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.has_arg && AUG_OPTIONS[i].usage != NULL)
 			snprintf(f1+f1_amt, F1_SIZE-f1_amt, "%s", AUG_OPTIONS[i].usage);
@@ -175,6 +207,25 @@ void opt_print_help(int argc, const char *const argv[]) {
 	}
 	
 	fputc('\n', stdout);
+}
+
+static void print_char_reps() {
+	int i;
+	char s[8];
+
+	for(i = 0; i <= 0xff; i++) {
+		if(screen_unctrl(i, s) != 0)
+			err_exit(0, "could not derive unctrl string for 0x%02x", i);
+		
+		printf("%s", s);
+#define AMT_PER_LINE 12
+		if(i % AMT_PER_LINE == (AMT_PER_LINE - 1))
+			printf("\n");
+		else
+			printf("\t");
+	}
+
+	printf("\n");
 }
 
 int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
@@ -203,7 +254,15 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 		case 'c': /* configuration file */
 			OPT_SET(conf->conf_file, optarg);
 			break;
+
+		case 'e': /* configuration file */
+			OPT_SET(conf->cmd_prefix, optarg);
+			break;
 	
+		case 'E': /* configuration file */
+			OPT_SET(conf->cmd_prefix_escape, optarg);
+			break;
+
 		case LONG_ONLY_VAL(OPT_NOCOLOR_INDEX):
 			OPT_SET(conf->nocolor, true);
 			break;
@@ -226,6 +285,14 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 			goto fail;
 			break;
 			
+		case LONG_ONLY_VAL(OPT_CHAR_REP_INDEX):
+			printf("character representations:\n");
+			print_char_reps();
+			errno = OPT_ERR_NONE;
+			snprintf(opt_err_msg, 64, "\ne.g. aug -e ^A -E a\n");
+			goto fail;
+			break;
+
 		case '?':
 			snprintf(opt_err_msg, 64, "unknown option '%s'", argv[optind-1]);
 			errno = OPT_ERR_UNKNOWN_OPTION;

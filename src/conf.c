@@ -18,6 +18,8 @@
 #include "conf.h"
 #include <stdlib.h>
 #include <assert.h>
+#include "screen.h"
+#include "err.h"
 
 const char *CONF_DEFAULT_ARGV[] = AUG_DEFAULT_ARGV;
 const int CONF_DEFAULT_ARGC = (sizeof(CONF_DEFAULT_ARGV)/sizeof(char *)) - 1;
@@ -33,6 +35,8 @@ void conf_init(struct aug_conf *conf) {
 	conf->nocolor = !CONF_COLOR_DEFAULT;
 	conf->conf_file = CONF_CONFIG_FILE_DEFAULT;
 	conf->plugin_path = CONF_PLUGIN_PATH_DEFAULT;
+	conf->cmd_prefix = CONF_CMD_PREFIX_DEFAULT;
+	conf->cmd_prefix_escape = CONF_CMD_PREFIX_ESCAPE_DEFAULT;
 
 	shell = getenv("SHELL");
 	if(shell != NULL) {
@@ -75,6 +79,46 @@ void conf_merge_ini(struct aug_conf *conf, dictionary *ini) {
 	MERGE_VAR(ncterm, string, CONF_NCTERM, CONF_NCTERM_DEFAULT)
 	MERGE_VAR(debug_file, string, CONF_DEBUG_FILE, CONF_DEBUG_FILE_DEFAULT)
 	MERGE_VAR(plugin_path, string, CONF_PLUGIN_PATH, CONF_PLUGIN_PATH_DEFAULT)
+	MERGE_VAR(cmd_prefix, string, CONF_CMD_PREFIX, CONF_CMD_PREFIX_DEFAULT)
+	MERGE_VAR(cmd_prefix_escape, string, CONF_CMD_PREFIX_ESCAPE, CONF_CMD_PREFIX_ESCAPE_DEFAULT)
 
 #undef MERGE_VAR
+}
+
+static int char_rep_to_char(const char *str, int *ch) {
+	int i;
+	char s[8];
+
+	for(i = 0; i <= 0xff; i++) {
+		if(screen_unctrl(i, s) != 0)
+			err_exit(0, "could not derive unctrl string for 0x%02x", i);
+
+		if(strcasecmp(str, s) == 0) {
+			*ch = i;
+			break;	
+		}
+	}
+
+	if(i > 0xff)
+		return -1;
+
+	return 0;
+}
+
+int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg) {
+	if( char_rep_to_char(conf->cmd_prefix, &conf->cmd_key) != 0) {
+		*err_msg = "could not understand command prefix character representation.";
+		return -1;
+	}
+
+	if(conf->cmd_prefix_escape != NULL) {
+		if( char_rep_to_char(conf->cmd_prefix_escape, &conf->escape_key) != 0) {
+			*err_msg = "could not understand command prefix character representation.";
+			return -1;
+		}
+	}
+	else 
+		conf->escape_key = -1;
+
+	return 0;	
 }

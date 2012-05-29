@@ -352,6 +352,7 @@ static int init_conf(int argc, char *argv[]) {
 	const char *debug_file;
 	bool have_config = false;
 	int config_err = 0;
+	const char *errmsg;
 
 	conf_init(&g_conf);
 	if(opt_parse(argc, argv, &g_conf) != 0) {
@@ -363,13 +364,20 @@ static int init_conf(int argc, char *argv[]) {
 		case OPT_ERR_USAGE:
 			opt_print_usage(argc, (const char *const *) argv);
 			break;
-			
+		
 		default:
 			fprintf(stdout, "%s\n", opt_err_msg);
 			opt_print_usage(argc, (const char *const *) argv);
 			fputc('\n', stdout);
 		}	
 		
+		return 1;
+	}
+
+	if(conf_set_derived_vars(&g_conf, &errmsg) != 0) {
+		fprintf(stdout, "%s\n", errmsg);
+		opt_print_usage(argc, (const char *const *) argv);
+		fputc('\n', stdout);
 		return 1;
 	}
 

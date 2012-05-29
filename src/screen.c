@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 
 #if defined(__APPLE__)
 #	include <ncurses.h>
@@ -301,4 +302,27 @@ void screen_resize() {
 	fprintf(stderr, "screen: resize to %d, %d\n", LINES, COLS);
 	wresize(g.term_win.win, LINES, COLS);
 	term_win_resize(&g.term_win);
+}
+
+/* converts a character into its string representation.
+ * *str* should have enough space for 3 characters + one
+ * one null byte.
+ */
+int screen_unctrl(int ch, char *str) {
+	const char *s;
+	size_t len;
+
+	s = unctrl(ch);
+	if(s == NULL)
+		return -1;
+
+	len = strlen(s);
+	
+	strncpy(str, s, 3);
+	if(len > 3)
+		len = 3;
+
+	str[len] = '\0';
+
+	return 0;
 }

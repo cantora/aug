@@ -11,6 +11,8 @@ void print_conf(struct aug_conf *c) {
 	printf("term: \t\t\t'%s'\n", c->term);
 	printf("debug_file: \t\t'%s'\n", c->debug_file);
 	printf("conf_file: \t\t'%s'\n", c->conf_file);
+	printf("cmd_prefix: \t\t'%s'\n", c->cmd_prefix);
+	printf("cmd_prefix_escape: \t'%s'\n", c->cmd_prefix_escape);
 	printf("cmd: \t\t\t[");
 	for(i = 0; i < c->cmd_argc; i++) {
 		printf("'%s'", c->cmd_argv[i]);
@@ -18,6 +20,12 @@ void print_conf(struct aug_conf *c) {
 			printf(", ");
 	}
 	printf("]\n");
+
+	printf("cmd_key: 0x%02x\n", c->cmd_key);
+	if(c->escape_key >= 0)
+		printf("escape_key: 0x%02x\n", c->escape_key);
+	else
+		printf("pass through mode = on\n");
 }
 
 struct addr_name_pair {
@@ -47,9 +55,12 @@ void print_opt_set(struct aug_conf *c) {
 
 int main(int argc, char *argv[]) {
 	struct aug_conf c;
+	const char *errmsg;
 
 	conf_init(&c);
-	
+	if(conf_set_derived_vars(&c, &errmsg) != 0)
+		err_exit(0, errmsg);
+
 	opt_print_help(argc, argv);
 	printf("DEFAULT:\n");
 	print_conf(&c);
@@ -71,6 +82,9 @@ int main(int argc, char *argv[]) {
 		printf("error msg: %s\n", opt_err_msg);
 		goto done;
 	}
+
+	if(conf_set_derived_vars(&c, &errmsg) != 0)
+		err_exit(0, errmsg);
 
 parsed:	
 	printf("AFTER PARSING:\n");
