@@ -30,7 +30,9 @@ PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), ./plugin/$(dir)/$(dir).so )
 
 TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*.c) ) )
 TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
-TEST_OBJECTS	= $(OBJECTS)
+
+SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
+SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 default: all
 
@@ -83,19 +85,25 @@ $(BUILD)/%.o: ./src/%.c
 $(BUILD)/%.o: ./test/%.c
 	$(CXX_CMD) -c $< -o $@
 
+$(BUILD)/%.o: ./sandbox/%.c
+	$(CXX_CMD) -c $< -o $@
+
 ./plugin/%.so: 
 	$(MAKE) $(MFLAGS) -C ./$(dir $@)
 
-define test-template
-$$(BUILD)/$(1): $$(BUILD)/$(1).o $$(TEST_OBJECTS)
+define aux-program-template
+$$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
 	$(CXX_CMD) $$+ $$(LIB) -o $$@
 
 $(1): $$(BUILD)/$(1) 
-#	$(BUILD)/$(1)
+#	$(BUILD)/$(1) 
 endef
 
 .PHONY: $(TESTS) 
-$(foreach test, $(TESTS), $(eval $(call test-template,$(test)) ) )
+$(foreach test, $(TESTS), $(eval $(call aux-program-template,$(test)) ) )
+
+.PHONY: $(SANDBOX_PGMS) 
+$(foreach thing, $(SANDBOX_PGMS), $(eval $(call aux-program-template,$(thing)) ) )
 
 .PHONY: clean 
 clean: 

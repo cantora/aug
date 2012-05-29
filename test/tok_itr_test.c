@@ -252,7 +252,7 @@ void test6() {
 	char str[128];
 	char val[32];
 	int i;
-	TOK_ITR_USE_FOREACH_FUNCTION();
+	struct aug_tok_itr itr;
 
 	diag("++++test6++++");
 #	define TOKALL TOK1 ":" TOK2 ":" TOK3 ":" TOK4
@@ -261,7 +261,7 @@ void test6() {
 	diag("test token iterator FOREACH basics");
 
 	i = 0;
-	TOK_ITR_FOREACH(val, 32, str, ':') {
+	TOK_ITR_FOREACH(val, 32, str, ':', &itr) {
 		ok1( strcmp(val, arr[i++]) == 0 );
 	}	
 	
