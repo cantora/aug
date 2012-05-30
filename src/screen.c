@@ -71,7 +71,7 @@ int screen_init(struct aug_term *term) {
 		goto fail;
 	if(keypad(g.term_win.win, false) == ERR) /* libvterm interprets keys for us */
 		goto fail;
-	if(nonl() == ERR) 
+	if(nonl() == ERR)
 		goto fail;
 	
 	return 0;
@@ -94,7 +94,7 @@ static int init_term_win() {
 	if(free_term_win() != 0)
 		goto fail;
 
-	win = newwin(LINES, COLS, 0, 0);
+	win = derwin(stdscr, LINES, COLS, 0, 0);
 	if(win == NULL)
 		goto fail;
 
@@ -116,7 +116,7 @@ void screen_free() {
 static void vterm_cb_refresh(void *user) {
 	(void)user;
 
-	screen_refresh();
+	term_win_refresh(&g.term_win);
 }
 
 void screen_set_term(struct aug_term *term) {
