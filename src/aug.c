@@ -58,11 +58,15 @@
 #include "plugin_list.h"
 #include "keymap.h"
 
+static void lock_screen();
+static void unlock_screen();
+
 static struct aug_conf g_conf; /* structure of configuration variables */
 static struct aug_plugin_list g_plugin_list;
 static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
+static pthread_mutex_t g_screen_mtx;
 
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
@@ -195,6 +199,18 @@ int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 }
 
 /* =================== end API functions ==================== */
+
+static void lock_screen() {
+	AUG_LOCK(&g_plugin_list);
+	AUG_LOCK(&g_term);
+	AUG_STATUS_EQUAL( pthread_mutex_lock( &g_screen_mtx ), 0 );
+}
+
+static void unlock_screen() {
+	AUG_STATUS_EQUAL( pthread_mutex_unlock( &g_screen_mtx ), 0 );
+	AUG_UNLOCK(&g_term);
+	AUG_UNLOCK(&g_plugin_list);
+}
 
 static void change_winch(int how) {
 	sigset_t set;
@@ -584,7 +600,7 @@ int main(int argc, char *argv[]) {
 	int master;
 	struct aug_api api;
 
-	if(init_conf(argc, argv) != 0)
+	if(init_conf(argc, argv) != 0) /* 1 */
 		return 1;
 
 	if(tcgetattr(STDIN_FILENO, &child_termios) != 0) {
@@ -612,8 +628,8 @@ int main(int argc, char *argv[]) {
 
 	/* screen will resize term to the right size,
 	 * so just initialize to 1x1. */
-	term_init(&g_term, 1, 1);
-	if(screen_init(&g_term) != 0)
+	term_init(&g_term, 1, 1); /* 2 */
+	if(screen_init(&g_term) != 0) /* 3 */
 		err_exit(0, "screen_init failure");
 	err_exit_cleanup_fn(err_exit_cleanup);
 	
@@ -622,7 +638,7 @@ int main(int argc, char *argv[]) {
 	if(g_conf.nocolor == false)
 		if(screen_color_start() != 0) {
 			printf("failed to start color\n");
-			goto cleanup;
+			goto screen_cleanup;
 		}
 
 	child = forkpty(&master, NULL, &child_termios, &size);
@@ -638,9 +654,11 @@ int main(int argc, char *argv[]) {
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 
+	if(pthread_mutex_init(&g_screen_mtx, NULL) != 0) /* 4 */
+		err_exit(0, "g_screen_mtx init error");
 	/* init keymap structure */
-	keymap_init(&g_keymap);
-	init_plugins(&api);
+	keymap_init(&g_keymap); /* 5 */
+	init_plugins(&api); /* 6 */
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);
@@ -649,13 +667,19 @@ int main(int argc, char *argv[]) {
 	loop(&g_term);
 	fprintf(stderr, "end main event loop, exiting...\n");
 
-cleanup:
-	free_plugins();
-	keymap_free(&g_keymap);
-	term_free(&g_term);
-	screen_free();
-	if(g_ini != NULL)
-		ciniparser_freedict(g_ini);
+	/* cleanup */
+	free_plugins(); /* 6 */
+	keymap_free(&g_keymap); /* 5 */
+	if(pthread_mutex_destroy(&g_screen_mtx) != 0) /* 4 */
+		err_exit(0, "g_screen_mtx destroy error");
 
+screen_cleanup:
+	screen_free(); /* 3 */
+	term_free(&g_term); /* 2 */
+	
+	if(g_ini != NULL) 
+		ciniparser_freedict(g_ini); /* 1 */
+
+	
 	return 0;
 }
