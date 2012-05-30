@@ -3,10 +3,12 @@
 
 #include "aug.h"
 #include <ccan/list/list.h>
+#include "lock.h"
 
 /* ccan list structures */
 struct aug_plugin_list {
 	struct list_head head;
+	AUG_LOCK_MEMBERS;	
 };
 
 struct aug_plugin_item {

@@ -193,10 +193,13 @@ struct aug_api {
 	void (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
 	void (*screen_win_alloc_right)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
 
+	void (*screen_win_dealloc)(struct aug_plugin *plugin, WINDOW **win); 
+
 	/* allocate a panel on top of the main terminal window and
 	 * on top of all previously allocated (by this plugin or others)
 	 * panels.           */
 	void (*screen_panel_alloc)(struct aug_plugin *plugin, int nlines, int ncols, int begin_y, int begin_x, PANEL **panel);
+	void (*screen_panel_dealloc)(struct aug_plugin *plugin, PANEL **panel);
 	
 	/* for concurrency reasons, call this function instead of
 	 * calling update_panels() from the panels library. */

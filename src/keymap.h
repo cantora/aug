@@ -2,10 +2,12 @@
 #define AUG_KEYMAP_H
 
 #include "aug.h"
+#include "lock.h"
 #include <ccan/avl/avl.h>
 
 struct aug_keymap {
 	AVL *avl;
+	AUG_LOCK_MEMBERS;
 };
 
 void keymap_init(struct aug_keymap *map);

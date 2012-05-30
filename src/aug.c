@@ -84,6 +84,9 @@ static int api_log(struct aug_plugin *plugin, const char *format, ...) {
 	return result;
 }
 
+/* for the time being, g_ini is not modified after initialization,
+ * so i think it is safe to access it concurrently without any mutexing.
+ */
 static int api_conf_val(struct aug_plugin *plugin, const char *name, const char *key, const char **val) {
 	const char *result;
 	char full_key[AUG_MAX_PLUGIN_NAME_LEN + AUG_MAX_PLUGIN_KEY_LEN + 1 + 1]; /* + ':' + '\0' */ 
@@ -120,11 +123,13 @@ static void api_stack_size(struct aug_plugin *plugin, int *size) {
 	int i;
 	(void)(plugin);
 
+	AUG_LOCK(&g_plugin_list);
 	i = 0;
 	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
 		i++;
 	}
-	
+	AUG_UNLOCK(&g_plugin_list);
+
 	*size = i;
 }
 
@@ -133,6 +138,7 @@ static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) 
 	int i;
 	(void)(plugin);
 
+	AUG_LOCK(&g_plugin_list);
 	i = 0;
 	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
 		if(strncmp(itr->plugin.name, name, AUG_MAX_PLUGIN_NAME_LEN) == 0) {
@@ -141,37 +147,51 @@ static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) 
 		}
 		i++;
 	}
+	AUG_UNLOCK(&g_plugin_list);	
 
 	return -1;
 }
 
-
 static void api_term_win_dims(struct aug_plugin *plugin, int *rows, int *cols) {
 	(void)(plugin);
+
+	AUG_LOCK(&g_term);
 	term_dims(&g_term, rows, cols);
+	AUG_UNLOCK(&g_term);
 }
 
 static int api_key_bind(const struct aug_plugin *plugin, int ch, 
 							aug_on_key_fn on_key, void *user) {
 	aug_on_key_fn ok;
+	int result = 0;
 	(void)(plugin);
 
 	assert(on_key != NULL);
 	ok = NULL;
 	
+	AUG_LOCK(&g_keymap);
 	keymap_binding(&g_keymap, ch, &ok, NULL);
-	if(ok != NULL) /* this key is already bound */
-		return -1;
+	if(ok != NULL) { /* this key is already bound */
+		result = -1;
+		goto unlock;
+	}
 	
 	keymap_bind(&g_keymap, ch, on_key, user);
 
-	return 0;
+unlock:
+	AUG_UNLOCK(&g_keymap);
+	return result;
 }
 
 int api_key_unbind(const struct aug_plugin *plugin, int ch) {
+	int result;
 	(void)(plugin);
+	
+	AUG_LOCK(&g_keymap);
+	result = keymap_unbind(&g_keymap, ch);
+	AUG_UNLOCK(&g_keymap);
 
-	return keymap_unbind(&g_keymap, ch);
+	return result;
 }
 
 /* =================== end API functions ==================== */

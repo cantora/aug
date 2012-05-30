@@ -15,6 +15,7 @@ static const char ERR_NAME_MISMATCH[] = "name mismatch";
 
 void plugin_list_init(struct aug_plugin_list *pl) {
 	list_head_init(&pl->head);
+	AUG_LOCK_INIT(pl);
 }
 
 void plugin_list_free(struct aug_plugin_list *pl) {
@@ -25,6 +26,8 @@ void plugin_list_free(struct aug_plugin_list *pl) {
 		dlclose(i->plugin.so_handle);
 		free(i);
 	}
+
+	AUG_LOCK_FREE(pl);
 }
 
 /* returns non-zero and sets *err_msg* (if *err_msg* non-null) if

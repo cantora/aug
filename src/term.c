@@ -48,10 +48,13 @@ void term_init(struct aug_term *term, int rows, int cols) {
 
 	term->user = NULL;
 	term->io_callbacks.refresh = NULL;
+
+	AUG_LOCK_INIT(term);
 }
 
 void term_free(struct aug_term *term) {
 	vterm_free(term->vt);
+	AUG_LOCK_FREE(term);
 }
 
 void term_dims(const struct aug_term *term, int *rows, int *cols) {

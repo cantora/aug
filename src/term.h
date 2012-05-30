@@ -19,6 +19,7 @@
 #define AUG_TERM_H
 
 #include "vterm.h"
+#include "lock.h"
 
 struct aug_term_io_callbacks {
 	void (*refresh)(void *user);
@@ -28,6 +29,7 @@ struct aug_term {
 	VTerm *vt;
 	int master;
 	struct aug_term_io_callbacks io_callbacks;
+	AUG_LOCK_MEMBERS;
 	void *user;
 };
 

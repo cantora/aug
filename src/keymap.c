@@ -21,6 +21,7 @@ static inline int cmp_addr(const void *a, const void *b) {
 
 void keymap_init(struct aug_keymap *map) {
 	map->avl = avl_new((AvlCompare) cmp_addr);
+	AUG_LOCK_INIT(map);
 }
 
 void keymap_free(struct aug_keymap *map) {
@@ -31,6 +32,8 @@ void keymap_free(struct aug_keymap *map) {
 	}
 
 	avl_free(map->avl);
+
+	AUG_LOCK_FREE(map);
 }
 
 void keymap_bind(struct aug_keymap *map, int ch, aug_on_key_fn on_key,
