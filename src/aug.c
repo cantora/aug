@@ -200,16 +200,33 @@ int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 
 /* =================== end API functions ==================== */
 
+/* MUST LOCK for API access to the following modules:
+ * screen_*
+ * panel_stack_*
+ */
 static void lock_screen() {
-	AUG_LOCK(&g_plugin_list);
 	AUG_LOCK(&g_term);
-	AUG_STATUS_EQUAL( pthread_mutex_lock( &g_screen_mtx ), 0 );
+	if( pthread_mutex_lock(&g_screen_mtx) != 0 )
+		err_exit(0, "error locking g_screen_mtx");
 }
 
 static void unlock_screen() {
-	AUG_STATUS_EQUAL( pthread_mutex_unlock( &g_screen_mtx ), 0 );
+	if( pthread_mutex_unlock(&g_screen_mtx) != 0)
+		err_exit(0, "error unlocking g_screen_mtx");
+
 	AUG_UNLOCK(&g_term);
+}
+
+static void lock_all() {
+	AUG_LOCK(&g_keymap);
+	AUG_LOCK(&g_plugin_list);
+	lock_screen();
+}
+
+static void unlock_all() {
+	unlock_screen();
 	AUG_UNLOCK(&g_plugin_list);
+	AUG_UNLOCK(&g_keymap);
 }
 
 static void change_winch(int how) {
@@ -233,10 +250,13 @@ static inline void unblock_winch() {
 	change_winch(SIG_UNBLOCK);
 }
 
-/* handler for SIGWINCH */
+/* handler for SIGWINCH. */
 static void handler_winch(int signo) {
 
-	fprintf(stderr, "handler_winch in process %d\n", getpid());
+	fprintf(stderr, "handler_winch: enter\n");
+	lock_screen(); /* locks screen AND term */
+	fprintf(stderr, "handler_winch: locked screen\n");
+
 	vterm_screen_flush_damage(vterm_obtain_screen(g_term.vt) );
 
 	/* in case curses installed a winch handler */
@@ -250,6 +270,8 @@ static void handler_winch(int signo) {
 	 * resizes all its windows, then tells the terminal window
 	 * manager and plugins about the resize */
 	screen_resize();
+	unlock_screen();
+	fprintf(stderr, "handler_winch: unlocked screen\nhandler_winch: exit\n");
 }
 
 static void process_keys(VTerm *vt) {
@@ -342,27 +364,56 @@ static void loop(struct aug_term *term) {
 		tv_select_p = (just_refreshed == 0)? &tv_select : NULL;
 
 		/* most of this process's time is spent waiting for
-		 * select's timeout, so we want to handle all
-		 * SIGWINCH signals here
+		 * select's timeout, so this is where we want to handle all
+		 * SIGWINCH signals and MOST (all?) of the asynchronous
+		 * API calls.
 		 */
-		unblock_winch(); 
+#		define LOOP_UNLOCK() \
+			unlock_all(); \
+			unblock_winch() 
+
+#		define LOOP_LOCK() \
+			block_winch(); \
+			lock_all()
+			
+		LOOP_UNLOCK(); /* winch handler needs to lock the screen. */		
+		/* potential DEADLOCK: if a plugin thread is caused to handle
+		 * a WINCH signal there could be trouble because the plugin may
+		 * have locked the screen via an API call, then gets interrupted by a WINCH
+		 * signal which will attempt to lock the screen again. of course
+		 * this isnt a problem for this main thread here because it only
+		 * handles WINCH signals while in the following select call. so...
+		 * this means we have to block WINCH and (maybe other signals?) in
+		 * plugin threads. or we could block WINCH when in api calls. i think
+		 * its better to create a thread creation API call which blocks the
+		 * right signals, as i dont see why the plugin threads should be handling
+		 * any signals anyhow, just seems messy and confusing. im
+		 * leaving this comment here in case im debugging later and 
+		 * need to be reminded of this scenario or maybe want to try the other
+		 * method.
+		 */
 		if(select(term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
-				block_winch();
+				LOOP_LOCK();				
 				continue;
 			}
 			else
 				err_exit(errno, "select");
-		}
-		block_winch();
+		}		
+		LOOP_LOCK(); /* need exclusive access to the screen for all IO */
 
 		if(FD_ISSET(term->master, &in_fds) ) {
-			if(process_master_output(term->vt, term->master) != 0)
+			if(process_master_output(term->vt, term->master) != 0) {
+				LOOP_UNLOCK();
 				return;
+			}
 
 			process_vterm_output(term->vt, term->master);
 			timer_init(&inter_io_timer);
 		}
+
+#		undef LOOP_LOCK
+#		undef LOOP_UNLOCK
 
 		/* this is here to make sure really long bursts dont 
 		 * look like frozen I/O. the user should see characters
@@ -397,8 +448,8 @@ static void loop(struct aug_term *term) {
 			process_keys(term->vt);
 			process_vterm_output(term->vt, term->master);
 			force_refresh = 1;
-		}
-	}
+		} /* if stdin set */
+	} /* while(1) */
 }
 
 static void err_exit_cleanup(int error) {
@@ -662,9 +713,12 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);
+	fprintf(stderr, "lock screen\n");
+	lock_all(); /* will be unlocked in *loop* */
 	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
 	loop(&g_term);
+	/* everything should be unlocked at this point */
 	fprintf(stderr, "end main event loop, exiting...\n");
 
 	/* cleanup */
