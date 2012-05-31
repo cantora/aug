@@ -17,6 +17,14 @@
 		} \
 	} while(0)
 
+#define AUG_PTR_NON_NULL( _ptr_expr ) \
+	do { \
+		if( ( _ptr_expr ) == NULL ) { \
+			err_exit(0, "(" __FILE__ ":" stringify(__LINE__) ") " stringify( _ptr_expr ) \
+							" == NULL"); \
+		} \
+	} while(0)
+
 
 int set_nonblocking(int fd);
 void write_n_or_exit(int fd, const void *buf, size_t n);

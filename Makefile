@@ -13,7 +13,7 @@ MKBUILD			:= $(shell mkdir -p $(BUILD) )
 LIBVTERM		= ./libvterm/.libs/libvterm.a
 CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
-LIB 			= -lutil -lncursesw $(LIBVTERM) $(LIBCCAN)
+LIB 			= -lutil -lpanel -lncursesw $(LIBVTERM) $(LIBCCAN)
 
 INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -I$(CCAN_DIR)
 INCLUDES		+= -iquote"./src" -iquote"./include"
