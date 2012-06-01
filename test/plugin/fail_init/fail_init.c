@@ -1,5 +1,6 @@
 #include "aug_plugin.h"
 #include <stdlib.h>
+#include <ccan/tap/tap.h>
 
 const char aug_plugin_name[] = "fail_init";
 
@@ -16,4 +17,5 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 
 void aug_plugin_free() {
 	(*g_api->log)(g_plugin, "shouldnt have gotten here!\n");
+	fail("init failed so execution shouldnt have gotten to this point");
 }

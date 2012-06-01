@@ -34,6 +34,7 @@ enum screen_err {
 };
 
 int screen_init();
+int screen_cleanup();
 void screen_free();
 void screen_set_term(struct aug_term *term);
 void screen_dims(unsigned short *rows, unsigned short *cols);

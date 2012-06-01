@@ -45,8 +45,6 @@
 
 #include "vterm.h"
 
-#define AUG_CORE
-
 #include "util.h"
 #include "screen.h"
 #include "err.h"
@@ -99,7 +97,16 @@ static int api_conf_val(struct aug_plugin *plugin, const char *name, const char 
 	
 	/* if g_ini is null then how did this plugin get loaded? */
 	assert(g_ini != NULL);
-	
+
+	/*	
+ 	 *int i;
+	 *for (i = 0; i < g_ini->size; i++) {
+	 *	if (g_ini->key[i] == NULL)
+	 *		continue;
+	 *	printf("%d: %s\n", i, g_ini->key[i]);
+	 *}
+	 */
+
 	if(strncmp(CONF_CONFIG_SECTION_CORE, name, sizeof(CONF_CONFIG_SECTION_CORE) ) == 0)
 		return -1;
 	
@@ -455,7 +462,7 @@ static void loop(struct aug_term *term) {
 static void err_exit_cleanup(int error) {
 	(void)(error);
 
-	screen_free();
+	screen_cleanup();
 }
 
 static int init_conf(int argc, char *argv[]) {
@@ -608,7 +615,7 @@ static void child_init(const char *env_term) {
 	execvp(g_conf.cmd_argv[0], (char *const *) g_conf.cmd_argv);
 }
 
-void init_plugins(struct aug_api *api) {
+static void init_plugins(struct aug_api *api) {
 	struct aug_plugin_item *i, *next;
 
 	plugin_list_init(&g_plugin_list);
@@ -630,7 +637,7 @@ void init_plugins(struct aug_api *api) {
 	}
 }
 
-void free_plugins() {
+static void free_plugins() {
 	struct aug_plugin_item *i;
 
 	PLUGIN_LIST_FOREACH_REV(&g_plugin_list, i) {
@@ -643,7 +650,7 @@ void free_plugins() {
 
 /* ============== MAIN ==============================*/
 
-int main(int argc, char *argv[]) {
+static int aug_main(int argc, char *argv[]) {
 	pid_t child;
 	struct winsize size;
 	const char *env_term;
@@ -737,3 +744,11 @@ screen_cleanup:
 	
 	return 0;
 }
+
+#ifdef AUG_CORE
+
+int main(int argc, char *argv[]) {
+	return aug_main(argc, argv);
+}
+
+#endif

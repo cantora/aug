@@ -15,7 +15,7 @@ CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
 LIB 			= -lutil -lpanel -lncursesw $(LIBVTERM) $(LIBCCAN)
 
-INCLUDES		= -iquote"./libvterm/include" -iquote"./libvterm/src" -I$(CCAN_DIR)
+INCLUDES		= -iquote"./libvterm/include" -I$(CCAN_DIR)
 INCLUDES		+= -iquote"./src" -iquote"./include"
 
 OPTIMIZE		= -ggdb #-O3
@@ -25,8 +25,10 @@ CXX_CMD			= gcc $(CXX_FLAGS)
 SRCS			= $(notdir $(filter-out ./src/$(OUTPUT).c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
 OBJECTS			= $(patsubst %.c, $(BUILD)/%.o, $(SRCS) ) 
 
-PLUGIN_DIRS		= $(notdir $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) )
-PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), ./plugin/$(dir)/$(dir).so )
+#PLUGIN_DIRS		= $(notdir $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) )
+#PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), ./plugin/$(dir)/$(dir).so )
+PLUGIN_DIRS		= $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) $(shell find ./test/plugin -maxdepth 1 -mindepth 1 -type d) 
+PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), $(dir)/$(notdir $(dir) ).so )
 
 TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*.c) ) )
 TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
@@ -68,7 +70,7 @@ $(OUTPUT): $(BUILD)/$(OUTPUT).o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
 $(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM) $(LIBCCAN)
-	$(CXX_CMD) -c $< -o $@
+	$(CXX_CMD) -DAUG_CORE -c $< -o $@
 
 $(BUILD)/screen.o: ./src/screen.c ./src/vterm_ansi_colors.h
 	$(CXX_CMD) -c $< -o $@
@@ -89,6 +91,9 @@ $(BUILD)/%.o: ./sandbox/%.c
 	$(CXX_CMD) -c $< -o $@
 
 ./plugin/%.so: 
+	$(MAKE) $(MFLAGS) -C ./$(dir $@) 
+
+./test/plugin/%.so: 
 	$(MAKE) $(MFLAGS) -C ./$(dir $@)
 
 define aux-program-template
@@ -100,7 +105,12 @@ $(1): $$(BUILD)/$(1)
 endef
 
 .PHONY: $(TESTS) 
-$(foreach test, $(TESTS), $(eval $(call aux-program-template,$(test)) ) )
+$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-template,$(test)) ) )
+
+$(BUILD)/api_test: $(BUILD)/api_test.o $(filter-out $(BUILD)/screen.o, $(OBJECTS) ) $(PLUGIN_OBJECTS)
+	$(CXX_CMD) $(filter-out $(BUILD)/screen.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
+
+api_test: $(BUILD)/api_test
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(SANDBOX_PGMS), $(eval $(call aux-program-template,$(thing)) ) )
@@ -109,7 +119,7 @@ $(foreach thing, $(SANDBOX_PGMS), $(eval $(call aux-program-template,$(thing)) )
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
-	for i in $(PLUGIN_DIRS); do dir=./plugin/$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
+	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
 
 .PHONY: libclean
 libclean: clean

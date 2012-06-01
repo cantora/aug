@@ -8,10 +8,3 @@ cmd-prefix = ^Q
 
 # nothing to configure
 
-[api_test]
-
-testkey = testval ;
-
-[fail_init]
-
-#nothing to configure

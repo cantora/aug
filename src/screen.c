@@ -105,12 +105,21 @@ fail:
 	return -1;
 }
 
+int screen_cleanup() {
+	if(endwin() == ERR) {
+		return -1;
+	}
+	else {
+		return 0;
+	}
+}
+
 void screen_free() {
 	if(free_term_win() != 0)
 		err_exit(0, "free_term_win failed!");
 
-	if(endwin() == ERR)
-		err_exit(0, "endwin failed!");
+	if(screen_cleanup() != 0)
+		err_exit(0, "screen_cleanup failed!");
 }
 
 static void vterm_cb_refresh(void *user) {

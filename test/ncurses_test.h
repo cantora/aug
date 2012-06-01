@@ -3,46 +3,56 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <ncurses.h>
+
+#if defined(__APPLE__)
+#	include <ncurses.h>
+#else
+#	include <ncursesw/curses.h>
+#endif
 
 #include "util.h"
 
 #ifndef NCT_USE_SCREEN
-static FILE *nct_out, *nct_in, *nct_to_in;
+static int nct_pipe_fds[2];
+static int nct_fds_initialized = 0;
+
+static void ncurses_test_init_pipe() {
+	nct_fds_initialized = 1;
+
+	AUG_STATUS_EQUAL( pipe(nct_pipe_fds), 0 );
+}
 #endif
 
-static void ncurses_test_init(const char *path) {
+static WINDOW *ncurses_test_init(const char *path) {
 
 #ifdef NCT_USE_SCREEN
 	(void)(name);
-	initscr();
+	return initscr();
 #else
 	SCREEN *scr;
-	int pd[2];
+	FILE *nct_out;
 	
+	if(nct_fds_initialized == 0)
+		ncurses_test_init_pipe();
+
 	AUG_PTR_NON_NULL( (nct_out = fopen( ( (path == NULL)? "/dev/null" : path ) , "w")) );
-	AUG_STATUS_EQUAL( pipe(pd), 0 );
-	AUG_PTR_NON_NULL( (nct_in = fdopen(pd[0], "r")) );
-	AUG_PTR_NON_NULL( (nct_to_in = fdopen(pd[1], "w")) );
-
-	AUG_PTR_NON_NULL( (scr = newterm(getenv("TERM"), nct_out, nct_in) ) );
-
-	/*set_term(scr);*/
 	
-	/*if(def_prog_mode() == ERR)
-		err_exit(0, "def_prog_mode failed");*/
+	if(dup2(nct_pipe_fds[0], 0) == -1) 
+		err_exit(errno, "error duping to stdin");
+
+	AUG_PTR_NON_NULL( (scr = newterm(getenv("TERM"), nct_out, stdin) ) );
+
+	return stdscr;
 #endif
 }
 
 
-static void ncurses_test_end() {
-	endwin();
-
-#ifndef NCT_USE_SCREEN
-	fclose(nct_out);
-	fclose(nct_in);
-	fclose(nct_to_in);
+static int ncurses_test_end() {
+#ifdef NCT_USE_SCREEN
+	close(nct_pipe_fds[1]);
 #endif
+	endwin();
+	return OK;
 }
 
 static int nct_printf(const char *format, ...) {
@@ -54,18 +64,10 @@ static int nct_printf(const char *format, ...) {
 	int result;
 
 	va_start(args, format);
-	result = vfprintf(nct_to_in, format, args);
+	result = dprintf(nct_pipe_fds[1], format, args);
 	va_end(args);
 
 	return result;
-#endif
-}
-
-static int nct_flush() {
-#ifdef NCT_USE_SCREEN
-	return 0;
-#else
-	return fflush(nct_to_in);	
 #endif
 }
 

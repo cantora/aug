@@ -1,0 +1,18 @@
+[aug]
+
+term = xterm;
+ncterm = screen;
+cmd-prefix = ^Q
+
+[hello]
+
+#nothing to configure
+
+[fail_init]
+
+#nothing to configure
+
+[api_test]
+
+testkey = testval ;
+
