@@ -31,7 +31,7 @@
 int main(int argc, char *argv[]) {
 	char *args[] = {argv[0], "-c", "./test/api_test_augrc", 
 						"--plugin-path", "./test/plugin/api_test:./test/plugin/fail_init:./plugin/hello", 
-						"-d", "./log",
+						"-d", "./build/log",
 						NULL };
 	(void)(argc);
 	
@@ -46,8 +46,6 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	else {
-		int status;
-
 		plan_no_plan();
 		diag("test the plugin api");
 		diag("parent: start");

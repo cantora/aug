@@ -64,7 +64,9 @@ static struct aug_plugin_list g_plugin_list;
 static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
-static pthread_mutex_t g_screen_mtx;
+static struct {
+	AUG_LOCK_MEMBERS;
+} g_screen;
 
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
@@ -146,21 +148,25 @@ static void api_stack_size(struct aug_plugin *plugin, int *size) {
 
 static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) {
 	struct aug_plugin_item *itr;
-	int i;
+	int i, status;
 	(void)(plugin);
 
+	status = -1;
 	AUG_LOCK(&g_plugin_list);
 	i = 0;
 	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
 		if(strncmp(itr->plugin.name, name, AUG_MAX_PLUGIN_NAME_LEN) == 0) {
 			*pos = i;
-			return 0;	
+			status = 0;
+			goto unlock;
 		}
 		i++;
 	}
+
+unlock:
 	AUG_UNLOCK(&g_plugin_list);	
 
-	return -1;
+	return status;
 }
 
 static void api_term_win_dims(struct aug_plugin *plugin, int *rows, int *cols) {
@@ -213,14 +219,11 @@ int api_key_unbind(const struct aug_plugin *plugin, int ch) {
  */
 static void lock_screen() {
 	AUG_LOCK(&g_term);
-	if( pthread_mutex_lock(&g_screen_mtx) != 0 )
-		err_exit(0, "error locking g_screen_mtx");
+	AUG_LOCK(&g_screen);
 }
 
 static void unlock_screen() {
-	if( pthread_mutex_unlock(&g_screen_mtx) != 0)
-		err_exit(0, "error unlocking g_screen_mtx");
-
+	AUG_UNLOCK(&g_screen);
 	AUG_UNLOCK(&g_term);
 }
 
@@ -299,7 +302,9 @@ static void process_keys(VTerm *vt) {
 				vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
 			}
 			else { /* invoke the command */
+				unlock_all(); /* note: WINCH is should still be blocked */
 				(*command_fn)(ch, user);
+				lock_all();
 			}
 			command_key = false;
 		}
@@ -376,28 +381,23 @@ static void loop(struct aug_term *term) {
 		 * API calls.
 		 */
 #		define LOOP_UNLOCK() \
-			unlock_all(); \
-			unblock_winch() 
+			do { unlock_all(); unblock_winch(); } while(0)
 
 #		define LOOP_LOCK() \
-			block_winch(); \
-			lock_all()
+			do { block_winch(); lock_all(); } while(0)
 			
-		LOOP_UNLOCK(); /* winch handler needs to lock the screen. */		
-		/* potential DEADLOCK: if a plugin thread is caused to handle
+		LOOP_UNLOCK(); /* winch handler needs to lock the screen. */
+		/* if a plugin thread is caused to handle
 		 * a WINCH signal there could be trouble because the plugin may
 		 * have locked the screen via an API call, then gets interrupted by a WINCH
 		 * signal which will attempt to lock the screen again. of course
 		 * this isnt a problem for this main thread here because it only
 		 * handles WINCH signals while in the following select call. so...
-		 * this means we have to block WINCH and (maybe other signals?) in
-		 * plugin threads. or we could block WINCH when in api calls. i think
-		 * its better to create a thread creation API call which blocks the
-		 * right signals, as i dont see why the plugin threads should be handling
-		 * any signals anyhow, just seems messy and confusing. im
-		 * leaving this comment here in case im debugging later and 
-		 * need to be reminded of this scenario or maybe want to try the other
-		 * method.
+		 * this means we have to block WINCH and (maybe other signals?) during
+		 * periods where the main thread may call a plugin function, such that
+		 * when the plugin creates a thread it will inherit a signal mask
+		 * with WINCH blocked. the API will expect plugins not to unblock that
+		 * signal in their threads.
 		 */
 		if(select(term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
@@ -712,10 +712,11 @@ static int aug_main(int argc, char *argv[]) {
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 
-	if(pthread_mutex_init(&g_screen_mtx, NULL) != 0) /* 4 */
-		err_exit(0, "g_screen_mtx init error");
+	AUG_LOCK_INIT(&g_screen); /* 4 */
 	/* init keymap structure */
 	keymap_init(&g_keymap); /* 5 */
+	/* this is first point where api functions will be called
+	 * and locks will be utilized */
 	init_plugins(&api); /* 6 */
 
 	fprintf(stderr, "configuration:\n");
@@ -729,10 +730,12 @@ static int aug_main(int argc, char *argv[]) {
 	fprintf(stderr, "end main event loop, exiting...\n");
 
 	/* cleanup */
+	block_winch(); 
 	free_plugins(); /* 6 */
+	unblock_winch();
+
 	keymap_free(&g_keymap); /* 5 */
-	if(pthread_mutex_destroy(&g_screen_mtx) != 0) /* 4 */
-		err_exit(0, "g_screen_mtx destroy error");
+	AUG_LOCK_FREE(&g_screen); /* 4 */
 
 screen_cleanup:
 	screen_free(); /* 3 */

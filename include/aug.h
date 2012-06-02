@@ -203,7 +203,7 @@ struct aug_api {
 	
 	/* for concurrency reasons, call this function instead of
 	 * calling update_panels() from the panels library. */
-	void (*screen_panels_update)(struct aug_plugin *plugin);
+	void (*screen_panel_update)(struct aug_plugin *plugin);
 };
 
 #endif /* AUG_AUG_H */
