@@ -63,6 +63,8 @@ struct aug_plugin_cb {
 	 * the size of the main window. */
 	void (*screen_dims_change)(int old_height, int old_width, int new_height, 
 								int new_width, void *user);
+
+	void *user;
 };
 
 /* this structure represents the 
@@ -93,7 +95,7 @@ struct aug_plugin {
 
 	/* callback subscriptions for this
 	 * plugin. */
-	struct aug_plugin_cb callbacks;
+	const struct aug_plugin_cb *callbacks;
 
 	/* handle to the loaded library */
 	void *so_handle;
@@ -130,7 +132,13 @@ struct aug_api {
 	 */
 #define AUG_MAX_PLUGIN_KEY_LEN 255
 	int (*conf_val)(struct aug_plugin *plugin, const char *name, const char *key, const char **val);
-	
+
+	/* get or set the callbacks for this plugin. if *callbacks* is NULL,
+	 * the current set of callbacks will not be changed.
+	 * if *prev* is NULL, the prev set of callbacks will not be returned.
+	 */
+	void (*callbacks)(struct aug_plugin *plugin, const struct aug_plugin_cb *callbacks, const struct aug_plugin_cb **prev);
+
 	/* query for the number of plugins
 	 * on the plugin stack */
 	void (*stack_size)(struct aug_plugin *plugin, int *size);
@@ -165,7 +173,7 @@ struct aug_api {
 	int (*key_unbind)(const struct aug_plugin *plugin, int ch);
 
 	/* ======== screen windows/panels ======================== 
-	 * for this api there are two types of screen real estate
+	 * there are two types of screen real estate
 	 * a plugin can request the aug core to allocate: panels and 
 	 * windows. panels correspond to the ncurses panels library
 	 * and will stack on top of the main terminal window in the 
@@ -176,6 +184,14 @@ struct aug_api {
 	 * that they occupy a number of lines at the top, bottom, left
 	 * or right of the screen (this is for peristent existence of 
 	 * plugin output on the screen, like a status bar or something).
+	 * concurrency: generally these windows will probably be accessed
+	 * by a thread created by the plugin. all the api calls use locks
+	 * to maintain thread safe access to the api resources. any window
+	 * or panel allocated to the plugin can be accessed directly with
+	 * ncurses functions because these windows and panels are "owned"
+	 * by the plugin and are not accessed by any other threads. the
+	 * only exceptions are when there are specific api calls provided
+	 * which specify things that should or should not be done.
 	 */
 
 	/* as described above, this allocates an ncurses window object
@@ -187,7 +203,8 @@ struct aug_api {
 	 * its window(s). call the function with suffix top, bot, left
 	 * and right for a window on the top, bottom, left and right respectively. 
 	 * the *win* parameter is the output parameter that will point to
-	 * the ncurses window structure.            */
+	 * the ncurses window structure.            
+	 */
 	void (*screen_win_alloc_top)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
 	void (*screen_win_alloc_bot)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
 	void (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
@@ -197,9 +214,12 @@ struct aug_api {
 
 	/* allocate a panel on top of the main terminal window and
 	 * on top of all previously allocated (by this plugin or others)
-	 * panels.           */
-	void (*screen_panel_alloc)(struct aug_plugin *plugin, int nlines, int ncols, int begin_y, int begin_x, PANEL **panel);
-	void (*screen_panel_dealloc)(struct aug_plugin *plugin, PANEL **panel);
+	 * panels.           
+	 */
+	void (*screen_panel_alloc)(struct aug_plugin *plugin, int nlines, int ncols, 
+									int begin_y, int begin_x, PANEL **panel);
+	void (*screen_panel_dealloc)(struct aug_plugin *plugin, PANEL *panel);
+	void (*screen_panel_size)(struct aug_plugin *plugin, int *size);
 	
 	/* for concurrency reasons, call this function instead of
 	 * calling update_panels() from the panels library. */

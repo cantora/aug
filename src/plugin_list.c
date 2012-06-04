@@ -84,7 +84,8 @@ int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char *n
 	*( (void **) &item->plugin.name) = so_name;
 	*( (void **) &item->plugin.init) = init;
 	*( (void **) &item->plugin.free) = free;
-	memset(&item->plugin.callbacks, 0, sizeof( struct aug_plugin_cb ) );
+	//memset(&item->plugin.callbacks, 0, sizeof( struct aug_plugin_cb ) );
+	item->plugin.callbacks = NULL;
 	item->plugin.so_handle = handle;
 	
 	list_add_tail(&pl->head, &item->node);

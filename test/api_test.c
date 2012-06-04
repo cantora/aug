@@ -1,3 +1,4 @@
+#include "api_test.h"
 #include <ccan/array_size/array_size.h>
 #include <ccan/tap/tap.h>
 
@@ -41,16 +42,16 @@ int main(int argc, char *argv[]) {
 		diag("child: start");
 		sleep(1);
 		//diag("child: write to parent");
-		nct_printf("\x11\x12\nexit\n");
+		nct_printf("\x11\x12");
+		nct_printf(api_test_user_input);
 		diag("child: end");
 		return 0;
 	}
 	else {
-		plan_no_plan();
+		//plan_no_plan();
 		diag("test the plugin api");
 		diag("parent: start");
 		aug_main(ARRAY_SIZE(args)-1, args);
-		//system("echo 'lkjhlkjh' > /tmp/bolobolo.txt");
 		diag("parent: end");
 		return exit_status();
 	}

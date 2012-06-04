@@ -55,6 +55,7 @@
 #include "aug.h"
 #include "plugin_list.h"
 #include "keymap.h"
+#include "panel_stack.h"
 
 static void lock_screen();
 static void unlock_screen();
@@ -129,6 +130,15 @@ static int api_conf_val(struct aug_plugin *plugin, const char *name, const char 
 
 	*val = result;
 	return 0;
+}
+
+static void api_callbacks(struct aug_plugin *plugin, const struct aug_plugin_cb *callbacks, const struct aug_plugin_cb **prev) {
+	
+	if(prev != NULL)
+		*prev = plugin->callbacks;
+
+	if(callbacks != NULL)
+		plugin->callbacks = callbacks;
 }
 
 static void api_stack_size(struct aug_plugin *plugin, int *size) {
@@ -211,6 +221,30 @@ int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 	return result;
 }
 
+void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
+								int begin_y, int begin_x, PANEL **panel) {
+	lock_screen();
+	panel_stack_push(plugin, nlines, ncols, begin_y, begin_x);
+	panel_stack_top(panel);
+	unlock_screen();	
+}
+
+void api_screen_panel_dealloc(struct aug_plugin *plugin, PANEL *panel) {
+	(void)(plugin);
+
+	lock_screen();
+	panel_stack_rm(panel);
+	unlock_screen();	
+}
+
+void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
+	(void)(plugin);
+
+	lock_screen();
+	panel_stack_size(size);
+	unlock_screen();	
+}
+
 /* =================== end API functions ==================== */
 
 /* MUST LOCK for API access to the following modules:
@@ -284,6 +318,22 @@ static void handler_winch(int signo) {
 	fprintf(stderr, "handler_winch: unlocked screen\nhandler_winch: exit\n");
 }
 
+static void push_key(VTerm *vt, int ch) {
+	struct aug_plugin_item *i;
+	aug_action action;
+
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->input_char))(&ch, &action, i->plugin.callbacks->user);
+		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this character */
+			return;
+	}
+
+	vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+}
+
 static void process_keys(VTerm *vt) {
 	int ch;
 	static bool command_key = false;
@@ -298,8 +348,8 @@ static void process_keys(VTerm *vt) {
 			fprintf(stderr, "check for command extension 0x%02x\n", ch);
 			keymap_binding(&g_keymap, ch, &command_fn, &user);
 			if(command_fn == NULL) { /* this is not a bound key */
-				vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) g_conf.cmd_key);
-				vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+				push_key(vt, g_conf.cmd_key);
+				push_key(vt, ch);
 			}
 			else { /* invoke the command */
 				unlock_all(); /* note: WINCH is should still be blocked */
@@ -312,7 +362,7 @@ static void process_keys(VTerm *vt) {
 			command_key = true;	
 		}
 		else {
-			vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+			push_key(vt, ch);
 		}
 	}
 }
@@ -621,13 +671,18 @@ static void init_plugins(struct aug_api *api) {
 	plugin_list_init(&g_plugin_list);
 	load_plugins();
 	api->log = api_log;
+	api->callbacks = api_callbacks;
 	api->conf_val = api_conf_val;
 	api->stack_size = api_stack_size;
 	api->stack_pos = api_stack_pos;
 	api->term_win_dims = api_term_win_dims;
 	api->key_bind = api_key_bind;
 	api->key_unbind = api_key_unbind;
-			
+
+	api->screen_panel_alloc = api_screen_panel_alloc;
+	api->screen_panel_dealloc = api_screen_panel_dealloc;
+	api->screen_panel_size = api_screen_panel_size;
+
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);
 		if( (*i->plugin.init)(&i->plugin, api) != 0) {
@@ -733,6 +788,7 @@ static int aug_main(int argc, char *argv[]) {
 	block_winch(); 
 	free_plugins(); /* 6 */
 	unblock_winch();
+	panel_stack_free(); /* delete any leftover panels */
 
 	keymap_free(&g_keymap); /* 5 */
 	AUG_LOCK_FREE(&g_screen); /* 4 */
