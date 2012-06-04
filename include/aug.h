@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <wchar.h>
-#include <ncurses.h>
+#include "ncurses.h"
 #include <panel.h>
 
 #define AUG_API_VERSION_MAJOR 0
@@ -43,7 +43,7 @@ struct aug_plugin_cb {
 	 * set action to AUG_ACTION_CANCEL and 
 	 * and prevent the cell from being 
 	 * updated. */
-	void (*cell_update)(int *row, int *col, wchar_t *wch, attr_t *attr, 
+	void (*cell_update)(int *row, int *col, wchar_t *wch, attr_t *attr,
 							int *color_pair, aug_action *action, void *user);
 
 	/* called when the cursor is about to be
@@ -52,9 +52,8 @@ struct aug_plugin_cb {
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
 	 * where the cursor is moved to. */
-	void (*cursor_move)(int old_row, int old_col, int *new_row, int *new_col, 
+	void (*cursor_move)(int old_row, int old_col, int *new_row, int *new_col,
 							aug_action *action, void *user);
-
 
 	/* called when the screen dimensions change.
 	 * old_* hold the old dimensions and new_*

@@ -20,16 +20,15 @@
 #include <stdint.h>
 #include <assert.h>
 
-#if defined(__APPLE__)
-#	include <ncurses.h>
-#else
-#	include <ncursesw/curses.h>
-#endif
+#include "ncurses.h"
 
 #include "util.h"
 #include "err.h"
 #include "attr.h"
 #include "ncurses_util.h"
+
+extern int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_pair);
+extern int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col);
 
 void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 	tw->term = NULL;
@@ -78,9 +77,11 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 
 	
 	wch = (cell.chars[0] == 0)? &erasech : (wchar_t *) &cell.chars[0];
+
+	if(aug_cell_update(&pos.row, &pos.col, wch, &attr, &pair) != 0) /* run API callbacks */
+		return;
 	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
 		err_exit(0, "setcchar failed");
-
 	if(wmove(tw->win, pos.row, pos.col) == ERR)
 		err_exit(0, "move failed: %d/%d, %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
 
@@ -115,7 +116,7 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	return 1;
 }
 
-int term_win_movecursor(struct aug_term_win *tw, VTermPos pos) {
+int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) {
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
@@ -123,6 +124,9 @@ int term_win_movecursor(struct aug_term_win *tw, VTermPos pos) {
 		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos.row, pos.col);
 		return 1;
 	}
+
+	if(aug_cursor_move(oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
+		return 1;
 
 	if(wmove(tw->win, pos.row, pos.col) == ERR)
 		err_exit(0, "move failed: %d, %d", pos.row, pos.col);

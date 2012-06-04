@@ -31,6 +31,8 @@ static char *g_user_data = "on_r secret stuff...";
 static int g_callback_key = 0x12;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
+static bool g_got_cell_update = false;
+static bool g_got_cursor_move = false;
 static PANEL *g_pan1;
 static pthread_t g_thread1, g_thread2;
 
@@ -69,7 +71,7 @@ static int test_winch() {
 }
 
 void input_char(int *ch, aug_action *action, void *user) {
-	static int total_chars = 0;
+	static unsigned int total_chars = 0;
 #	define CUTOFF (ARRAY_SIZE(api_test_user_input) - 1 )
 	/* ==========================================  0x00 ======== */
 
@@ -105,6 +107,8 @@ void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr,
 	(void)(action);
 	(void)(user);
 
+	/*diag("cell_update: %d,%d", *row, *col);*/
+	g_got_cell_update = true;
 }
 
 void cursor_move(int old_row, int old_col, int *new_row, int *new_col, 
@@ -115,6 +119,9 @@ void cursor_move(int old_row, int old_col, int *new_row, int *new_col,
 	(void)(new_col);
 	(void)(action);
 	(void)(user);
+
+	/*diag("cursor_move: %d,%d", *new_row, *new_col);*/
+	g_got_cursor_move = true;
 }
 
 void screen_dims_change(int old_height, int old_width, int new_height, 
@@ -186,7 +193,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int pos = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(21);
+	plan_tests(23);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -274,6 +281,8 @@ void aug_plugin_free() {
 	ok( ( (*g_api->key_unbind)(g_plugin, g_callback_key) == 0), "check to make sure we can unbind key extension");	
 	
 	ok( (g_got_expected_input == true), "check to see if input callback got expected user input");
+	ok( (g_got_cell_update == true), "check to see if cell_update callback got called");
+	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("dealloc panels");
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan1);

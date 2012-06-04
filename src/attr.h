@@ -20,12 +20,7 @@
 
 #include "vterm.h"
 
-#if defined(__APPLE__)
-#	include <ncurses.h>
-#else
-#	include <ncursesw/curses.h>
-#endif
-
+#include "ncurses.h"
 
 #define AUG_ANSI_COLORS 8
 #define AUG_REQ_COLORS (AUG_ANSI_COLORS + 1) /* 8 ansi + default */

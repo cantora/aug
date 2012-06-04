@@ -22,11 +22,7 @@
 #include <assert.h>
 #include <string.h>
 
-#if defined(__APPLE__)
-#	include <ncurses.h>
-#else
-#	include <ncursesw/curses.h>
-#endif
+#include "ncurses.h"
 
 #include "util.h"
 #include "err.h"
@@ -56,7 +52,7 @@ static struct {
 
 int screen_init(struct aug_term *term) {
 	g.color_on = 0;
-	
+
 	initscr();
 	if(raw() == ERR) 
 		goto fail;
@@ -85,7 +81,7 @@ static int free_term_win() {
 		if(delwin(g.term_win.win) == ERR)
 			return -1;
 
-	return 0;	
+	return 0;
 }
 
 static int init_term_win() {
@@ -248,11 +244,10 @@ int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 }*/
 
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
-	(void)(oldpos);
 	(void)(visible);
 	(void)(user);
 
-	return term_win_movecursor(&g.term_win, pos);
+	return term_win_movecursor(&g.term_win, pos, oldpos);
 }
 
 int screen_bell(void *user) {

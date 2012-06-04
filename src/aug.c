@@ -62,6 +62,7 @@ static void unlock_screen();
 
 static struct aug_conf g_conf; /* structure of configuration variables */
 static struct aug_plugin_list g_plugin_list;
+static bool g_plugins_initialized = false;
 static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
@@ -73,7 +74,6 @@ static struct {
 static char g_buf[BUF_SIZE]; /* IO buffer */
 /* static globals */
 static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
-
 
 /* ================= API FUNCTIONS ==================================== */
 
@@ -210,7 +210,7 @@ unlock:
 	return result;
 }
 
-int api_key_unbind(const struct aug_plugin *plugin, int ch) {
+static int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 	int result;
 	(void)(plugin);
 	
@@ -221,7 +221,7 @@ int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 	return result;
 }
 
-void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
+static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
 								int begin_y, int begin_x, PANEL **panel) {
 	lock_screen();
 	panel_stack_push(plugin, nlines, ncols, begin_y, begin_x);
@@ -229,7 +229,7 @@ void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols,
 	unlock_screen();	
 }
 
-void api_screen_panel_dealloc(struct aug_plugin *plugin, PANEL *panel) {
+static void api_screen_panel_dealloc(struct aug_plugin *plugin, PANEL *panel) {
 	(void)(plugin);
 
 	lock_screen();
@@ -237,7 +237,7 @@ void api_screen_panel_dealloc(struct aug_plugin *plugin, PANEL *panel) {
 	unlock_screen();	
 }
 
-void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
+static void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
 	(void)(plugin);
 
 	lock_screen();
@@ -246,6 +246,48 @@ void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
 }
 
 /* =================== end API functions ==================== */
+
+/* ================= term callbacks for API =========================== */
+
+int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_pair) {
+	struct aug_plugin_item *i;
+	aug_action action;
+
+	if(g_plugins_initialized != true)
+		return 0;
+
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cell_update == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->cell_update))(row, col, wch, attr, color_pair,
+												 &action, i->plugin.callbacks->user);
+		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
+			return -1;
+	}
+
+	return 0;
+}
+
+int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
+	struct aug_plugin_item *i;
+	aug_action action;
+
+	if(g_plugins_initialized != true)
+		return 0;
+		
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cursor_move == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->cursor_move))(old_row, old_col, new_row, new_col,
+												 &action, i->plugin.callbacks->user);
+		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
+			return -1;
+	}
+
+	return 0;
+}
 
 /* MUST LOCK for API access to the following modules:
  * screen_*
@@ -773,6 +815,7 @@ static int aug_main(int argc, char *argv[]) {
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
 	init_plugins(&api); /* 6 */
+	g_plugins_initialized = true;
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);

@@ -1,12 +1,6 @@
 #ifndef AUG_PANEL_STACK_H
 #define AUG_PANEL_STACK_H
 
-#if defined(__APPLE__)
-#	include <ncurses.h>
-#else
-#	include <ncursesw/curses.h>
-#endif
-
 #include "aug.h"
 
 #define PANEL_STACK_FOREACH(_panel_ptr) \
