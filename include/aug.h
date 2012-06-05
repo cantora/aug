@@ -222,6 +222,9 @@ struct aug_api {
 	/* for concurrency reasons, call this function instead of
 	 * calling update_panels() from the panels library. */
 	void (*screen_panel_update)(struct aug_plugin *plugin);
+
+	/* threadsafe access to doupdate() */
+	void (*screen_doupdate)(struct aug_plugin *plugin);
 };
 
 #endif /* AUG_AUG_H */

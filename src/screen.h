@@ -50,5 +50,6 @@ int screen_bell(void *user);
 int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
 void screen_resize();
 int screen_unctrl(int ch, char *str);
+void screen_doupdate();
 
 #endif /* AUG_SCREEN_H */

@@ -247,6 +247,22 @@ static void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
 	unlock_screen();	
 }
 
+static void api_screen_panel_update(struct aug_plugin *plugin) {
+	(void)(plugin);
+
+	lock_screen();
+	panel_stack_update();
+	unlock_screen();	
+}
+
+static void api_screen_doupdate(struct aug_plugin *plugin) {
+	(void)(plugin);
+
+	lock_screen();
+	screen_doupdate();
+	unlock_screen();	
+}
+
 /* =================== end API functions ==================== */
 
 /* ================= term callbacks for API =========================== */
@@ -558,6 +574,7 @@ static void loop(struct aug_term *term) {
 			if(term->io_callbacks.refresh != NULL)
 				(*term->io_callbacks.refresh)(term->user); /* call the term refresh callback */
 
+			screen_doupdate();
 			timer_init(&inter_io_timer);
 			timer_init(&refresh_expire);
 			force_refresh = 0;
@@ -749,6 +766,8 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_alloc = api_screen_panel_alloc;
 	api->screen_panel_dealloc = api_screen_panel_dealloc;
 	api->screen_panel_size = api_screen_panel_size;
+	api->screen_panel_update = api_screen_panel_update;
+	api->screen_doupdate = api_screen_doupdate;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

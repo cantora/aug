@@ -24,5 +24,6 @@ void panel_stack_plugin(PANEL *panel);
 void panel_stack_size(int *size);
 void panel_stack_rm(PANEL *panel);
 void panel_stack_free();
+void panel_stack_update();
 
 #endif /* AUG_PANEL_STACK_H */

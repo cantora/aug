@@ -227,7 +227,8 @@ fail:
 }
 
 void screen_refresh() {
-	term_win_refresh(&g.term_win);
+	if(refresh() == ERR) 
+		err_exit(0, "refresh failed");
 }
 
 int screen_damage(VTermRect rect, void *user) {
@@ -329,4 +330,9 @@ int screen_unctrl(int ch, char *str) {
 	str[len] = '\0';
 
 	return 0;
+}
+
+void screen_doupdate() {
+	if(doupdate() == ERR) 
+		err_exit(0, "doupdate failed");
 }

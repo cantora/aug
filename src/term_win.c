@@ -92,8 +92,8 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 }
 
 void term_win_refresh(struct aug_term_win *tw) {
-	if(wrefresh(tw->win) == ERR)
-		err_exit(0, "wrefresh failed!");
+	if(wnoutrefresh(tw->win) == ERR)
+		err_exit(0, "wnoutrefresh failed!");
 }
 
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {

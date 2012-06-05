@@ -59,3 +59,7 @@ void panel_stack_free() {
 		panel_stack_rm(panel);
 	}
 }
+
+void panel_stack_update() {
+	update_panels();
+}

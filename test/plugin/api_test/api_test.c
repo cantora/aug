@@ -115,6 +115,9 @@ void input_char(int *ch, aug_action *action, void *user) {
 			}
 		
 			waddch(pan2_win, *ch);
+			(*g_api->screen_panel_update)(g_plugin);
+			(*g_api->screen_doupdate)(g_plugin);
+
 			if(total_inter_chars < CUTOFF_INTERN)
 				intern[total_inter_chars++] = *ch;				
 		}
@@ -232,7 +235,9 @@ static void *thread2(void *user) {
 		diag("box_and_print failed. abort...");
 		return NULL;
 	}
-	
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+
 	g_on_r_interaction = true;
 	
 	while(g_on_r_interaction == true)
@@ -332,7 +337,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 		diag("box_and_print failed. abort...");
 		return -1;
 	}
-	
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {
 		diag("expected to be able to create a thread. abort...");
