@@ -1,8 +1,7 @@
 #include "api_test.h"
 #include <ccan/array_size/array_size.h>
 #include <ccan/tap/tap.h>
-
-#define NTESTS 7
+#include <unistd.h>
 
 #define AUG_TEST
 #include "aug.c"
@@ -42,8 +41,12 @@ int main(int argc, char *argv[]) {
 		diag("child: start");
 		sleep(1);
 		kill(getppid(), SIGWINCH);
-		nct_printf("\x11\x12");
 		nct_printf(api_test_user_input);
+		nct_printf("\x11\x12");
+		usleep(100000);
+		nct_printf(api_test_on_r_response);
+		sleep(1);
+		nct_printf("\nexit\n");
 		diag("child: end");
 		return 0;
 	}

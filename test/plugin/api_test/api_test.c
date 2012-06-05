@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <ccan/tap/tap.h>
 #include <ccan/array_size/array_size.h>
 
@@ -31,7 +32,8 @@ static bool g_got_callback = false;
 static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
-static PANEL *g_pan1;
+static bool g_on_r_interaction = false;
+static PANEL *g_pan1, *g_pan2;
 static pthread_t g_thread1, g_thread2;
 
 /* if called from the main thread (a callback from aug
@@ -71,10 +73,10 @@ static int test_winch() {
 void input_char(int *ch, aug_action *action, void *user) {
 	static unsigned int total_chars = 0;
 #	define CUTOFF (ARRAY_SIZE(api_test_user_input) - 1 )
-	/* ==========================================  0x00 ======== */
-
 	static char firstn[CUTOFF+1];
-
+#	define CUTOFF_INTERN ( ARRAY_SIZE(api_test_on_r_response) - 1 - 1)
+	static char intern[CUTOFF_INTERN];
+	static unsigned int total_inter_chars = 0;
 	(void)(action);
 
 	/*diag("========> %d/%d: '%c' (0x%02x)", total_chars+1, CUTOFF, (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
@@ -96,7 +98,30 @@ void input_char(int *ch, aug_action *action, void *user) {
 		test_winch();
 		diag("----input_char----\n#");
 	}
-	
+
+	if(g_on_r_interaction == true) {
+		WINDOW *pan2_win;
+
+		/*diag("========> '%c' (0x%02x)", (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
+		if(*ch == '\n') {
+			ok( strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) == 0, 
+							"check the on_r interactive input data");
+			g_on_r_interaction = false;			
+		}
+		else {
+			if( (pan2_win = panel_window(g_pan2) ) == NULL) {
+				diag("expected to be able to access panel window. abort...");
+				return;
+			}
+		
+			waddch(pan2_win, *ch);
+			if(total_inter_chars < CUTOFF_INTERN)
+				intern[total_inter_chars++] = *ch;				
+		}
+
+		*action = AUG_ACT_CANCEL;
+	}
+
 #undef CUTOFF	
 }
 
@@ -182,10 +207,37 @@ static void *thread1(void *user) {
 
 static void *thread2(void *user) {
 	(void)(user);
+	int stack_size;
+	WINDOW *pan2_win;
 
 	diag("++++thread2++++");
 	check_screen_lock();
 	test_winch();
+
+	diag("allocate a panel");
+	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 10, 15, &g_pan2);
+	pass("panel allocated");
+
+	diag("there should be only 2 panels");
+	(*g_api->screen_panel_size)(g_plugin, &stack_size);
+	ok1(stack_size == 2);
+
+	diag("write a message into the panel");
+	if( (pan2_win = panel_window(g_pan2) ) == NULL) {
+		diag("expected to be able to access panel window. abort...");
+		return NULL;
+	}
+	
+	if(box_and_print(pan2_win, "the ^R panel\nenter a string:") != 0) {
+		diag("box_and_print failed. abort...");
+		return NULL;
+	}
+	
+	g_on_r_interaction = true;
+	
+	while(g_on_r_interaction == true)
+		usleep(10000);
+
 	diag("----thread2----\n#");
 	return NULL;
 }
@@ -199,10 +251,12 @@ static void on_r(int chr, void *user) {
 		
 	g_got_callback = true;
 	
-	diag("spawn thread for user interaction");
-	if(pthread_create(&g_thread2, NULL, thread2, NULL) != 0) {
-		diag("failed to create user interaction thread...");
-		return;
+	if(g_on_r_interaction != true) {
+		diag("spawn thread for user interaction");
+		if(pthread_create(&g_thread2, NULL, thread2, NULL) != 0) {
+			diag("failed to create user interaction thread...");
+			return;
+		}
 	}
 
 	diag("----key callback----\n#");
@@ -215,7 +269,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int pos = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(35);
+	plan_tests(40);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -299,6 +353,11 @@ void aug_plugin_free() {
 	check_screen_lock();
 	test_winch();
 
+	diag("join threads");
+	pthread_join(g_thread2, NULL);
+	pthread_join(g_thread1, NULL);
+	diag("all threads finished");
+
 	ok( (g_got_callback == true) , "check to see if the key extension callback happened" );
 
 	ok( ( (*g_api->key_unbind)(g_plugin, g_callback_key) == 0), "check to make sure we can unbind key extension");	
@@ -308,8 +367,14 @@ void aug_plugin_free() {
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("dealloc panels");
+	(*g_api->screen_panel_size)(g_plugin, &size);
+	ok1( size == 2 );
+	(*g_api->screen_panel_dealloc)(g_plugin, g_pan2);
+	(*g_api->screen_panel_size)(g_plugin, &size);
+	ok1( size == 1 );
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan1);
 	(*g_api->screen_panel_size)(g_plugin, &size);
 	ok1( size == 0 );
+	
 	diag("----plugin_free----\n#");
 }
