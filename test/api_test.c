@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 	if(fork() == 0) {
 		diag("child: start");
 		sleep(1);
-		//diag("child: write to parent");
+		kill(getppid(), SIGWINCH);
 		nct_printf("\x11\x12");
 		nct_printf(api_test_user_input);
 		diag("child: end");

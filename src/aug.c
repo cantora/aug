@@ -57,6 +57,8 @@
 #include "keymap.h"
 #include "panel_stack.h"
 
+static void lock_all();
+static void unlock_all();
 static void lock_screen();
 static void unlock_screen();
 
@@ -259,13 +261,16 @@ int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_p
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cell_update == NULL)
 			continue;
-		
+
+		unlock_all();		
 		(*(i->plugin.callbacks->cell_update))(row, col, wch, attr, color_pair,
 												 &action, i->plugin.callbacks->user);
+		lock_all();
+
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;
 	}
-
+	
 	return 0;
 }
 
@@ -279,9 +284,12 @@ int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cursor_move == NULL)
 			continue;
-		
+	
+		unlock_all();	
 		(*(i->plugin.callbacks->cursor_move))(old_row, old_col, new_row, new_col,
 												 &action, i->plugin.callbacks->user);
+		lock_all();
+
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;
 	}
@@ -338,6 +346,8 @@ static inline void unblock_winch() {
 
 /* handler for SIGWINCH. */
 static void handler_winch(int signo) {
+	int rows, cols;
+	struct aug_plugin_item *i;
 
 	fprintf(stderr, "handler_winch: enter\n");
 	lock_screen(); /* locks screen AND term */
@@ -357,18 +367,33 @@ static void handler_winch(int signo) {
 	 * manager and plugins about the resize */
 	screen_resize();
 	unlock_screen();
+
+	screen_dims(&rows, &cols);	
+	/* plugin callbacks */
+	if(g_plugins_initialized == true) {
+		PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+			if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
+				continue;
+			
+			(*(i->plugin.callbacks->screen_dims_change))(rows, cols, i->plugin.callbacks->user);
+		}
+	}
+
 	fprintf(stderr, "handler_winch: unlocked screen\nhandler_winch: exit\n");
 }
 
 static void push_key(VTerm *vt, int ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
-
+	
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
 			continue;
 		
+		unlock_all();
 		(*(i->plugin.callbacks->input_char))(&ch, &action, i->plugin.callbacks->user);
+		lock_all();
+
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this character */
 			return;
 	}

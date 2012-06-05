@@ -14,20 +14,18 @@ void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr,
 					int *color_pair, aug_action *action, void *user);
 void cursor_move(int old_row, int old_col, int *new_row, int *new_col, 
 					aug_action *action, void *user);
-void screen_dims_change(int old_height, int old_width, int new_height, 
-							int new_width, void *user);
+void screen_dims_change(int rows, int cols, void *user);
 
 static const struct aug_api *g_api;
 static struct aug_plugin *g_plugin;
 
-static const struct aug_plugin_cb g_callbacks = {
+static char *g_user_data = "on_r secret stuff...";
+static struct aug_plugin_cb g_callbacks = {
 	.input_char = input_char,
 	.cell_update = cell_update,
 	.cursor_move = cursor_move,
 	.screen_dims_change = screen_dims_change
 };
-
-static char *g_user_data = "on_r secret stuff...";
 static int g_callback_key = 0x12;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
@@ -78,7 +76,6 @@ void input_char(int *ch, aug_action *action, void *user) {
 	static char firstn[CUTOFF+1];
 
 	(void)(action);
-	(void)(user);
 
 	/*diag("========> %d/%d: '%c' (0x%02x)", total_chars+1, CUTOFF, (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
 	if(total_chars < CUTOFF ) {
@@ -88,10 +85,16 @@ void input_char(int *ch, aug_action *action, void *user) {
 	total_chars++;
 
 	if(total_chars == CUTOFF ) {
+		diag("++++input_char++++");
 		firstn[total_chars] = '\0';	
 		/*diag("user input = '%s'", firstn);*/
 		if(strcmp(firstn, api_test_user_input) == 0)
 			g_got_expected_input = true;
+
+		ok(user == g_user_data, "check that user ptr is correct");
+		check_screen_lock();
+		test_winch();
+		diag("----input_char----\n#");
 	}
 	
 #undef CUTOFF	
@@ -105,10 +108,19 @@ void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr,
 	(void)(attr);
 	(void)(color_pair);
 	(void)(action);
-	(void)(user);
+	static bool checked_winch_and_screen_lock = false;
 
 	/*diag("cell_update: %d,%d", *row, *col);*/
 	g_got_cell_update = true;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++cell_update++++");
+		ok(user == g_user_data, "check that user ptr is correct");
+		check_screen_lock();
+		test_winch();
+		checked_winch_and_screen_lock = true;
+		diag("----cell_update----\n#");
+	}
 }
 
 void cursor_move(int old_row, int old_col, int *new_row, int *new_col, 
@@ -118,19 +130,29 @@ void cursor_move(int old_row, int old_col, int *new_row, int *new_col,
 	(void)(new_row);
 	(void)(new_col);
 	(void)(action);
-	(void)(user);
+	static bool checked_winch_and_screen_lock = false;
 
 	/*diag("cursor_move: %d,%d", *new_row, *new_col);*/
 	g_got_cursor_move = true;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++cursor_move++++");
+		ok(user == g_user_data, "check that user ptr is correct");
+		check_screen_lock();
+		test_winch();
+		checked_winch_and_screen_lock = true;
+		diag("----cursor_move----\n#");
+	}
 }
 
-void screen_dims_change(int old_height, int old_width, int new_height, 
-							int new_width, void *user) {
-	(void)(old_height);
-	(void)(old_width);
-	(void)(new_height);
-	(void)(new_width);
-	(void)(user);
+void screen_dims_change(int rows, int cols, void *user) {
+
+	diag("++++screen_dims_change++++");
+	diag("change to %d,%d", rows, cols);
+	ok(user == g_user_data, "check that user ptr is correct");
+	check_screen_lock();
+	test_winch();
+	diag("----screen_dims_change----\n#");
 }
 
 
@@ -193,7 +215,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int pos = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(23);
+	plan_tests(35);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -203,6 +225,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	check_screen_lock();
 	test_winch();
 
+	g_callbacks.user = g_user_data;
 	api->callbacks(g_plugin, &g_callbacks, NULL);
 
 	diag("test for the value of testkey in the ini file");	

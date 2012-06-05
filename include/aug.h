@@ -60,8 +60,7 @@ struct aug_plugin_cb {
 	 * hold the new dimensions. note that the
 	 * dimensions are for the entire screen, not
 	 * the size of the main window. */
-	void (*screen_dims_change)(int old_height, int old_width, int new_height, 
-								int new_width, void *user);
+	void (*screen_dims_change)(int rows, int cols, void *user);
 
 	void *user;
 };

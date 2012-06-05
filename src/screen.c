@@ -132,7 +132,7 @@ void screen_set_term(struct aug_term *term) {
 	term_win_set_term(&g.term_win, term);	
 }
 
-void screen_dims(unsigned short *rows, unsigned short *cols) {
+void screen_dims(int *rows, int *cols) {
 	*rows = LINES;
 	*cols = COLS;
 }

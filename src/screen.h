@@ -37,7 +37,7 @@ int screen_init();
 int screen_cleanup();
 void screen_free();
 void screen_set_term(struct aug_term *term);
-void screen_dims(unsigned short *rows, unsigned short *cols);
+void screen_dims(int *rows, int *cols);
 int screen_getch(int *ch);
 /*void screen_err_msg(int error, char **msg);*/
 int screen_color_start();
