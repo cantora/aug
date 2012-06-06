@@ -793,7 +793,7 @@ static void free_plugins() {
 
 /* ============== MAIN ==============================*/
 
-static int aug_main(int argc, char *argv[]) {
+int aug_main(int argc, char *argv[]) {
 	pid_t child;
 	struct winsize size;
 	const char *env_term;
@@ -893,10 +893,3 @@ screen_cleanup:
 	return 0;
 }
 
-#ifdef AUG_CORE
-
-int main(int argc, char *argv[]) {
-	return aug_main(argc, argv);
-}
-
-#endif

@@ -22,7 +22,7 @@ OPTIMIZE		= -ggdb #-O3
 CXX_FLAGS		= $(OPTIMIZE) -Wall -Wextra $(INCLUDES) $(DEFINES) 
 CXX_CMD			= gcc $(CXX_FLAGS)
 
-SRCS			= $(notdir $(filter-out ./src/$(OUTPUT).c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
+SRCS			= $(notdir $(filter-out ./src/main.c, $(wildcard ./src/*.c) ) $(BUILD)/vterm_ansi_colors.c )
 OBJECTS			= $(patsubst %.c, $(BUILD)/%.o, $(SRCS) ) 
 
 #PLUGIN_DIRS		= $(notdir $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) )
@@ -66,11 +66,11 @@ $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 		| sed 's/^static const/const/'; \
 	} > $@
 
-$(OUTPUT): $(BUILD)/$(OUTPUT).o $(OBJECTS)
+$(OUTPUT): $(BUILD)/main.o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
 $(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM) $(LIBCCAN)
-	$(CXX_CMD) -DAUG_CORE -c $< -o $@
+	$(CXX_CMD) -c $< -o $@
 
 $(BUILD)/screen.o: ./src/screen.c ./src/vterm_ansi_colors.h
 	$(CXX_CMD) -c $< -o $@
