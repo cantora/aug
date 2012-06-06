@@ -252,7 +252,7 @@ static void api_screen_panel_update(struct aug_plugin *plugin) {
 
 	lock_screen();
 	panel_stack_update();
-	unlock_screen();	
+	unlock_screen();
 }
 
 static void api_screen_doupdate(struct aug_plugin *plugin) {
@@ -260,7 +260,7 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 
 	lock_screen();
 	screen_doupdate();
-	unlock_screen();	
+	unlock_screen();
 }
 
 /* =================== end API functions ==================== */
@@ -574,7 +574,9 @@ static void loop(struct aug_term *term) {
 			if(term->io_callbacks.refresh != NULL)
 				(*term->io_callbacks.refresh)(term->user); /* call the term refresh callback */
 
+			panel_stack_update();
 			screen_doupdate();
+					
 			timer_init(&inter_io_timer);
 			timer_init(&refresh_expire);
 			force_refresh = 0;
