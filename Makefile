@@ -3,7 +3,7 @@
 DEFAULT_CMD		= '{"/bin/sh", NULL}'
 DEFAULT_TERM	= \"screen\"
 
-DEFINES			= -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE
+DEFINES			= -D_XOPEN_SOURCE=700 -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE
 DEFINES			+= -DAUG_DEFAULT_TERM=$(DEFAULT_TERM)
 DEFINES			+= -DAUG_DEFAULT_ARGV=$(DEFAULT_CMD)
 
@@ -88,7 +88,7 @@ $(BUILD)/%.o: ./test/%.c
 	$(CXX_CMD) -c $< -o $@
 
 $(BUILD)/%.o: ./sandbox/%.c
-	$(CXX_CMD) -c $< -o $@
+	$(CXX_CMD) -iquote"./test" -iquote"./sandbox" -c $< -o $@
 
 ./plugin/%.so: 
 	$(MAKE) $(MFLAGS) -C ./$(dir $@) 
@@ -113,13 +113,26 @@ $(BUILD)/api_test: $(BUILD)/api_test.o $(filter-out $(BUILD)/screen.o, $(OBJECTS
 api_test: $(BUILD)/api_test
 
 .PHONY: $(SANDBOX_PGMS) 
-$(foreach thing, $(SANDBOX_PGMS), $(eval $(call aux-program-template,$(thing)) ) )
+$(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
+
+$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(filter-out $(BUILD)/screen.o, $(OBJECTS) ) \
+		$(PLUGIN_OBJECTS) sandbox/plugin/api_test/api_test.so
+	$(CXX_CMD) $(filter-out $(BUILD)/screen.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -o $@
+
+screen_api_test: $(BUILD)/screen_api_test
+
+./sandbox/plugin/api_test/api_test.so:
+	cat ./test/plugin/api_test/api_test.c \
+		| sed 's/#include <ccan\/tap\/tap.h>/#include "stderr_tap.h"/' \
+		> ./sandbox/plugin/api_test/api_test.c
+	$(MAKE) $(MFLAGS) -C $(dir $@) 
 
 .PHONY: clean 
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
+	$(MAKE) $(MFLAGS) -C ./sandbox/plugin/api_test clean && rm -f ./sandbox/plugin/api_test/api_test.c
 
 .PHONY: libclean
 libclean: clean

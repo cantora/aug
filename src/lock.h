@@ -33,6 +33,7 @@ static inline int fprint_tid(FILE *f, pthread_t pt) {
 
 #define AUG_LOCK(_lockable_struct_ptr) \
 	do { \
+		fprintf(stderr, "THREAD"); \
 		fprint_tid(stderr, pthread_self()); \
 		fprintf(stderr, AUG_LOCK_DEBUG_PREFIX ":lock " stringify(_lockable_struct_ptr) "\n"); \
 		AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
@@ -40,6 +41,7 @@ static inline int fprint_tid(FILE *f, pthread_t pt) {
 
 #define AUG_UNLOCK(_lockable_struct_ptr) \
 	do { \
+		fprintf(stderr, "THREAD"); \
 		fprint_tid(stderr, pthread_self()); \
 		fprintf(stderr, AUG_LOCK_DEBUG_PREFIX ":unlock " stringify(_lockable_struct_ptr) "\n" ); \
 		AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \

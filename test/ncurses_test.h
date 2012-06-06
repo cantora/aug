@@ -1,8 +1,13 @@
 #ifndef AUG_NCURSES_TEST_H
 #define AUG_NCURSES_TEST_H
 
+#ifndef _XOPEN_SOURCE
+#	define _XOPEN_SOURCE 700
+#endif
+
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #if defined(__APPLE__)
 #	include <ncurses.h>
@@ -12,7 +17,6 @@
 
 #include "util.h"
 
-#ifndef NCT_USE_SCREEN
 static int nct_pipe_fds[2];
 static int nct_fds_initialized = 0;
 
@@ -21,21 +25,20 @@ static void ncurses_test_init_pipe() {
 
 	AUG_STATUS_EQUAL( pipe(nct_pipe_fds), 0 );
 }
-#endif
 
 static WINDOW *ncurses_test_init(const char *path) {
-
-#ifdef NCT_USE_SCREEN
-	(void)(name);
-	return initscr();
-#else
 	SCREEN *scr;
 	FILE *nct_out;
 	
 	if(nct_fds_initialized == 0)
 		ncurses_test_init_pipe();
 
+#ifdef NCT_USE_SCREEN
+	(void)(path);
+	nct_out = stdout;
+#else
 	AUG_PTR_NON_NULL( (nct_out = fopen( ( (path == NULL)? "/dev/null" : path ) , "w")) );
+#endif
 	
 	if(dup2(nct_pipe_fds[0], 0) == -1) 
 		err_exit(errno, "error duping to stdin");
@@ -43,32 +46,35 @@ static WINDOW *ncurses_test_init(const char *path) {
 	AUG_PTR_NON_NULL( (scr = newterm(getenv("TERM"), nct_out, stdin) ) );
 
 	return stdscr;
-#endif
 }
 
 
 static int ncurses_test_end() {
-#ifdef NCT_USE_SCREEN
 	close(nct_pipe_fds[1]);
-#endif
 	endwin();
 	return OK;
 }
 
 static int nct_printf(const char *format, ...) {
-#ifdef NCT_USE_SCREEN
-	(void)(format);
-	return 0;
-#else
 	va_list args;
-	int result;
-
+	int result, i;
+	char buf[1024];
+	
 	va_start(args, format);
-	result = dprintf(nct_pipe_fds[1], format, args);
+	result = vsnprintf(buf, 1024, format, args);
 	va_end(args);
 
+	if(result < 0)
+		err_exit(0, "vsnprintf failed");
+
+	for(i = 0; i < result; i++) {
+		if(write(nct_pipe_fds[1], buf + i, 1) != 1)
+			err_exit(0, "error writing to nct pipe");
+
+		usleep(150000);
+	}
+
 	return result;
-#endif
 }
 
 #endif /* AUG_NCURSES_TEST_H */

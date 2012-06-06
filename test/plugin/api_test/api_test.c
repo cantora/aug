@@ -1,5 +1,5 @@
 #include "aug_plugin.h"
-#include "api_test.h"
+#include "api_test_vars.h"
 #include <string.h>
 #include <stdbool.h>
 #include <signal.h>
@@ -231,10 +231,12 @@ static void *thread2(void *user) {
 		return NULL;
 	}
 	
-	if(box_and_print(pan2_win, "the ^R panel\nenter a string:") != 0) {
+	if(box_and_print(pan2_win, "the ^R panel") != 0) {
 		diag("box_and_print failed. abort...");
 		return NULL;
 	}
+	mvwprintw(pan2_win, 2, 1, "enter a string: ");
+
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 
