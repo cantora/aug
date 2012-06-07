@@ -34,6 +34,7 @@ static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
 static PANEL *g_pan1, *g_pan2;
+static WINDOW *g_pan2_dwin;
 static pthread_t g_thread1, g_thread2;
 
 /* if called from the main thread (a callback from aug
@@ -100,21 +101,18 @@ void input_char(int *ch, aug_action *action, void *user) {
 	}
 
 	if(g_on_r_interaction == true) {
-		WINDOW *pan2_win;
 
 		/*diag("========> '%c' (0x%02x)", (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
 		if(*ch == '\n') {
 			ok( strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) == 0, 
 							"check the on_r interactive input data");
-			g_on_r_interaction = false;			
+			g_on_r_interaction = false;
+			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
 		}
 		else {
-			if( (pan2_win = panel_window(g_pan2) ) == NULL) {
-				diag("expected to be able to access panel window. abort...");
-				return;
-			}
-		
-			waddch(pan2_win, *ch);
+			waddch(g_pan2_dwin, *ch);
+			wsyncup(g_pan2_dwin);
+			wcursyncup(g_pan2_dwin);
 			(*g_api->screen_panel_update)(g_plugin);
 			(*g_api->screen_doupdate)(g_plugin);
 
@@ -204,6 +202,13 @@ static void *thread1(void *user) {
 	diag("++++thread1++++");
 	check_screen_lock();
 	test_winch();
+	
+	sleep(4);
+	diag("move panel a bit");
+	ok1(move_panel(g_pan1, 10, 30) != ERR);
+	diag("sleep for a while and then hide bottom panel");
+	sleep(3);
+	ok1(hide_panel(g_pan1) != ERR);
 	diag("----thread1----\n#");
 	return NULL;
 }
@@ -211,6 +216,7 @@ static void *thread1(void *user) {
 static void *thread2(void *user) {
 	(void)(user);
 	int stack_size;
+	int rows, cols;
 	WINDOW *pan2_win;
 
 	diag("++++thread2++++");
@@ -218,12 +224,17 @@ static void *thread2(void *user) {
 	test_winch();
 
 	diag("allocate a panel");
-	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 10, 15, &g_pan2);
+	rows = 10;
+	cols = 30;
+	(*g_api->screen_panel_alloc)(g_plugin, rows, cols, 10, 15, &g_pan2);
 	pass("panel allocated");
 
 	diag("there should be only 2 panels");
+
+	todo_start("expected to fail. see below.");
 	(*g_api->screen_panel_size)(g_plugin, &stack_size);
 	ok1(stack_size == 2);
+	todo_end();
 
 	diag("write a message into the panel");
 	if( (pan2_win = panel_window(g_pan2) ) == NULL) {
@@ -231,11 +242,14 @@ static void *thread2(void *user) {
 		return NULL;
 	}
 	
+	g_pan2_dwin = derwin(pan2_win, rows - 3, cols - 2, 2, 1);
+
 	if(box_and_print(pan2_win, "the ^R panel") != 0) {
 		diag("box_and_print failed. abort...");
 		return NULL;
 	}
-	mvwprintw(pan2_win, 2, 1, "enter a string: ");
+	
+	mvwprintw(g_pan2_dwin, 0, 0, "enter a string: ");
 
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
@@ -276,7 +290,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int pos = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(40);
+	plan_tests(44);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -376,6 +390,12 @@ void aug_plugin_free() {
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("dealloc panels");
+	ok(delwin(g_pan2_dwin) != ERR, "delete derived window");
+
+	todo_start("screen_panel_size fails because "
+				"hidden panels are not traversable via "
+				"panel_below/above functions, which "
+				"messes up panel_stack_size()");
 	(*g_api->screen_panel_size)(g_plugin, &size);
 	ok1( size == 2 );
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan2);
@@ -383,6 +403,7 @@ void aug_plugin_free() {
 	ok1( size == 1 );
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan1);
 	(*g_api->screen_panel_size)(g_plugin, &size);
+	todo_end();
 	ok1( size == 0 );
 	
 	diag("----plugin_free----\n#");

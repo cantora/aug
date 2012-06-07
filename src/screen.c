@@ -63,9 +63,7 @@ int screen_init(struct aug_term *term) {
 		goto fail;
 	screen_set_term(term);
 
-	if(nodelay(g.term_win.win, true) == ERR) 
-		goto fail;
-	if(keypad(g.term_win.win, false) == ERR) /* libvterm interprets keys for us */
+	if(nodelay(stdscr, true) == ERR) 
 		goto fail;
 	if(nonl() == ERR)
 		goto fail;
@@ -138,14 +136,14 @@ void screen_dims(int *rows, int *cols) {
 }
 
 int screen_getch(int *ch) {
-	*ch = wgetch(g.term_win.win);
+	*ch = getch();
 
 	/* resize will be handled by signal
 	 * so flush out all the resize keys
 	 */
 	if(*ch == KEY_RESIZE) 
 		while(*ch == KEY_RESIZE) {
-			*ch = wgetch(g.term_win.win);
+			*ch = getch();
 		}
 
 	if(*ch == ERR) 

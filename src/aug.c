@@ -574,7 +574,9 @@ static void loop(struct aug_term *term) {
 			if(term->io_callbacks.refresh != NULL)
 				(*term->io_callbacks.refresh)(term->user); /* call the term refresh callback */
 
+			//touchwin(stdscr);
 			panel_stack_update();
+			//screen_refresh();
 			screen_doupdate();
 					
 			timer_init(&inter_io_timer);
