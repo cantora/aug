@@ -27,6 +27,10 @@ inline void panel_stack_bottom(PANEL **panel) {
 	*panel = panel_above(NULL);
 }
 
+void panel_stack_plugin(const PANEL *panel, const struct aug_plugin **plugin) {
+	*plugin = panel_userptr(panel);
+}
+
 void panel_stack_size(int *size) {
 	int i;
 	PANEL *panel;
@@ -50,14 +54,6 @@ void panel_stack_rm(PANEL *panel) {
 	if( delwin(win) == ERR )
 		err_exit(0, "could not delete window");
 
-}
-
-void panel_stack_free() {
-	PANEL *panel, *next;
-
-	PANEL_STACK_FOREACH_SAFE(panel, next) {
-		panel_stack_rm(panel);
-	}
 }
 
 void panel_stack_update() {

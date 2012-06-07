@@ -879,7 +879,6 @@ int aug_main(int argc, char *argv[]) {
 	block_winch(); 
 	free_plugins(); /* 6 */
 	unblock_winch();
-	panel_stack_free(); /* delete any leftover panels */
 
 	keymap_free(&g_keymap); /* 5 */
 	AUG_LOCK_FREE(&g_screen); /* 4 */

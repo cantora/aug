@@ -69,6 +69,11 @@ int test2() {
 	RETURN_IF( user == NULL, -1);
 	ok1(*user == 1);
 	
+	diag("make sure panel_stack_plugin(...) results the same as using userptr directly");
+	user = NULL;
+	panel_stack_plugin(panel, (const struct aug_plugin **) &user);
+	ok1(*user == 1);
+
 	i = 0;	
 	PANEL_STACK_FOREACH(panel) {
 		if(i > 1)
@@ -93,7 +98,7 @@ int test2() {
 	panel_stack_size(&size);
 	ok1(size == 0);
 
-#define TEST2AMT 7
+#define TEST2AMT 8
 	diag("----test2----\n#");
 	return 0;
 }
@@ -167,16 +172,14 @@ int test4() {
 	int **dummy;
 	int i, size, amt;
 	const int *user;
-	PANEL *panel;
-	char buf[128];
+	PANEL *panel, *next;
 
 	srand(time(NULL));
 
 	diag("++++test4++++");
 	amt = (rand() % 30) + 10;
 
-	snprintf(buf, 128, "test pushing %d panels and freeing", amt);
-	diag(buf);
+	diag("test pushing %d panels and then rm'ing", amt);
 
 	dummy = malloc( sizeof(int*) * amt );
 	RETURN_IF( (dummy == NULL), -1);
@@ -202,7 +205,9 @@ int test4() {
 	}
 	ok1(i == amt);
 
-	panel_stack_free();
+	PANEL_STACK_FOREACH_SAFE(panel, next) {
+		panel_stack_rm(panel);
+	}
 
 	panel_stack_size(&size);
 	ok1(size == 0);
@@ -229,7 +234,6 @@ int main()
 		TESTN(4)
 	};
 	(void)(nct_printf);
-	(void)(nct_flush);
 
 	len = AUG_ARRAY_SIZE(tests);
 	for(i = 0; i < len; i++) {

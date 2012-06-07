@@ -217,6 +217,11 @@ struct aug_api {
 	void (*screen_panel_alloc)(struct aug_plugin *plugin, int nlines, int ncols, 
 									int begin_y, int begin_x, PANEL **panel);
 	void (*screen_panel_dealloc)(struct aug_plugin *plugin, PANEL *panel);
+
+	/* modifies *size* to the number of VISIBLE panels. the api
+	 * can not currently tell a plugin how many panels (visible and invisible)
+	 * are allocated. 
+	 */
 	void (*screen_panel_size)(struct aug_plugin *plugin, int *size);
 	
 	/* for concurrency reasons, call this function instead of
