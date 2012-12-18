@@ -4,3 +4,8 @@
 libccan
 log
 scratch
+aug
+build
+libvterm
+*.so
+*.o
