@@ -68,7 +68,9 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 		return;
 	}
 
-	vterm_screen_get_cell(vts, pos, &cell);	
+	if( !vterm_screen_get_cell(vts, pos, &cell) )
+		err_exit(0, "get_cell returned false status\n");
+
 	attr_vterm_attr_to_curses_attr(&cell, &attr);
 	if(color_on)
 		attr_vterm_pair_to_curses_pair(cell.fg, cell.bg, &attr, &pair);

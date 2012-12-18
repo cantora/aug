@@ -44,7 +44,7 @@ void term_init(struct aug_term *term, int rows, int cols) {
 
 	vts = vterm_obtain_screen(term->vt);
 	vterm_screen_enable_altscreen(vts, 1);
-	vterm_screen_reset(vts);	
+	vterm_screen_reset(vts, 1);
 
 	term->user = NULL;
 	term->io_callbacks.refresh = NULL;
