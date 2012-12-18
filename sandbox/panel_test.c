@@ -22,9 +22,9 @@ void fill_win(WINDOW *win, int ch) {
 int main() {
 	WINDOW *my_wins[3];
 	WINDOW *dwin;
-	WINDOW *base, *upper, *lower;
+	WINDOW *upper, *lower;
 	PANEL  *my_panels[3];
-	PANEL  *top, *base_panel;
+	PANEL  *top;
 	int ch;
 	int i, j;
 

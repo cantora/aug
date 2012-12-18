@@ -1,8 +1,8 @@
 [aug]
 
-term = xterm;
-ncterm = screen;
-cmd-prefix = ^Q
+term = screen ;
+ncterm = screen ;
+cmd-prefix = ^Q ;
 
 [hello]
 
