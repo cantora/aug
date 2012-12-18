@@ -45,7 +45,7 @@ int main() {
 	ok1( system(cmdbuf) == 0 );
 
 	nct_printf("\n");
-	nct_flush();
+	/*nct_flush();*/
 
 	ok1(wgetch(win) == '\n');	
 	

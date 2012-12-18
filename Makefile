@@ -66,7 +66,7 @@ $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 		| sed 's/^static const/const/'; \
 	} > $@
 
-$(OUTPUT): $(BUILD)/main.o $(OBJECTS)
+$(OUTPUT): $(LIBVTERM) $(LIBCCAN) $(BUILD)/main.o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
 $(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM) $(LIBCCAN)
@@ -101,8 +101,14 @@ $$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
 	$(CXX_CMD) $$+ $$(LIB) -o $$@
 
 $(1): $$(BUILD)/$(1) 
-#	$(BUILD)/$(1) 
+	$(BUILD)/$(1) 
 endef
+
+.PHONY: run-tests
+run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
+
+.PHONY: tests
+tests: $(TESTS)
 
 .PHONY: $(TESTS) 
 $(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-template,$(test)) ) )
