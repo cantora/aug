@@ -36,6 +36,10 @@ TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
 SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
 SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
+API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
+
+DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
+
 default: all
 
 .PHONY: all
@@ -69,26 +73,30 @@ $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 $(OUTPUT): $(LIBVTERM) $(LIBCCAN) $(BUILD)/main.o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
+define cc-template
+$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@
+endef
+
 $(BUILD)/$(OUTPUT).o: ./src/$(OUTPUT).c $(LIBVTERM) $(LIBCCAN)
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/screen.o: ./src/screen.c ./src/vterm_ansi_colors.h
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/%.o: $(BUILD)/%.c
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/%.o: ./src/%.c ./src/%.h
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/%.o: ./src/%.c
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/%.o: ./test/%.c
-	$(CXX_CMD) -c $< -o $@
+	$(cc-template)
 
 $(BUILD)/%.o: ./sandbox/%.c
-	$(CXX_CMD) -iquote"./test" -iquote"./sandbox" -c $< -o $@
+	$(cc-template) -iquote"./test" -iquote"./sandbox"
 
 ./plugin/%.so: 
 	$(MAKE) $(MFLAGS) -C ./$(dir $@) 
@@ -113,10 +121,11 @@ tests: $(TESTS)
 .PHONY: $(TESTS) 
 $(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-template,$(test)) ) )
 
+api_test: $(BUILD)/api_test
+	$<
+
 $(BUILD)/api_test: $(BUILD)/api_test.o $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(PLUGIN_OBJECTS)
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
-
-api_test: $(BUILD)/api_test
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
@@ -126,8 +135,9 @@ $(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(filter-out $(BUILD)/scree
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -o $@
 
 screen_api_test: $(BUILD)/screen_api_test
+	$<
 
-./sandbox/plugin/api_test/api_test.so:
+./sandbox/plugin/api_test/api_test.so: $(API_TEST_FILES)
 	cat ./test/plugin/api_test/api_test.c \
 		| sed 's/#include <ccan\/tap\/tap.h>/#include "stderr_tap.h"/' \
 		> ./sandbox/plugin/api_test/api_test.c
@@ -144,3 +154,5 @@ clean:
 libclean: clean
 	rm -rf ./libvterm
 	rm -rf $(CCAN_DIR)
+
+-include $(wildcard $(BUILD)/*.d )

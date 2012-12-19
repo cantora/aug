@@ -474,6 +474,7 @@ static int process_master_output(VTerm *vt, int master) {
 	else if(n_read < 0 && errno != EAGAIN) {
 		err_exit(errno, "error reading from pty master (n_read = %d)", n_read);
 	}
+	/* bug? what happens if read returns EAGAIN? */
 
 	vterm_push_bytes(vt, g_buf, total_read);
 	
