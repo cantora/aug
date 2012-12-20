@@ -61,4 +61,14 @@
 #endif
 #define plan_tests(n) (void)(n)
 
+#ifdef todo_start
+#	undef todo_start
+#endif
+#define todo_start(...) ok(0, __VA_ARGS__)
+
+#ifdef todo_end
+#	undef todo_end
+#endif
+#define todo_end() /* no-op */
+
 #endif /* AUG_STDERR_TAP_H */

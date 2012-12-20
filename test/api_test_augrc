@@ -2,7 +2,7 @@
 
 term = screen ;
 ncterm = screen ;
-cmd-prefix = ^Q ;
+cmd-prefix = ^A ;
 
 [hello]
 

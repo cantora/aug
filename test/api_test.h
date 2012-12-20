@@ -53,7 +53,7 @@ static int api_test_main(int argc, char *argv[]) {
 		sleep(API_TEST_IO_PAUSE);
 		kill(getppid(), SIGWINCH);
 		nct_printf(api_test_user_input);
-		nct_printf("\x11\x12");
+		nct_printf("\x01\x12");
 		sleep(API_TEST_IO_PAUSE); //usleep(100000);
 		nct_printf(api_test_on_r_response);
 		sleep(API_TEST_IO_PAUSE);

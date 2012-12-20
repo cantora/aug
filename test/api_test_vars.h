@@ -4,7 +4,7 @@
 static const char api_test_user_input[] = 	"\n"
 											"ls -lah /\n"
 											"echo foo\n"
-											"echo 'Pellentesque pretium dui ut erat suscipit auctor.'";
+											"echo 'gogogogogo hello.'";
 
 static const char api_test_on_r_response[] = "pray for mojo mojo\n";
 
