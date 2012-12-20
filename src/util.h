@@ -34,6 +34,14 @@
 		} \
 	} while(0)
 
+#define AUG_EQUAL(_var, _val) \
+	do { \
+		if( ( _var ) != ( _val ) ) { \
+			err_exit(0, "(" __FILE__ ":" stringify(__LINE__) ") " stringify(_var) \
+							" = %d != " stringify(_val), _var); \
+		} \
+	} while(0)
+
 #define AUG_PTR_NON_NULL( _ptr_expr ) \
 	do { \
 		if( ( _ptr_expr ) == NULL ) { \
