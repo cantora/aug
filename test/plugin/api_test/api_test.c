@@ -44,10 +44,10 @@ static pthread_t g_thread1, g_thread2;
  * this should finish eventually.
  */
 static void check_screen_lock() {
-	int rows, cols;
+	int size;
 
 	diag("make sure screen is unlocked");
-	(*g_api->term_win_dims)(g_plugin, &rows, &cols);
+	(*g_api->screen_panel_size)(g_plugin, &size);
 	pass("screen is unlocked");
 }
 

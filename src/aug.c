@@ -383,6 +383,7 @@ static void handler_winch(int signo) {
 	 * manager and plugins about the resize */
 	screen_resize();
 	unlock_screen();
+	fprintf(stderr, "handler_winch: unlocked screen\n");
 
 	screen_dims(&rows, &cols);	
 	/* plugin callbacks */
@@ -395,7 +396,7 @@ static void handler_winch(int signo) {
 		}
 	}
 
-	fprintf(stderr, "handler_winch: unlocked screen\nhandler_winch: exit\n");
+	fprintf(stderr, "handler_winch: exit\n");
 }
 
 static void push_key(VTerm *vt, int ch) {
