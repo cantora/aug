@@ -227,7 +227,9 @@ static int api_win_alloc_top(struct aug_plugin *plugin, int nlines, WINDOW **win
 	int status;
 	(void)(plugin);
 
+	lock_all();
 	status = screen_push_top_edgewin(nlines, (void **)win);
+	unlock_all();
 	if(status < 0)
 		err_exit(0, "api_win_alloc_top: screen error");
 
@@ -377,8 +379,8 @@ static void handler_winch(int signo) {
 	struct aug_plugin_item *i;
 
 	fprintf(stderr, "handler_winch: enter\n");
-	lock_screen(); /* locks screen AND term */
-	fprintf(stderr, "handler_winch: locked screen\n");
+	lock_all(); /* locks screen AND term */
+	fprintf(stderr, "handler_winch: locked all\n");
 
 	vterm_screen_flush_damage(vterm_obtain_screen(g_term.vt) );
 
@@ -393,8 +395,8 @@ static void handler_winch(int signo) {
 	 * resizes all its windows, then tells the terminal window
 	 * manager and plugins about the resize */
 	screen_resize();
-	unlock_screen();
-	fprintf(stderr, "handler_winch: unlocked screen\n");
+	unlock_all();
+	fprintf(stderr, "handler_winch: unlocked all\n");
 
 	screen_dims(&rows, &cols);	
 	/* plugin callbacks */
