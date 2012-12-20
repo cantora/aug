@@ -108,6 +108,7 @@ void input_char(int *ch, aug_action *action, void *user) {
 							"check the on_r interactive input data");
 			g_on_r_interaction = false;
 			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
+			(*g_api->screen_panel_update)(g_plugin);
 		}
 		else {
 			waddch(g_pan2_dwin, *ch);
@@ -203,12 +204,17 @@ static void *thread1(void *user) {
 	check_screen_lock();
 	test_winch();
 	
-	sleep(4);
+	sleep(6);
 	diag("move panel a bit");
 	ok1(move_panel(g_pan1, 10, 30) != ERR);
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
 	ok1(hide_panel(g_pan1) != ERR);
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+	sleep(1);
 	diag("----thread1----\n#");
 	return NULL;
 }
