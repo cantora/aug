@@ -22,16 +22,32 @@
 #include <stdio.h>
 #include "util.h"
 
-#define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx
+#define AUG_LOCK_DEBUG
 
-#define AUG_LOCK_INIT(_lockable_struct_ptr) \
-	AUG_STATUS_EQUAL( pthread_mutex_init( &(_lockable_struct_ptr)->aug_mtx, NULL ), 0 )
+#ifdef AUG_LOCK_DEBUG
+#	define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx; \
+		int locked;
+#else
+#	define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx
+#endif
+
+#ifdef AUG_LOCK_DEBUG
+#	define AUG_LOCK_INIT(_lockable_struct_ptr) \
+		do { \
+			AUG_STATUS_EQUAL( pthread_mutex_init( &(_lockable_struct_ptr)->aug_mtx, NULL ), 0 ); \
+			(_lockable_struct_ptr)->locked = 0; \
+		} while(0)
+#else
+#	define AUG_LOCK_INIT(_lockable_struct_ptr) \
+		AUG_STATUS_EQUAL( pthread_mutex_init( &(_lockable_struct_ptr)->aug_mtx, NULL ), 0 )
+#endif
 
 #define AUG_LOCK_FREE(_lockable_struct_ptr) \
 	AUG_STATUS_EQUAL( pthread_mutex_destroy( &(_lockable_struct_ptr)->aug_mtx ), 0 )
 
 #define AUG_LOCK_DEBUG_PREFIX __FILE__ "@" stringify(__LINE__) 
 
+#ifdef AUG_LOCK_DEBUG
 static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 	size_t k;
 #define FPRINT_TID_BUFLEN ( sizeof(pthread_t)*2 + 1 )
@@ -47,17 +63,36 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 
 	return fprintf(f, "THREAD(0x%s)=> %s\n", buf, suffix);
 }
+#endif
 
-#define AUG_LOCK(_lockable_struct_ptr) \
-	do { \
-		fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":lock " stringify(_lockable_struct_ptr) ); \
-		AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
-	} while(0)
+#ifdef AUG_LOCK_DEBUG
+#	define AUG_LOCK(_lockable_struct_ptr) \
+		do { \
+			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":lock " stringify(_lockable_struct_ptr) ); \
+			AUG_EQUAL( (_lockable_struct_ptr)->locked, 0 ); \
+			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
+			(_lockable_struct_ptr)->locked = 1; \
+		} while(0)
+#else
+#	define AUG_LOCK(_lockable_struct_ptr) \
+		do { \
+			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
+		} while(0)
+#endif
 
-#define AUG_UNLOCK(_lockable_struct_ptr) \
-	do { \
-		fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":unlock " stringify(_lockable_struct_ptr) ); \
-		AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
-	} while(0)
+#ifdef AUG_LOCK_DEBUG
+#	define AUG_UNLOCK(_lockable_struct_ptr) \
+		do { \
+			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":unlock " stringify(_lockable_struct_ptr) ); \
+			AUG_EQUAL( (_lockable_struct_ptr)->locked, 1 ); \
+			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
+			(_lockable_struct_ptr)->locked = 0; \
+		} while(0)
+#else
+#	define AUG_UNLOCK(_lockable_struct_ptr) \
+		do { \
+			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
+		} while(0)
+#endif
 
 #endif /* AUG_LOCK_H */
