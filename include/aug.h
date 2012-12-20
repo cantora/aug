@@ -201,12 +201,16 @@ struct aug_api {
 	 * its window(s). call the function with suffix top, bot, left
 	 * and right for a window on the top, bottom, left and right respectively. 
 	 * the *win* parameter is the output parameter that will point to
-	 * the ncurses window structure.            
+	 * the ncurses window structure.
+	 * return value of 0 indicates that the window was allocated
+	 * successfully. a positive return value of N indicates that the number
+	 * of lines/cols exceeded the available space by N. a negative return
+	 * value is an unspecified error.
 	 */
-	void (*screen_win_alloc_top)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
-	void (*screen_win_alloc_bot)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
-	void (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
-	void (*screen_win_alloc_right)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
+	int (*screen_win_alloc_top)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
+	int (*screen_win_alloc_bot)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
+	int (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
+	int (*screen_win_alloc_right)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
 
 	void (*screen_win_dealloc)(struct aug_plugin *plugin, WINDOW **win); 
 

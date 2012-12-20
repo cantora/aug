@@ -223,6 +223,17 @@ static int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 	return result;
 }
 
+static int api_win_alloc_top(struct aug_plugin *plugin, int nlines, WINDOW **win) {
+	int status;
+	(void)(plugin);
+
+	status = screen_push_top_edgewin(nlines, (void **)win);
+	if(status < 0)
+		err_exit(0, "api_win_alloc_top: screen error");
+
+	return status;
+}
+
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
 								int begin_y, int begin_x, PANEL **panel) {
 	lock_screen();
@@ -761,13 +772,22 @@ static void init_plugins(struct aug_api *api) {
 	plugin_list_init(&g_plugin_list);
 	load_plugins();
 	api->log = api_log;
-	api->callbacks = api_callbacks;
 	api->conf_val = api_conf_val;
+	api->callbacks = api_callbacks;
 	api->stack_size = api_stack_size;
 	api->stack_pos = api_stack_pos;
 	api->term_win_dims = api_term_win_dims;
 	api->key_bind = api_key_bind;
 	api->key_unbind = api_key_unbind;
+
+	
+	api->screen_win_alloc_top = api_win_alloc_top;
+	/* 
+	api->screen_win_alloc_bot;
+	api->screen_win_alloc_left;
+	api->screen_win_alloc_right
+	api->screen_win_dealloc;
+	*/
 
 	api->screen_panel_alloc = api_screen_panel_alloc;
 	api->screen_panel_dealloc = api_screen_panel_dealloc;

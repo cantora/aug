@@ -128,13 +128,13 @@ $(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-temp
 api_test: $(BUILD)/api_test
 	$<
 
-$(BUILD)/api_test: $(BUILD)/api_test.o $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(PLUGIN_OBJECTS)
+$(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
 
-$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) \
+$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) \
 		$(PLUGIN_OBJECTS) sandbox/plugin/api_test/api_test.so
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -o $@
 

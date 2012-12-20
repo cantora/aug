@@ -16,7 +16,10 @@
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "util.h"
+
 #include <errno.h>
+#include <stdlib.h>
+#include "err.h"
 
 int set_nonblocking(int fd) {
 	int opts;
@@ -43,4 +46,12 @@ void write_n_or_exit(int fd, const void *buf, size_t n) {
 		
 		err_exit(error, "partial write");
 	}
+}
+
+inline void *aug_malloc(size_t size) {
+	void *result = malloc(size);
+	if(result == NULL)
+		err_exit(0, "out of memory");
+
+	return result;
 }

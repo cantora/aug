@@ -29,8 +29,8 @@ enum screen_err {
 	SCN_ERR_COLOR_COLORS,
 	SCN_ERR_COLOR_NOT_SUPPORTED,
 	SCN_ERR_COLOR_NO_DEFAULT,
-	SCN_ERR_COLOR_PAIR_INIT
-
+	SCN_ERR_COLOR_PAIR_INIT,
+	SCN_ERR_UNKNOWN
 };
 
 int screen_init();
@@ -48,6 +48,14 @@ void screen_refresh();
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user);
 int screen_bell(void *user);
 int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
+
+/* win will be set to an ncurses (WINDOW *), but the idea
+ * of this screen module is to encapsulate all the main ncurses
+ * action so that a file that includes this header doesnt need
+ * to include ncurses 
+ */
+int screen_push_top_edgewin(int nlines, void **win);
+
 void screen_resize();
 int screen_unctrl(int ch, char *str);
 void screen_doupdate();
