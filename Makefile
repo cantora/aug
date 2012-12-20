@@ -45,6 +45,9 @@ default: all
 .PHONY: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
+.PHONY: .FORCE
+.FORCE:
+
 $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm
 
@@ -98,10 +101,11 @@ $(BUILD)/%.o: ./test/%.c
 $(BUILD)/%.o: ./sandbox/%.c
 	$(cc-template) -iquote"./test" -iquote"./sandbox"
 
-./plugin/%.so: 
+#always remake these
+./plugin/%.so: .FORCE
 	$(MAKE) $(MFLAGS) -C ./$(dir $@) 
 
-./test/plugin/%.so: 
+./test/plugin/%.so: .FORCE
 	$(MAKE) $(MFLAGS) -C ./$(dir $@)
 
 define aux-program-template
@@ -137,7 +141,7 @@ $(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(filter-out $(BUILD)/scree
 screen_api_test: $(BUILD)/screen_api_test
 	$<
 
-./sandbox/plugin/api_test/api_test.so: $(API_TEST_FILES)
+./sandbox/plugin/api_test/api_test.so: .FORCE
 	cat ./test/plugin/api_test/api_test.c \
 		| sed 's/#include <ccan\/tap\/tap.h>/#include "stderr_tap.h"/' \
 		> ./sandbox/plugin/api_test/api_test.c
