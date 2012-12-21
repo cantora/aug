@@ -24,10 +24,6 @@
 #include "err.h"
 #include "util.h"
 
-struct edgewin_list {
-	struct list_head head;
-};
-
 struct edgewin {
 	int size;
 	const void *key;
@@ -35,20 +31,20 @@ struct edgewin {
 };
 
 static struct {
-	struct edgewin_list top_edgewins;
+	struct list_head top_edgewins;
 } g_map;
 
 static void delete(struct edgewin *);
 static void init_region(int, int, int, int, int, struct aug_region *);
 
 void region_map_init() {
-	list_head_init(&g_map.top_edgewins.head);
+	list_head_init(&g_map.top_edgewins);
 }
 
 void region_map_free() {
 	struct edgewin *next, *i;
 
-	list_for_each_safe(&g_map.top_edgewins.head, i, next, node) {
+	list_for_each_safe(&g_map.top_edgewins, i, next, node) {
 		delete(i);
 	}
 }
@@ -62,7 +58,7 @@ void region_map_push_top(const void *key, int nlines) {
 	item = aug_malloc( sizeof(struct edgewin) );
 	item->key = key;
 	item->size = nlines;
-	list_add_tail(&g_map.top_edgewins.head, &item->node);
+	list_add_tail(&g_map.top_edgewins, &item->node);
 }
 
 static void delete(struct edgewin *item) {
@@ -70,10 +66,21 @@ static void delete(struct edgewin *item) {
 	free(item);
 }
 
+int region_map_top_size() {
+	struct edgewin *i;
+	int n;
+
+	n = 0;
+	list_for_each(&g_map.top_edgewins, i, node) 
+		n++;
+
+	return n;
+}
+
 int region_map_delete(const void *key) {
 	struct edgewin *next, *i;
 
-	list_for_each_safe(&g_map.top_edgewins.head, i, next, node) {
+	list_for_each_safe(&g_map.top_edgewins, i, next, node) {
 		if(i->key == key) {
 			delete(i);
 			return 0;
@@ -97,18 +104,12 @@ AVL *region_map_key_dims_alloc() {
 }
 
 void region_map_key_dims_clear(AVL *key_dims) {
-	AvlIter i;
-	struct aug_region *region;
-
-	avl_foreach(i, key_dims) {
-		region = i.value;
-		free(region);
-	}
+	avl_free(key_dims);
+	key_dims = region_map_key_dims_alloc();
 }
 
 void region_map_key_dims_free(AVL *key_dims) {
-	region_map_key_dims_clear(key_dims);
-	free(key_dims);
+	avl_free(key_dims);
 }
 
 int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *primary) {
@@ -122,7 +123,7 @@ int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *pr
 	if(rows < 1 || cols < 1)
 		return -1;
 
-	list_for_each(&g_map.top_edgewins.head, i, node) {
+	list_for_each(&g_map.top_edgewins, i, node) {
 		region = malloc( sizeof( struct aug_region ) );
 		if(region == NULL)
 			err_exit(0, "out of memory");
@@ -138,7 +139,7 @@ int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *pr
 }
 
 static void init_region(int rows, int cols, int y, int x, int size, struct aug_region *region) {
-	if(rows < 1) {
+	if(rows < 0 || size < 1) {
 		region->rows = 0;
 		region->cols = 0;
 	}
