@@ -33,9 +33,9 @@ void region_map_free();
 void region_map_push_top(const void *key, int nlines);
 int region_map_top_size();
 int region_map_delete(const void *key);
-AVL *region_map_key_dims_alloc();
-void region_map_key_dims_free(AVL *key_dims);
-void region_map_key_dims_clear(AVL *key_dims);
-int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *primary);
+AVL *region_map_key_regs_alloc();
+void region_map_key_regs_free(AVL *key_regs);
+void region_map_key_regs_clear(AVL *key_regs);
+int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary);
 
 #endif /* AUG_REGION_MAP_H */

@@ -12,33 +12,33 @@ struct aug_test {
 };
 
 void test1() {
-	AVL *key_dims;
+	AVL *key_regs;
 	struct aug_region primary;
 
 	diag("++++test1++++");	
 	diag("test basic functionality/sanity");
 	region_map_init();
 	
-	key_dims = region_map_key_dims_alloc();
-	ok1(key_dims != NULL);
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
 
-	ok1(region_map_dims(0, 10, key_dims, &primary) == -1);
-	ok1(avl_count(key_dims) == 0);
+	ok1(region_map_apply(0, 10, key_regs, &primary) == -1);
+	ok1(avl_count(key_regs) == 0);
 
-	ok1(region_map_dims(1234, 0, key_dims, &primary) == -1);
-	ok1(avl_count(key_dims) == 0);
+	ok1(region_map_apply(1234, 0, key_regs, &primary) == -1);
+	ok1(avl_count(key_regs) == 0);
 
-	ok1(region_map_dims(0, 0, key_dims, &primary) == -1);
-	ok1(avl_count(key_dims) == 0);
+	ok1(region_map_apply(0, 0, key_regs, &primary) == -1);
+	ok1(avl_count(key_regs) == 0);
 
-	ok1(region_map_dims(10, 10, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 0);
+	ok1(region_map_apply(10, 10, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 0);
 	ok1(primary.rows == 10);
 	ok1(primary.cols == 10);
 	ok1(primary.y == 0);
 	ok1(primary.x == 0);
 
-	region_map_key_dims_free(key_dims);
+	region_map_key_regs_free(key_regs);
 
 #define TEST1AMT 1 + 3*2 + 6
 	diag("----test1----\n#");
@@ -46,7 +46,7 @@ void test1() {
 }
 
 void test2() {
-	AVL *key_dims;
+	AVL *key_regs;
 	AvlIter i;
 	struct aug_region primary;
 	struct aug_region *val;
@@ -57,27 +57,27 @@ void test2() {
 	diag("++++test2++++");	
 	region_map_init();
 	
-	key_dims = region_map_key_dims_alloc();
-	ok1(key_dims != NULL);
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
 
 	region_map_push_top(k1, 3);
 	region_map_push_top(k2, 14);
 
-	ok1(region_map_dims(1, 1, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
-	avl_foreach(i, key_dims) {
+	ok1(region_map_apply(1, 1, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
+	avl_foreach(i, key_regs) {
 		struct aug_region *val = i.value;
 		ok1(val->rows == 0);
 		ok1(val->cols == 0);
 	}
 	ok1(primary.rows == 0);
 	ok1(primary.cols == 0);
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
-	ok1(region_map_dims(3, 1, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
+	ok1(region_map_apply(3, 1, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
 
-	avl_foreach(i, key_dims) {
+	avl_foreach(i, key_regs) {
 		val = i.value;
 		if(i.key != (void *)1) {
 			ok1(val->rows == 0);
@@ -93,18 +93,18 @@ void test2() {
 
 	ok1(primary.rows == 0);
 	ok1(primary.cols == 0);
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
-	ok1(region_map_dims(17, 10, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
+	ok1(region_map_apply(17, 10, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == 10);
 	ok1(val->y == 0);
 	ok1(val->x == 0);	
 
-	val = avl_lookup(key_dims, k2);
+	val = avl_lookup(key_regs, k2);
 	ok1(val->rows == 14);
 	ok1(val->cols == 10);
 	ok1(val->y == 3);
@@ -112,18 +112,18 @@ void test2() {
 
 	ok1(primary.rows == 0);
 	ok1(primary.cols == 0);
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
-	ok1(region_map_dims(18, 10, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
+	ok1(region_map_apply(18, 10, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == 10);
 	ok1(val->y == 0);
 	ok1(val->x == 0);
 	
-	val = avl_lookup(key_dims, k2);
+	val = avl_lookup(key_regs, k2);
 	ok1(val->rows == 14);
 	ok1(val->cols == 10);
 	ok1(val->y == 3);
@@ -134,9 +134,9 @@ void test2() {
 	ok1(primary.y == 17);
 	ok1(primary.x == 0);
 	
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
-	region_map_key_dims_free(key_dims);
+	region_map_key_regs_free(key_regs);
 
 #define TEST2AMT 1 + 4+4 + 4+6 + 12 + 14
 	diag("----test2----\n#");
@@ -144,8 +144,7 @@ void test2() {
 }
 
 void test3() {
-	AVL *key_dims;
-	AvlIter i;
+	AVL *key_regs;
 	struct aug_region primary;
 	struct aug_region *val;
 	void *k1, *k2, *k3;
@@ -159,22 +158,22 @@ void test3() {
 	diag("++++test3++++");	
 	region_map_init();
 	
-	key_dims = region_map_key_dims_alloc();
-	ok1(key_dims != NULL);
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
 
 	region_map_push_top(k1, 3);
 	region_map_push_top(k2, 14);
 
-	ok1(region_map_dims(lines, columns, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == columns);
 	ok1(val->y == 0);
 	ok1(val->x == 0);
 	
-	val = avl_lookup(key_dims, k2);
+	val = avl_lookup(key_regs, k2);
 	ok1(val->rows == 14);
 	ok1(val->cols == columns);
 	ok1(val->y == 3);
@@ -185,26 +184,26 @@ void test3() {
 	ok1(primary.y == 17);
 	ok1(primary.x == 0);
 	
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
 	region_map_push_top(k3, 9);
 
-	ok1(region_map_dims(lines, columns, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 3);
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 3);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == columns);
 	ok1(val->y == 0);
 	ok1(val->x == 0);
 	
-	val = avl_lookup(key_dims, k2);
+	val = avl_lookup(key_regs, k2);
 	ok1(val->rows == 14);
 	ok1(val->cols == columns);
 	ok1(val->y == 3);
 	ok1(val->x == 0);
 
-	val = avl_lookup(key_dims, k3);
+	val = avl_lookup(key_regs, k3);
 	ok1(val->rows == 9);
 	ok1(val->cols == columns);
 	ok1(val->y == 17);
@@ -215,24 +214,24 @@ void test3() {
 	ok1(primary.y == 26);
 	ok1(primary.x == 0);
 	
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
 	ok1(region_map_delete((void *)5) == -1);
 	ok1(region_map_top_size() == 3);
 	ok1(region_map_delete(k2) == 0);
 	ok1(region_map_top_size() == 2);
-	ok1(avl_count(key_dims) == 0);
+	ok1(avl_count(key_regs) == 0);
 
-	ok1(region_map_dims(lines, columns, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 2);
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 2);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == columns);
 	ok1(val->y == 0);
 	ok1(val->x == 0);
 	
-	val = avl_lookup(key_dims, k3);
+	val = avl_lookup(key_regs, k3);
 	ok1(val->rows == 9);
 	ok1(val->cols == columns);
 	ok1(val->y == 3);
@@ -243,27 +242,27 @@ void test3() {
 	ok1(primary.y == 12);
 	ok1(primary.x == 0);
 	
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 
 	region_map_push_top(k2, 8);
 	ok1(region_map_top_size() == 3);
 
-	ok1(region_map_dims(lines, columns, key_dims, &primary) == 0);
-	ok1(avl_count(key_dims) == 3);
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 3);
 
-	val = avl_lookup(key_dims, k1);
+	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
 	ok1(val->cols == columns);
 	ok1(val->y == 0);
 	ok1(val->x == 0);
 	
-	val = avl_lookup(key_dims, k3);
+	val = avl_lookup(key_regs, k3);
 	ok1(val->rows == 9);
 	ok1(val->cols == columns);
 	ok1(val->y == 3);
 	ok1(val->x == 0);
 
-	val = avl_lookup(key_dims, k2);
+	val = avl_lookup(key_regs, k2);
 	ok1(val->rows == 8);
 	ok1(val->cols == columns);
 	ok1(val->y == 12);
@@ -274,9 +273,9 @@ void test3() {
 	ok1(primary.y == 20);
 	ok1(primary.x == 0);
 	
-	region_map_key_dims_clear(key_dims);
+	region_map_key_regs_clear(key_regs);
 	
-	region_map_key_dims_free(key_dims);
+	region_map_key_regs_free(key_regs);
 #define TEST3AMT 1 + 2+4*3 + 2+4*4 + 5 + 2+4*3 + 1+2+4*4
 	diag("----test3----\n#");
 	region_map_free();

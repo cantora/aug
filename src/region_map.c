@@ -99,20 +99,20 @@ static int void_compare(const void *a, const void *b) {
 		return 0;
 }
 
-AVL *region_map_key_dims_alloc() {
+AVL *region_map_key_regs_alloc() {
 	return avl_new( (AvlCompare) void_compare );
 }
 
-void region_map_key_dims_clear(AVL *key_dims) {
-	avl_free(key_dims);
-	key_dims = region_map_key_dims_alloc();
+void region_map_key_regs_clear(AVL *key_regs) {
+	avl_free(key_regs);
+	key_regs = region_map_key_regs_alloc();
 }
 
-void region_map_key_dims_free(AVL *key_dims) {
-	avl_free(key_dims);
+void region_map_key_regs_free(AVL *key_regs) {
+	avl_free(key_regs);
 }
 
-int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *primary) {
+int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary) {
 	int rows, cols, tmp;
 	struct edgewin *i;
 	struct aug_region *region;
@@ -131,7 +131,7 @@ int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *pr
 		tmp = (lines-rows);
 		rows -= i->size;
 		init_region(rows, cols, tmp, 0, i->size, region);
-		avl_insert(key_dims, i->key, region);
+		avl_insert(key_regs, i->key, region);
 	}
 
 	init_region(rows, cols, lines-rows, 0, rows, primary);
