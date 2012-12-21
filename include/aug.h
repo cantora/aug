@@ -137,24 +137,6 @@ struct aug_api {
 	 */
 	void (*callbacks)(struct aug_plugin *plugin, const struct aug_plugin_cb *callbacks, const struct aug_plugin_cb **prev);
 
-	/* query for the number of plugins
-	 * on the plugin stack */
-	void (*stack_size)(struct aug_plugin *plugin, int *size);
-
-	/* query for the position in the 
-	 * plugin stack of a plugin by
-	 * name. the plugin at position
-	 * zero gets the first callbacks
-	 * and the plugin at the highest
-	 * position gets callbacks last. 
-	 * a non-zero return value means
-	 * a plugin with name was not found */
-	int (*stack_pos)(struct aug_plugin *plugin, const char *name, int *pos);
-
-	/* get the dimensions of the main terminal
-	 * window */
-	void (*term_win_dims)(struct aug_plugin *plugin, int *rows, int *cols);
-
 	/* the user can configure a global command key
 	 * to use as a prefix and plugins can bind to
 	 * this key + some extension. for example, the 
@@ -192,6 +174,12 @@ struct aug_api {
 	 * which specify things that should or should not be done.
 	 */
 
+	/* any ncurses calls should be enclosed between these two calls
+	 * in order to serialize access to the ncurses library
+	 */
+	void (*lock_screen)(const struct aug_plugin *plugin);
+	void (*unlock_screen)(const struct aug_plugin *plugin);
+
 	/* as described above, this allocates an ncurses window object
 	 * with a height of *nlines* on the top, bottom, or with a width 
 	 * of *ncols* on the left or right of the screen. the width/height
@@ -207,10 +195,29 @@ struct aug_api {
 	 * of lines/cols exceeded the available space by N. a negative return
 	 * value is an unspecified error.
 	 */
-	int (*screen_win_alloc_top)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
-	int (*screen_win_alloc_bot)(struct aug_plugin *plugin, int nlines, WINDOW **win); 
-	int (*screen_win_alloc_left)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
-	int (*screen_win_alloc_right)(struct aug_plugin *plugin, int ncols, WINDOW **win); 
+	int (*screen_win_alloc_top)(
+		struct aug_plugin *plugin, 
+		int nlines, 
+		void (*callback)(int y, int x, int rows, int cols, void *user) 
+	); 
+
+	int (*screen_win_alloc_bot)(
+		struct aug_plugin *plugin, 
+		int nlines, 
+		void (*callback)(int y, int x, int rows, int cols, void *user) 
+	); 
+
+	int (*screen_win_alloc_left)(
+		struct aug_plugin *plugin, 
+		int ncols, 
+		void (*callback)(int y, int x, int rows, int cols, void *user) 
+	); 
+
+	int (*screen_win_alloc_right)(
+		struct aug_plugin *plugin, 
+		int ncols, 
+		void (*callback)(int y, int x, int rows, int cols, void *user) 
+	); 
 
 	void (*screen_win_dealloc)(struct aug_plugin *plugin, WINDOW **win); 
 

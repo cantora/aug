@@ -293,10 +293,9 @@ static void on_r(int chr, void *user) {
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
-	int pos = -1;
-	WINDOW *pan1_win;
+	WINDOW *pan1_win; /*, *top_ew;*/
 
-	plan_tests(44);
+	plan_tests(42);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -321,19 +320,6 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	else {
 		fail("testkey not found.");
 	}	
-
-	(*g_api->stack_size)(g_plugin, &stack_size);
-	ok(stack_size == 2, "test stack size function: should be 2 plugins.");
-
-	diag("check if this plugin is at position 1 in the stack");
-	if( (*g_api->stack_pos)(g_plugin, g_plugin->name, &pos) != 0) {
-		fail("should have found self at a plugin stack position. abort...\n");
-	}	
-	else if( pos != 1) {
-		fail("expected to be at stack position 1.");
-	}
-	else
-		pass("pos = 1");
 
 	/* register a callback for when the user types command key + 'r' */
 	if( (*g_api->key_bind)(g_plugin, g_callback_key, on_r, g_user_data) != 0) {
@@ -361,6 +347,30 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	}
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
+
+	/*diag("create top edge window");
+	int wat_stat = (*g_api->screen_win_alloc_top)(g_plugin, 3, &top_ew);
+	if(wat_stat == 0) {
+		pass("created top edge window");
+		if(mvwprintw(top_ew, 0, 1, "some kinda weird status bar!") == ERR) {
+			diag("expected to be able to print to the top ew window. abort...");
+			return -1;
+		}
+
+		wsyncup(top_ew);
+		wcursyncup(top_ew);
+		if(wnoutrefresh(top_ew) == ERR) {
+			diag("expected to be able to refresh top ew");
+			return -1;
+		}
+
+		(*g_api->screen_panel_update)(g_plugin);
+		(*g_api->screen_doupdate)(g_plugin);
+		//sleep(1);
+	}
+	else {
+		fail("failed to create top edge window");
+	}*/
 
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {

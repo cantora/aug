@@ -143,52 +143,6 @@ static void api_callbacks(struct aug_plugin *plugin, const struct aug_plugin_cb 
 		plugin->callbacks = callbacks;
 }
 
-static void api_stack_size(struct aug_plugin *plugin, int *size) {
-	struct aug_plugin_item *itr;
-	int i;
-	(void)(plugin);
-
-	AUG_LOCK(&g_plugin_list);
-	i = 0;
-	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
-		i++;
-	}
-	AUG_UNLOCK(&g_plugin_list);
-
-	*size = i;
-}
-
-static int api_stack_pos(struct aug_plugin *plugin, const char *name, int *pos) {
-	struct aug_plugin_item *itr;
-	int i, status;
-	(void)(plugin);
-
-	status = -1;
-	AUG_LOCK(&g_plugin_list);
-	i = 0;
-	PLUGIN_LIST_FOREACH(&g_plugin_list, itr) {
-		if(strncmp(itr->plugin.name, name, AUG_MAX_PLUGIN_NAME_LEN) == 0) {
-			*pos = i;
-			status = 0;
-			goto unlock;
-		}
-		i++;
-	}
-
-unlock:
-	AUG_UNLOCK(&g_plugin_list);	
-
-	return status;
-}
-
-static void api_term_win_dims(struct aug_plugin *plugin, int *rows, int *cols) {
-	(void)(plugin);
-
-	AUG_LOCK(&g_term);
-	term_dims(&g_term, rows, cols);
-	AUG_UNLOCK(&g_term);
-}
-
 static int api_key_bind(const struct aug_plugin *plugin, int ch, 
 							aug_on_key_fn on_key, void *user) {
 	aug_on_key_fn ok;
@@ -223,17 +177,22 @@ static int api_key_unbind(const struct aug_plugin *plugin, int ch) {
 	return result;
 }
 
-static int api_win_alloc_top(struct aug_plugin *plugin, int nlines, WINDOW **win) {
-	int status;
+static void api_lock_screen(const struct aug_plugin *plugin) {
 	(void)(plugin);
+	lock_screen();
+}
 
-	lock_all();
-	status = screen_push_top_edgewin(nlines, (void **)win);
-	unlock_all();
-	if(status < 0)
-		err_exit(0, "api_win_alloc_top: screen error");
+static void api_unlock_screen(const struct aug_plugin *plugin) {
+	(void)(plugin);
+	unlock_screen();
+}
 
-	return status;
+static int api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+				void (*callback)(int y, int x, int rows, int cols, void *user) ) {
+	(void)(plugin);
+	(void)(nlines);
+	(void)(callback);
+	return 0;
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -593,7 +552,7 @@ static void loop(struct aug_term *term) {
 			panel_stack_update();
 			//screen_refresh();
 			screen_doupdate();
-					
+
 			timer_init(&inter_io_timer);
 			timer_init(&refresh_expire);
 			force_refresh = 0;
@@ -776,13 +735,12 @@ static void init_plugins(struct aug_api *api) {
 	api->log = api_log;
 	api->conf_val = api_conf_val;
 	api->callbacks = api_callbacks;
-	api->stack_size = api_stack_size;
-	api->stack_pos = api_stack_pos;
-	api->term_win_dims = api_term_win_dims;
 	api->key_bind = api_key_bind;
 	api->key_unbind = api_key_unbind;
 
-	
+	api->lock_screen = api_lock_screen;
+	api->unlock_screen = api_unlock_screen;
+
 	api->screen_win_alloc_top = api_win_alloc_top;
 	/* 
 	api->screen_win_alloc_bot;
