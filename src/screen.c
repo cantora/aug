@@ -23,15 +23,12 @@
 #include <string.h>
 
 #include "ncurses.h"
-#include <ccan/list/list.h>
 #include "util.h"
 #include "err.h"
 #include "attr.h"
 #include "term_win.h"
 
 static void vterm_cb_refresh(void *user);
-static void init_edgewins();
-static int free_edgewins();
 static int free_term_win();
 static int init_term_win();
 
@@ -46,20 +43,10 @@ static const struct aug_term_io_callbacks CB_TERM_IO = {
 	.refresh = vterm_cb_refresh
 };
 
-struct edgewin_list {
-	struct list_head head;
-};
-
-struct edgewin {
-	WINDOW *win;
-	struct list_node node;
-};
-
 /* globals */
 static struct {
 	int color_on;
 	struct aug_term_win term_win;
-	struct edgewin_list top_edgewins;
 } g;	
 
 int screen_init(struct aug_term *term) {
@@ -74,7 +61,6 @@ int screen_init(struct aug_term *term) {
 	if(init_term_win() != 0)
 		goto fail;
 	screen_set_term(term);
-	init_edgewins();
 
 	if(nodelay(stdscr, true) == ERR) 
 		goto fail;
@@ -85,24 +71,6 @@ int screen_init(struct aug_term *term) {
 fail:
 	errno = SCN_ERR_INIT;
 	return -1;
-}
-
-static void init_edgewins() {
-	list_head_init(&g.top_edgewins.head);
-}
-
-static int free_edgewins() {
-	struct edgewin *next, *i;
-
-	list_for_each_safe(&g.top_edgewins.head, i, next, node) {
-		list_del(&i->node);
-		if(delwin(i->win) == ERR)
-			return -1;
-
-		free(i);
-	}
-
-	return 0;
 }
 
 static int free_term_win() {
@@ -140,9 +108,6 @@ int screen_cleanup() {
 }
 
 void screen_free() {
-	if(free_edgewins() != 0)
-		err_exit(0, "free_edgewins failed");
-
 	if(free_term_win() != 0)
 		err_exit(0, "free_term_win failed!");
 
@@ -333,42 +298,11 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user) {
 void screen_resize() {
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
-	
 	screen_refresh();
-
 	fprintf(stderr, "screen: resize to %d, %d\n", LINES, COLS);
+
 	wresize(g.term_win.win, LINES, COLS);
 	term_win_resize(&g.term_win);
-}
-
-int screen_push_top_edgewin(int nlines, void **win) {
-	int trows, tcols, tx, ty;
-	struct edgewin *item;
-	WINDOW *w;
-
-	term_win_dims(&g.term_win, &trows, &tcols);
-	if(trows < nlines) /* not enough space left */
-		return (nlines - trows);
-
-	getparyx(g.term_win.win, ty, tx);
-	if(wresize(g.term_win.win, trows - nlines, tcols) == ERR)
-		goto fail;
-	if(mvwin(g.term_win.win, ty + nlines, tx) == ERR)
-		goto fail;
-
-	w = derwin(stdscr, nlines, COLS, ty, 0);
-	if(w == NULL)
-		goto fail;
-
-	item = aug_malloc( sizeof(struct edgewin) );
-	item->win = w;
-	list_add_tail(&g.top_edgewins.head, &item->node);
-
-	*win = (void *) w;
-	return 0;
-fail:
-	errno = SCN_ERR_UNKNOWN;
-	return -1;
 }
 
 /* converts a character into its string representation.
