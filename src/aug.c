@@ -56,6 +56,7 @@
 #include "plugin_list.h"
 #include "keymap.h"
 #include "panel_stack.h"
+#include "region_map.h"
 
 static void lock_all();
 static void unlock_all();
@@ -71,6 +72,9 @@ static struct aug_keymap g_keymap;
 static struct {
 	AUG_LOCK_MEMBERS;
 } g_screen;
+static struct {
+	AUG_LOCK_MEMBERS;
+} g_region_map;
 
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
@@ -842,9 +846,13 @@ int aug_main(int argc, char *argv[]) {
 	AUG_LOCK_INIT(&g_screen); /* 4 */
 	/* init keymap structure */
 	keymap_init(&g_keymap); /* 5 */
+
+	region_map_init(); /* 6 */
+	AUG_LOCK_INIT(&g_region_map);
+
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
-	init_plugins(&api); /* 6 */
+	init_plugins(&api); /* 7 */
 	g_plugins_initialized = true;
 
 	fprintf(stderr, "configuration:\n");
@@ -859,8 +867,11 @@ int aug_main(int argc, char *argv[]) {
 
 	/* cleanup */
 	block_winch(); 
-	free_plugins(); /* 6 */
+	free_plugins(); /* 7 */
 	unblock_winch();
+
+	region_map_free(); /* 6 */
+	AUG_LOCK_FREE(&g_region_map);
 
 	keymap_free(&g_keymap); /* 5 */
 	AUG_LOCK_FREE(&g_screen); /* 4 */
