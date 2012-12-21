@@ -19,7 +19,22 @@
 #ifndef AUG_REGION_MAP_H
 #define AUG_REGION_MAP_H
 
+#include <ccan/avl/avl.h>
+
+struct aug_region {
+	int y;
+	int x;
+	int rows;
+	int cols;
+};
+
 void region_map_init();
 void region_map_free();
+void region_map_push_top(const void *key, int nlines);
+int region_map_delete(const void *key);
+AVL *region_map_key_dims_alloc();
+void region_map_key_dims_free(AVL *key_dims);
+void region_map_key_dims_clear(AVL *key_dims);
+int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *primary);
 
 #endif /* AUG_REGION_MAP_H */

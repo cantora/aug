@@ -16,6 +16,8 @@
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "region_map.h"
+
 #include <stdlib.h>
 #include <ccan/list/list.h>
 
@@ -28,7 +30,7 @@ struct edgewin_list {
 
 struct edgewin {
 	int size;
-	void *key;
+	const void *key;
 	struct list_node node;
 };
 
@@ -37,6 +39,7 @@ static struct {
 } g_map;
 
 static void delete(struct edgewin *);
+static void init_region(int, int, int, int, int, struct aug_region *);
 
 void region_map_init() {
 	list_head_init(&g_map.top_edgewins.head);
@@ -50,7 +53,7 @@ void region_map_free() {
 	}
 }
 
-void region_map_push_top(void *key, int nlines) {
+void region_map_push_top(const void *key, int nlines) {
 	struct edgewin *item;
 
 	if(nlines < 1)
@@ -67,7 +70,7 @@ static void delete(struct edgewin *item) {
 	free(item);
 }
 
-int region_map_delete(void *key) {
+int region_map_delete(const void *key) {
 	struct edgewin *next, *i;
 
 	list_for_each_safe(&g_map.top_edgewins.head, i, next, node) {
@@ -80,3 +83,69 @@ int region_map_delete(void *key) {
 	return -1;
 }
 
+static int void_compare(const void *a, const void *b) {
+	if(a < b) 
+		return -1;
+	else if(a > b)
+		return 1;
+	else
+		return 0;
+}
+
+AVL *region_map_key_dims_alloc() {
+	return avl_new( (AvlCompare) void_compare );
+}
+
+void region_map_key_dims_clear(AVL *key_dims) {
+	AvlIter i;
+	struct aug_region *region;
+
+	avl_foreach(i, key_dims) {
+		region = i.value;
+		free(region);
+	}
+}
+
+void region_map_key_dims_free(AVL *key_dims) {
+	region_map_key_dims_clear(key_dims);
+	free(key_dims);
+}
+
+int region_map_dims(int lines, int columns, AVL *key_dims, struct aug_region *primary) {
+	int rows, cols, tmp;
+	struct edgewin *i;
+	struct aug_region *region;
+
+	rows = lines;
+	cols = columns;
+
+	if(rows < 1 || cols < 1)
+		return -1;
+
+	list_for_each(&g_map.top_edgewins.head, i, node) {
+		region = malloc( sizeof( struct aug_region ) );
+		if(region == NULL)
+			err_exit(0, "out of memory");
+
+		tmp = (lines-rows);
+		rows -= i->size;
+		init_region(rows, cols, tmp, 0, i->size, region);
+		avl_insert(key_dims, i->key, region);
+	}
+
+	init_region(rows, cols, lines-rows, 0, rows, primary);
+	return 0;
+}
+
+static void init_region(int rows, int cols, int y, int x, int size, struct aug_region *region) {
+	if(rows < 1) {
+		region->rows = 0;
+		region->cols = 0;
+	}
+	else {
+		region->rows = size; 
+		region->cols = cols;
+		region->y = y;
+		region->x = x;
+	}
+}
