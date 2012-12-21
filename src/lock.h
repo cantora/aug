@@ -69,8 +69,8 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 #	define AUG_LOCK(_lockable_struct_ptr) \
 		do { \
 			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":lock " stringify(_lockable_struct_ptr) ); \
-			AUG_EQUAL( (_lockable_struct_ptr)->locked, 0 ); \
 			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
+			AUG_EQUAL( (_lockable_struct_ptr)->locked, 0 ); \
 			(_lockable_struct_ptr)->locked = 1; \
 		} while(0)
 #else
