@@ -191,12 +191,13 @@ static void api_unlock_screen(const struct aug_plugin *plugin) {
 	unlock_screen();
 }
 
-static int api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
 				void (*callback)(int y, int x, int rows, int cols, void *user) ) {
 	(void)(plugin);
-	(void)(nlines);
-	(void)(callback);
-	return 0;
+
+	AUG_LOCK(&g_region_map);
+	region_map_push_top((void *) callback, nlines);
+	AUG_UNLOCK(&g_region_map);
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
