@@ -35,7 +35,7 @@ static struct {
 } g_map;
 
 static void delete(struct edgewin *);
-static void init_region(int, int, int, int, int, struct aug_region *);
+static int init_region(int, int, int, int, int, struct aug_region *);
 
 void region_map_init() {
 	list_head_init(&g_map.top_edgewins);
@@ -112,8 +112,12 @@ void region_map_key_regs_free(AVL *key_regs) {
 	avl_free(key_regs);
 }
 
+/* apply the region map to a rectangle of lines X columns dimension
+ * and store the result in key_regs which is a map from keys to regions.
+ * the leftover space is described by the primary output parameter.
+ */
 int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary) {
-	int rows, cols, tmp;
+	int rows, cols;
 	struct edgewin *i;
 	struct aug_region *region;
 
@@ -128,9 +132,8 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		if(region == NULL)
 			err_exit(0, "out of memory");
 
-		tmp = (lines-rows);
-		rows -= i->size;
-		init_region(rows, cols, tmp, 0, i->size, region);
+		if(init_region(rows-(i->size), cols, lines-rows, 0, i->size, region) == 0)
+			rows -= i->size;
 		avl_insert(key_regs, i->key, region);
 	}
 
@@ -138,15 +141,27 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 	return 0;
 }
 
-static void init_region(int rows, int cols, int y, int x, int size, struct aug_region *region) {
+
+/* rows: 	the number of rows available
+ * cols: 	the number of columns available
+ * y:		the starting y coord
+ * x:		the starting x coord
+ * size:	the size requested for the region
+ * region:	output paramter
+ */
+static int init_region(int rows, int cols, int y, int x, int size, struct aug_region *region) {
 	if(rows < 0 || size < 1) {
 		region->rows = 0;
 		region->cols = 0;
+
+		return -1;
 	}
 	else {
 		region->rows = size; 
 		region->cols = cols;
 		region->y = y;
 		region->x = x;
+
+		return 0;
 	}
 }
