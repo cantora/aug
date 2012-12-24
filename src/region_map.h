@@ -31,6 +31,7 @@ struct aug_region {
 void region_map_init();
 void region_map_free();
 void region_map_push_top(const void *key, int nlines);
+void region_map_push_bot(const void *key, int nlines);
 int region_map_top_size();
 int region_map_delete(const void *key);
 AVL *region_map_key_regs_alloc();

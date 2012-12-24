@@ -132,7 +132,9 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 			int lines, int *rows_left, int cols_left, int reverse) {
 	struct edgewin *i;
 	struct aug_region *region;
-	int y;
+	int y, prev_y;
+
+	y = lines;
 
 	list_for_each(edgewins, i, node) {
 		region = malloc( sizeof( struct aug_region ) );
@@ -141,8 +143,9 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 	
 		if(reverse == 0)
 			y = lines - *rows_left;
-		else
-			y = lines - (i->size);
+		else {
+			y = y - (i->size);
+		}
 	
 		if(init_region(*rows_left-(i->size), cols_left, 
 				y, 0, i->size, region) == 0)
@@ -156,7 +159,7 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
  * the leftover space is described by the primary output parameter.
  */
 int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary) {
-	int rows, cols;
+	int rows, cols, primary_y;
 
 	rows = lines;
 	cols = columns;
@@ -172,7 +175,8 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		cols,
 		0
 	);
-	
+	primary_y = lines-rows;
+
 	apply_horizontal_edgewins(
 		&g_map.bot_edgewins, 
 		key_regs,
@@ -182,7 +186,7 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		1
 	);
 	
-	init_region(rows, cols, lines-rows, 0, rows, primary);
+	init_region(rows, cols, primary_y, 0, rows, primary);
 	return 0;
 }
 
