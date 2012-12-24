@@ -30,6 +30,8 @@
 extern int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_pair);
 extern int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col);
 
+static void resize_terminal(struct aug_term_win *);
+
 void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 	tw->term = NULL;
 	tw->win = win;
@@ -37,11 +39,18 @@ void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 
 void term_win_set_term(struct aug_term_win *tw, struct aug_term *term) {
 	tw->term = term;
-	term_win_resize(tw);
+	resize_terminal(tw);
 }
 
 void term_win_dims(const struct aug_term_win *tw, int *rows, int *cols) {
-	win_dims(tw->win, rows, cols);
+	
+	if(tw->win == NULL) {
+		*rows = 0;
+		*cols = 0;
+	}
+	else {
+		win_dims(tw->win, rows, cols);
+	}
 }
 
 void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
@@ -54,7 +63,7 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 	wchar_t erasech = L' ';
 	int maxx, maxy;
 
-	if(tw->term == NULL)
+	if(tw->term == NULL || tw->win == NULL)
 		return;
 
 	vts = vterm_obtain_screen(tw->term->vt);
@@ -94,6 +103,9 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 }
 
 void term_win_refresh(struct aug_term_win *tw) {
+	if(tw->win == NULL)
+		return;
+
 	wsyncup(tw->win);
 	wcursyncup(tw->win);
 	if(wnoutrefresh(tw->win) == ERR)
@@ -104,6 +116,9 @@ void term_win_refresh(struct aug_term_win *tw) {
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	VTermPos pos;
 	int x,y;
+
+	if(tw->win == NULL)
+		return 1;
 
 	/* save cursor value */
 	getyx(tw->win, y, x);
@@ -123,6 +138,9 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 
 int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) {
 
+	if(tw->win == NULL)
+		return 1;
+
 	/* sometimes this happens when
 	 * a window resize recently happened. */
 	 if(!win_contained(tw->win, pos.row, pos.col) ) {
@@ -139,14 +157,23 @@ int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) 
 	return 1;
 }
 
-/* tw->win is assumed to be the correct size 
- * when this function is called, so this simply
- * syncronizes the aug_term structure to the
- * right size according to tw->win 
+/* syncronizes the aug_term_win structure to the
+ * right size according to win 
  */
-void term_win_resize(struct aug_term_win *tw) {
+void term_win_resize(struct aug_term_win *tw, WINDOW *win) {
+	tw->win = win;
+	resize_terminal(tw);
+}
+
+/* synchronizes the aug_term structure to the right
+ * size according to tw->win
+ */
+static void resize_terminal(struct aug_term_win *tw) {
 	int rows, cols;
-	
+
+	if(tw->win == NULL)
+		return;
+
 	/* get the size of the window */
 	win_dims(tw->win, &rows, &cols);
 

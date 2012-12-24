@@ -27,6 +27,10 @@
 #include "err.h"
 #include "attr.h"
 #include "term_win.h"
+#include "region_map.h"
+#include "ncurses_util.h"
+
+extern void make_win_alloc_callback(void *cb_pair, WINDOW *win);
 
 static void vterm_cb_refresh(void *user);
 static int free_term_win();
@@ -47,11 +51,16 @@ static const struct aug_term_io_callbacks CB_TERM_IO = {
 static struct {
 	int color_on;
 	struct aug_term_win term_win;
+	AVL *windows;	
 } g;	
 
 int screen_init(struct aug_term *term) {
 	g.color_on = 0;
 
+	g.windows = avl_new( (AvlCompare) void_compare );
+	if(g.windows == NULL)
+		goto fail;
+	
 	initscr();
 	if(raw() == ERR) 
 		goto fail;
@@ -66,7 +75,7 @@ int screen_init(struct aug_term *term) {
 		goto fail;
 	if(nonl() == ERR)
 		goto fail;
-	
+
 	return 0;
 fail:
 	errno = SCN_ERR_INIT;
@@ -107,12 +116,27 @@ int screen_cleanup() {
 	}
 }
 
+static void free_windows() {
+	AvlIter i;
+
+	avl_foreach(i, g.windows) {
+		if(delwin((WINDOW *) i.value) == ERR)
+			err_exit(0, "failed to delete window");
+		
+		avl_remove(g.windows, i.key);
+	}
+}
+
 void screen_free() {
+	free_windows();
+	
 	if(free_term_win() != 0)
 		err_exit(0, "free_term_win failed!");
 
 	if(screen_cleanup() != 0)
 		err_exit(0, "screen_cleanup failed!");
+
+	avl_free(g.windows);
 }
 
 static void vterm_cb_refresh(void *user) {
@@ -291,19 +315,102 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user) {
 	return 1;
 }
 
+static WINDOW *derwin_from_region(struct aug_region *region) {
+	WINDOW *win;
+
+	win = derwin( 
+		stdscr, 
+		region->rows, 
+		region->cols, 
+		region->y, 
+		region->x 
+	);
+
+	if(win == NULL) 
+		err_exit(0, "failed to create derwin from region");
+
+	return win;
+}
+
+#define SCREEN_REGION_VALID(_region_ptr) ( (_region_ptr)->rows > 0 && (_region_ptr)->cols > 0 )
+
+static void resize_edge_windows(AVL *key_regs) {
+	AvlIter i;
+	struct aug_region *edge_reg;
+	int rows, cols;
+	WINDOW *edge_win;
+
+	avl_foreach(i, key_regs) {
+		edge_reg = (struct aug_region *) i.value;
+		edge_win = avl_lookup(g.windows, i.key);
+
+		if(edge_win == NULL) {
+			if( SCREEN_REGION_VALID(edge_reg) ) {
+				edge_win = derwin_from_region(edge_reg);
+			}
+		}
+		else {
+			if( SCREEN_REGION_VALID(edge_reg) ) {
+				win_dims(edge_win, &rows, &cols);
+				if(rows != edge_reg->rows || cols != edge_reg->cols) {
+					if(delwin(edge_win) == ERR)
+						err_exit(0, "failed to delete edge window");
+	
+					edge_win = derwin_from_region(edge_reg);				
+				} /* else, the current window is fine */
+			}
+			else { /* screen region is now invalid */
+				avl_remove(g.windows, i.key);
+				if(delwin(edge_win) == ERR)
+					err_exit(0, "failed to delete edge window");
+				edge_win = NULL;
+			}
+		} /* if edge_win is NULL */
+
+		/* store this window so we can free it 
+		 * (if necessary) on the next resize.
+		 */
+		if(edge_win != NULL)
+			avl_insert(g.windows, i.key, edge_win);
+		make_win_alloc_callback(i.key, edge_win);
+	} /* for each region */
+
+}
+
 /* this should be called before vterm_set_size
  * which will cause the term damage callback
  * to fully rewrite the screen.
  */
 void screen_resize() {
+	AVL *key_regs;
+	struct aug_region primary;
+	WINDOW *win;
+
 	if(endwin() == ERR)
 		err_exit(0, "endwin failed!");
 	screen_refresh();
 	fprintf(stderr, "screen: resize to %d, %d\n", LINES, COLS);
 
-	wresize(g.term_win.win, LINES, COLS);
-	term_win_resize(&g.term_win);
+	if(free_term_win() != 0)
+		err_exit(0, "failed to free term window");
+
+	key_regs = region_map_key_regs_alloc();
+	if(key_regs == NULL)
+		err_exit(0, "no memory");
+	region_map_apply(LINES, COLS, key_regs, &primary);
+	resize_edge_windows(key_regs);
+	
+	if( SCREEN_REGION_VALID(&primary) ) {
+		win = derwin(stdscr, primary.rows, primary.cols, primary.y, primary.x);
+		if(win == NULL)
+			err_exit(0, "failed to create term window");
+	
+		term_win_resize(&g.term_win, win);
+	}
+
+	region_map_key_regs_free(key_regs);
 }
+#undef SCREEN_REGION_VALID
 
 /* converts a character into its string representation.
  * *str* should have enough space for 3 characters + one

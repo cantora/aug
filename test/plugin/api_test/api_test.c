@@ -289,13 +289,35 @@ static void on_r(int chr, void *user) {
 	diag("----key callback----\n#");
 }
 
+void status_bar_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+
+	(void)(user);
+	(void)(win);
+
+	if(ran_once == 0) {
+		pass("got callback for status bar window");
+		ok1(win != NULL);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		if(box_and_print(win, "status bar!") != 0)
+			diag("warning: box_and_print on status window failed.");
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh status window");
+	}
+}
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
-	WINDOW *pan1_win; /*, *top_ew;*/
+	WINDOW *pan1_win;
 
-	plan_tests(42);
+	plan_tests(44);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -348,29 +370,8 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 
-	/*diag("create top edge window");
-	int wat_stat = (*g_api->screen_win_alloc_top)(g_plugin, 3, &top_ew);
-	if(wat_stat == 0) {
-		pass("created top edge window");
-		if(mvwprintw(top_ew, 0, 1, "some kinda weird status bar!") == ERR) {
-			diag("expected to be able to print to the top ew window. abort...");
-			return -1;
-		}
-
-		wsyncup(top_ew);
-		wcursyncup(top_ew);
-		if(wnoutrefresh(top_ew) == ERR) {
-			diag("expected to be able to refresh top ew");
-			return -1;
-		}
-
-		(*g_api->screen_panel_update)(g_plugin);
-		(*g_api->screen_doupdate)(g_plugin);
-		//sleep(1);
-	}
-	else {
-		fail("failed to create top edge window");
-	}*/
+	diag("create status bar window");
+	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb);
 
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {

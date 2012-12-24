@@ -76,6 +76,11 @@ static struct {
 	AUG_LOCK_MEMBERS;
 } g_region_map;
 
+struct plugin_callback_pair {
+	struct aug_plugin *plugin;
+	void (*callback)(WINDOW *, void *user);
+};
+
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
 /* static globals */
@@ -191,13 +196,30 @@ static void api_unlock_screen(const struct aug_plugin *plugin) {
 	unlock_screen();
 }
 
-static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
-				void (*callback)(int y, int x, int rows, int cols, void *user) ) {
-	(void)(plugin);
+/* called by screen module from within screen_resize when a new
+ * window has been created for an allocated plugin window.
+ */
+void make_win_alloc_callback(void *cb_pair, WINDOW *win) {
+	struct plugin_callback_pair *pair;
+	
+	pair = (struct plugin_callback_pair *) cb_pair;
+	(*pair->callback)(win, pair->plugin->callbacks->user);
+}
 
-	AUG_LOCK(&g_region_map);
-	region_map_push_top((void *) callback, nlines);
-	AUG_UNLOCK(&g_region_map);
+static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+				void (*callback)(WINDOW *, void *user) ) {
+	struct plugin_callback_pair *pair;
+	
+	/* need locks on screen, term, and region_map */
+	lock_all();
+
+	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
+	pair->plugin = plugin;
+	pair->callback = callback;
+	region_map_push_top((void *) pair, nlines);
+	screen_resize();
+
+	unlock_all();
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -307,11 +329,13 @@ static void unlock_screen() {
 static void lock_all() {
 	AUG_LOCK(&g_keymap);
 	AUG_LOCK(&g_plugin_list);
+	AUG_LOCK(&g_region_map);
 	lock_screen();
 }
 
 static void unlock_all() {
 	unlock_screen();
+	AUG_UNLOCK(&g_region_map);
 	AUG_UNLOCK(&g_plugin_list);
 	AUG_UNLOCK(&g_keymap);
 }
@@ -343,7 +367,7 @@ static void handler_winch(int signo) {
 	struct aug_plugin_item *i;
 
 	fprintf(stderr, "handler_winch: enter\n");
-	lock_all(); /* locks screen AND term */
+	lock_all(); /* need locks on screen, term, and region_map */
 	fprintf(stderr, "handler_winch: locked all\n");
 
 	vterm_screen_flush_damage(vterm_obtain_screen(g_term.vt) );

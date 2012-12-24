@@ -183,13 +183,15 @@ struct aug_api {
 	/* as described above, this allocates an ncurses window object
 	 * with a height of *nlines* on the top, bottom, or with a width 
 	 * of *ncols* on the left or right of the screen. the callback 
-	 * will be invoked whenever the screen is being redrawn, at which 
-	 * point the plugin can use ncurses functions to populate the window
-	 * with content. the screen will be locked during this callback, so
+	 * will be invoked when the window is allocated for the plugin or
+	 * the screen is resized (thus reallocating a window for the plugin).
+	 * the screen will be locked during this callback, so
 	 * the plugin must not make any API calls which lock the screen. the 
-	 * callback will either provide at least as much width/height as requested by
-	 * the screen_win_alloc_* call or it there is not enough space, the rows and
-	 * cols variables will be set to 0. 
+	 * callback will either provide a window with at least as much width/height as requested by
+	 * the screen_win_alloc_* call or it there is not enough space, the
+	 * WINDOW pointer will be NULL which means the plugin does not have
+	 * access to its window until there is enough free space that the callback
+	 * is invoked with a non-null window.
 	 *
 	 * call the function with suffix top, bot, left and right for a window 
 	 * on the top, bottom, left and right respectively. 
@@ -197,25 +199,25 @@ struct aug_api {
 	void (*screen_win_alloc_top)(
 		struct aug_plugin *plugin, 
 		int nlines, 
-		void (*callback)(int y, int x, int rows, int cols, void *user) 
+		void (*callback)(WINDOW *win, void *user) 
 	); 
 
 	void (*screen_win_alloc_bot)(
 		struct aug_plugin *plugin, 
 		int nlines, 
-		void (*callback)(int y, int x, int rows, int cols, void *user) 
+		void (*callback)(WINDOW *win, void *user) 
 	); 
 
 	void (*screen_win_alloc_left)(
 		struct aug_plugin *plugin, 
 		int ncols, 
-		void (*callback)(int y, int x, int rows, int cols, void *user) 
+		void (*callback)(WINDOW *win, void *user) 
 	); 
 
 	void (*screen_win_alloc_right)(
 		struct aug_plugin *plugin, 
 		int ncols, 
-		void (*callback)(int y, int x, int rows, int cols, void *user) 
+		void (*callback)(WINDOW *win, void *user) 
 	); 
 
 	void (*screen_win_dealloc)(struct aug_plugin *plugin, WINDOW **win); 

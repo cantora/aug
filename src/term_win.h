@@ -34,6 +34,6 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on);
 void term_win_refresh(struct aug_term_win *tw);
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on);
 int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos);
-void term_win_resize(struct aug_term_win *tw);
+void term_win_resize(struct aug_term_win *tw, WINDOW *win);
 
 #endif /* AUG_TERM_WIN */
