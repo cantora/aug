@@ -198,6 +198,7 @@ static void api_unlock_screen(const struct aug_plugin *plugin) {
 
 /* called by screen module from within screen_resize when a new
  * window has been created for an allocated plugin window.
+ * screen, term, region_map will be locked when this is called.
  */
 void make_win_alloc_callback(void *cb_pair, WINDOW *win) {
 	struct plugin_callback_pair *pair;
@@ -211,7 +212,8 @@ static void api_win_alloc_top(struct aug_plugin *plugin, int nlines,
 	struct plugin_callback_pair *pair;
 	
 	/* need locks on screen, term, and region_map */
-	lock_all();
+	AUG_LOCK(&g_region_map);
+	lock_screen();
 
 	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
 	pair->plugin = plugin;
@@ -219,7 +221,8 @@ static void api_win_alloc_top(struct aug_plugin *plugin, int nlines,
 	region_map_push_top((void *) pair, nlines);
 	screen_resize();
 
-	unlock_all();
+	unlock_screen();
+	AUG_UNLOCK(&g_region_map);
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -329,13 +332,11 @@ static void unlock_screen() {
 static void lock_all() {
 	AUG_LOCK(&g_keymap);
 	AUG_LOCK(&g_plugin_list);
-	AUG_LOCK(&g_region_map);
 	lock_screen();
 }
 
 static void unlock_all() {
 	unlock_screen();
-	AUG_UNLOCK(&g_region_map);
 	AUG_UNLOCK(&g_plugin_list);
 	AUG_UNLOCK(&g_keymap);
 }
@@ -367,7 +368,9 @@ static void handler_winch(int signo) {
 	struct aug_plugin_item *i;
 
 	fprintf(stderr, "handler_winch: enter\n");
+	AUG_LOCK(&g_region_map);
 	lock_all(); /* need locks on screen, term, and region_map */
+	
 	fprintf(stderr, "handler_winch: locked all\n");
 
 	vterm_screen_flush_damage(vterm_obtain_screen(g_term.vt) );
@@ -384,6 +387,7 @@ static void handler_winch(int signo) {
 	 * manager and plugins about the resize */
 	screen_resize();
 	unlock_all();
+	AUG_UNLOCK(&g_region_map);
 	fprintf(stderr, "handler_winch: unlocked all\n");
 
 	screen_dims(&rows, &cols);	

@@ -22,6 +22,9 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  * values, so a simple { return; } function
  * pointer will be the same as a NULL 
  * callback. 
+ * the plugin should not allocate any windows
+ * via screen_win_alloc_* from within these callbacks,
+ * as this will probably cause deadlock.
  */
 struct aug_plugin_cb {
 	/* called when a unit of input
