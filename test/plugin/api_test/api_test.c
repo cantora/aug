@@ -107,13 +107,20 @@ void input_char(int *ch, aug_action *action, void *user) {
 			ok( strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) == 0, 
 							"check the on_r interactive input data");
 			g_on_r_interaction = false;
+
+			(*g_api->lock_screen)(g_plugin);
 			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
+			(*g_api->unlock_screen)(g_plugin);
+
 			(*g_api->screen_panel_update)(g_plugin);
 		}
 		else {
+			(*g_api->lock_screen)(g_plugin);
 			waddch(g_pan2_dwin, *ch);
 			wsyncup(g_pan2_dwin);
 			wcursyncup(g_pan2_dwin);
+			(*g_api->unlock_screen)(g_plugin);
+
 			(*g_api->screen_panel_update)(g_plugin);
 			(*g_api->screen_doupdate)(g_plugin);
 
@@ -206,12 +213,20 @@ static void *thread1(void *user) {
 	
 	sleep(6);
 	diag("move panel a bit");
+
+	(*g_api->lock_screen)(g_plugin);
 	ok1(move_panel(g_pan1, 10, 30) != ERR);
+	(*g_api->unlock_screen)(g_plugin);
+
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
+
+	(*g_api->lock_screen)(g_plugin);
 	ok1(hide_panel(g_pan1) != ERR);
+	(*g_api->unlock_screen)(g_plugin);
+
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	sleep(1);
@@ -243,19 +258,22 @@ static void *thread2(void *user) {
 	todo_end();
 
 	diag("write a message into the panel");
+
+	(*g_api->lock_screen)(g_plugin);
 	if( (pan2_win = panel_window(g_pan2) ) == NULL) {
 		diag("expected to be able to access panel window. abort...");
-		return NULL;
+		goto unlock;
 	}
 	
 	g_pan2_dwin = derwin(pan2_win, rows - 3, cols - 2, 2, 1);
 
 	if(box_and_print(pan2_win, "the ^R panel") != 0) {
 		diag("box_and_print failed. abort...");
-		return NULL;
+		goto unlock;
 	}
 	
 	mvwprintw(g_pan2_dwin, 0, 0, "enter a string: ");
+	(*g_api->unlock_screen)(g_plugin);
 
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
@@ -266,6 +284,9 @@ static void *thread2(void *user) {
 		usleep(10000);
 
 	diag("----thread2----\n#");
+	return NULL;
+unlock:
+	(*g_api->unlock_screen)(g_plugin);
 	return NULL;
 }
 
@@ -289,6 +310,7 @@ static void on_r(int chr, void *user) {
 	diag("----key callback----\n#");
 }
 
+/* screen is locked already */
 void status_bar_cb(WINDOW *win, void *user) {
 	static int ran_once = 0;
 
@@ -358,15 +380,19 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	ok1(stack_size == 1);
 
 	diag("write a message into the panel");
+
+	(*g_api->lock_screen)(g_plugin);
 	if( (pan1_win = panel_window(g_pan1) ) == NULL) {
 		diag("expected to be able to access panel window. abort...");
-		return -1;
+		goto unlock;
 	}
 	
 	if(box_and_print(pan1_win, "the bottom panel") != 0) {
 		diag("box_and_print failed. abort...");
-		return -1;
+		goto unlock;
 	}
+	(*g_api->unlock_screen)(g_plugin);
+
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 
@@ -382,6 +408,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	diag("----plugin_init----\n#");
 
 	return 0;
+unlock:
+	(*g_api->unlock_screen)(g_plugin);
+	return -1;
 }
 
 void aug_plugin_free() {
