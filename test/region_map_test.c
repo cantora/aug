@@ -386,6 +386,7 @@ void test5() {
 	region_map_free();
 }
 
+
 int main()
 {
 	int i, len, total_tests;
