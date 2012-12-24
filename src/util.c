@@ -55,3 +55,13 @@ inline void *aug_malloc(size_t size) {
 
 	return result;
 }
+
+
+int void_compare(const void *a, const void *b) {
+	if(a < b) 
+		return -1;
+	else if(a > b)
+		return 1;
+	else
+		return 0;
+}

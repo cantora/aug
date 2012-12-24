@@ -90,20 +90,21 @@ int region_map_delete(const void *key) {
 	return -1;
 }
 
-static int void_compare(const void *a, const void *b) {
-	if(a < b) 
-		return -1;
-	else if(a > b)
-		return 1;
-	else
-		return 0;
-}
-
 AVL *region_map_key_regs_alloc() {
 	return avl_new( (AvlCompare) void_compare );
 }
 
+static void free_regions(AVL *key_regs) {
+	AvlIter i;
+	
+	avl_foreach(i, key_regs) {
+		free(i.value);
+		avl_remove(key_regs, i.key);
+	}
+}
+
 void region_map_key_regs_clear(AVL *key_regs) {
+	free_regions(key_regs);
 	avl_free(key_regs);
 	key_regs = region_map_key_regs_alloc();
 }
