@@ -11,6 +11,10 @@ struct aug_test {
 	int amt;
 };
 
+void print_region(struct aug_region *reg) {
+	printf("%dx%d @ (%d, %d)\n", reg->rows, reg->cols, reg->y, reg->x);
+}
+
 void test1() {
 	AVL *key_regs;
 	struct aug_region primary;
@@ -614,6 +618,244 @@ void test9() {
 	region_map_free();
 }
 
+void test10() {
+	AVL *key_regs;
+	struct aug_region primary;
+	struct aug_region *val;
+	void *k1, *k2, *k3, *k4;
+	int lines, columns;
+	
+	lines = 30;
+	columns = 40;
+	k1 = (void *)1;
+	k2 = (void *)2;
+	k3 = (void *)3;
+	k4 = (void *)4;
+
+	diag("++++test10++++");	
+	region_map_init();
+	
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
+
+	region_map_push_bot(k1, 10);
+	region_map_push_bot(k2, 9);
+	region_map_push_left(k3, 4);
+
+	region_map_push_top(k4, 3);
+
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 4);
+
+	val = avl_lookup(key_regs, k4);
+	ok1(val->rows == 3);
+	ok1(val->cols == columns);
+	ok1(val->y == 0);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k1);
+	ok1(val->rows == 10);
+	ok1(val->cols == columns);
+	ok1(val->y == 20);
+	ok1(val->x == 0);
+	
+	val = avl_lookup(key_regs, k2);
+	ok1(val->rows == 9);
+	ok1(val->cols == columns);
+	ok1(val->y == 11);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k3);
+	ok1(val->rows == lines-22);
+	ok1(val->cols == 4);
+	ok1(val->y == 3);
+	ok1(val->x == 0);
+
+	ok1(primary.rows == lines-22);
+	ok1(primary.cols == columns-4);
+	ok1(primary.y == 3);
+	ok1(primary.x == 4);
+	
+	region_map_key_regs_free(key_regs);
+#define TEST10AMT 1 + 2+4*5
+	diag("----test10----\n#");
+	region_map_free();
+}
+
+void test11() {
+	AVL *key_regs;
+	struct aug_region primary;
+	struct aug_region *val;
+	void *k1, *k2, *k3, *k4, *k5, *k6, *k7;
+	int lines, columns;
+	
+	lines = 30;
+	columns = 40;
+	k1 = (void *)1;
+	k2 = (void *)2;
+	k3 = (void *)3;
+	k4 = (void *)4;
+	k5 = (void *)5;
+	k6 = (void *)6;
+	k7 = (void *)7;
+
+	diag("++++test11++++");	
+	region_map_init();
+	
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
+
+	region_map_push_bot(k1, 5);
+	region_map_push_bot(k5, 5);
+	region_map_push_bot(k6, 5);
+
+	region_map_push_left(k2, 9);
+	region_map_push_left(k3, 4);
+
+	region_map_push_top(k4, 8);
+	region_map_push_top(k7, 7);
+
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 7);
+
+	val = avl_lookup(key_regs, k4);
+	ok1(val->rows == 8);
+	ok1(val->cols == columns);
+	ok1(val->y == 0);
+	ok1(val->x == 0);
+	val = avl_lookup(key_regs, k7);
+	ok1(val->rows == 7);
+	ok1(val->cols == columns);
+	ok1(val->y == 8);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k1);
+	ok1(val->rows == 5);
+	ok1(val->cols == columns);
+	ok1(val->y == 25);
+	ok1(val->x == 0);
+	val = avl_lookup(key_regs, k5);
+	ok1(val->rows == 5);
+	ok1(val->cols == columns);
+	ok1(val->y == 20);
+	ok1(val->x == 0);
+	val = avl_lookup(key_regs, k6);
+	ok1(val->rows == 5);
+	ok1(val->cols == columns);
+	ok1(val->y == 15);
+	ok1(val->x == 0);
+	
+	val = avl_lookup(key_regs, k2);
+	ok1(val->rows == 0);
+	ok1(val->cols == 0);
+
+	val = avl_lookup(key_regs, k3);
+	ok1(val->rows == 0);
+	ok1(val->cols == 0);
+
+	ok1(primary.rows == 0);
+	ok1(primary.cols == 0);
+
+	ok1(region_map_top_size() == 2);
+	ok1(region_map_bot_size() == 3);
+	ok1(region_map_left_size() == 2);
+	
+	region_map_key_regs_free(key_regs);
+#define TEST11AMT 1 + 2 + 4*2 + 4*3 + 2*3 + 3
+	diag("----test11----\n#");
+	region_map_free();
+}
+
+void test12() {
+	AVL *key_regs;
+	struct aug_region primary;
+	struct aug_region *val;
+	void *k1, *k2, *k3, *k4, *k5, *k6, *k7;
+	int lines, columns;
+	
+	lines = 30;
+	columns = 40;
+	k1 = (void *)1;
+	k2 = (void *)2;
+	k3 = (void *)3;
+	k4 = (void *)4;
+	k5 = (void *)5;
+	k6 = (void *)6;
+	k7 = (void *)7;
+
+	diag("++++test12++++");	
+	region_map_init();
+	
+	key_regs = region_map_key_regs_alloc();
+	ok1(key_regs != NULL);
+
+	region_map_push_bot(k1, 10);
+
+	region_map_push_left(k5, 10);
+	region_map_push_left(k6, 10);
+	region_map_push_left(k2, 10);
+	region_map_push_left(k3, 10);
+	region_map_push_left(k4, 4);
+
+	region_map_push_top(k7, 5);
+
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 7);
+
+	val = avl_lookup(key_regs, k7);
+	ok1(val->rows == 5);
+	ok1(val->cols == columns);
+	ok1(val->y == 0);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k1);
+	ok1(val->rows == 10);
+	ok1(val->cols == columns);
+	ok1(val->y == 20);
+	ok1(val->x == 0);
+
+	
+	val = avl_lookup(key_regs, k5);
+	ok1(val->rows == lines-15);
+	ok1(val->cols == 10);
+	ok1(val->y == 5);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k6);
+	ok1(val->rows == lines-15);
+	ok1(val->cols == 10);
+	ok1(val->y == 5);
+	ok1(val->x == 10);
+	
+	val = avl_lookup(key_regs, k2);
+	ok1(val->rows == lines-15);
+	ok1(val->cols == 10);
+	ok1(val->y == 5);
+	ok1(val->x == 20);
+
+	val = avl_lookup(key_regs, k3);
+	ok1(val->rows == lines-15);
+	ok1(val->cols == 10);
+	ok1(val->y == 5);
+	ok1(val->x == 30);
+
+	val = avl_lookup(key_regs, k4);
+	ok1(val->rows == 0);
+	ok1(val->cols == 0);
+
+	ok1(primary.rows == 0);
+	ok1(primary.cols == 0);
+
+	ok1(region_map_top_size() == 1);
+	ok1(region_map_bot_size() == 1);
+	ok1(region_map_left_size() == 5);
+	
+	region_map_key_regs_free(key_regs);
+#define TEST12AMT 1 + 2 + 4*2 + 4*4 + 2*2 + 3
+	diag("----test12----\n#");
+	region_map_free();
+}
+
 int main()
 {
 	int i, len, total_tests;
@@ -627,7 +869,10 @@ int main()
 		TESTN(6),
 		TESTN(7),
 		TESTN(8),
-		TESTN(9)
+		TESTN(9),
+		TESTN(10),
+		TESTN(11),
+		TESTN(12)
 	};
 
 	len = AUG_ARRAY_SIZE(tests);

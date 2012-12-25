@@ -37,7 +37,7 @@ static struct {
 } g_map;
 
 static void delete(struct edgewin *);
-static int init_region(int, int, int, int, int, struct aug_region *);
+static int init_region(int, int, int, int, int, int, struct aug_region *);
 
 void region_map_init() {
 	list_head_init(&g_map.top_edgewins);
@@ -170,7 +170,7 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 		}
 	
 		if(init_region(*rows_left-(i->size), cols_left, 
-				y, 0, i->size, region) == 0)
+				y, 0, i->size, cols_left, region) == 0)
 			*rows_left -= i->size;
 		avl_insert(key_regs, i->key, region);
 	}
@@ -192,7 +192,7 @@ static void apply_vertical_edgewins(struct list_head *edgewins, AVL *key_regs,
 		x = cols - *cols_left;
 
 		if(init_region(rows_left, *cols_left - (i->size), \
-				start_y, x, i->size, region) == 0)
+				start_y, x, rows_left, i->size, region) == 0)
 			*cols_left -= i->size;
 		avl_insert(key_regs, i->key, region);
 	}
@@ -246,7 +246,8 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		cols, 
 		primary_y, 
 		primary_x, 
-		rows, 
+		rows,
+		cols,
 		primary
 	);
 
@@ -258,19 +259,20 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
  * cols: 	the number of columns available
  * y:		the starting y coord
  * x:		the starting x coord
- * size:	the size requested for the region
- * region:	output paramter
+ * row_size:the row size requested for the region
+ * col_size:the column size requested for the region
+ * region:	output parameter
  */
-static int init_region(int rows, int cols, int y, int x, int size, struct aug_region *region) {
-	if(rows < 0 || size < 1) {
+static int init_region(int rows, int cols, int y, int x, int row_size, int col_size, struct aug_region *region) {
+	if(rows < 0 || cols < 0 || row_size < 1 || col_size < 1) {
 		region->rows = 0;
 		region->cols = 0;
 
 		return -1;
 	}
 	else {
-		region->rows = size; 
-		region->cols = cols;
+		region->rows = row_size; 
+		region->cols = col_size;
 		region->y = y;
 		region->x = x;
 
