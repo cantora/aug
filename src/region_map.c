@@ -33,6 +33,7 @@ struct edgewin {
 static struct {
 	struct list_head top_edgewins;
 	struct list_head bot_edgewins;
+	struct list_head left_edgewins;
 } g_map;
 
 static void delete(struct edgewin *);
@@ -41,6 +42,7 @@ static int init_region(int, int, int, int, int, struct aug_region *);
 void region_map_init() {
 	list_head_init(&g_map.top_edgewins);
 	list_head_init(&g_map.bot_edgewins);
+	list_head_init(&g_map.left_edgewins);
 }
 
 void region_map_free() {
@@ -50,6 +52,9 @@ void region_map_free() {
 		delete(i);
 	}
 	list_for_each_safe(&g_map.bot_edgewins, i, next, node) {
+		delete(i);
+	}
+	list_for_each_safe(&g_map.left_edgewins, i, next, node) {
 		delete(i);
 	}
 }
@@ -72,6 +77,9 @@ void region_map_push_top(const void *key, int nlines) {
 void region_map_push_bot(const void *key, int nlines) { 
 	edgewin_list_push(&g_map.bot_edgewins, key, nlines);
 }
+void region_map_push_left(const void *key, int ncols) { 
+	edgewin_list_push(&g_map.left_edgewins, key, ncols);
+}
 
 static void delete(struct edgewin *item) {
 	list_del(&item->node);
@@ -91,18 +99,32 @@ static int edgewin_list_size(const struct list_head *head) {
 
 int region_map_top_size() { return edgewin_list_size(&g_map.top_edgewins); }
 int region_map_bot_size() { return edgewin_list_size(&g_map.bot_edgewins); }
+int region_map_left_size() { return edgewin_list_size(&g_map.left_edgewins); }
 
 int region_map_delete(const void *key) {
 	struct edgewin *next, *i;
+	int status = -1;
 
 	list_for_each_safe(&g_map.top_edgewins, i, next, node) {
 		if(i->key == key) {
 			delete(i);
-			return 0;
+			status = 0;
+		}
+	}
+	list_for_each_safe(&g_map.bot_edgewins, i, next, node) {
+		if(i->key == key) {
+			delete(i);
+			status = 0;
+		}
+	}
+	list_for_each_safe(&g_map.left_edgewins, i, next, node) {
+		if(i->key == key) {
+			delete(i);
+			status = 0;
 		}
 	}
 
-	return -1;
+	return status;
 }
 
 AVL *region_map_key_regs_alloc() {
@@ -119,12 +141,12 @@ static void free_regions(AVL *key_regs) {
 }
 
 void region_map_key_regs_clear(AVL *key_regs) {
-	free_regions(key_regs);
-	avl_free(key_regs);
+	region_map_key_regs_free(key_regs);
 	key_regs = region_map_key_regs_alloc();
 }
 
 void region_map_key_regs_free(AVL *key_regs) {
+	free_regions(key_regs);
 	avl_free(key_regs);
 }
 
@@ -132,7 +154,7 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 			int lines, int *rows_left, int cols_left, int reverse) {
 	struct edgewin *i;
 	struct aug_region *region;
-	int y, prev_y;
+	int y;
 
 	y = lines;
 
@@ -154,12 +176,34 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 	}
 }
 
+static void apply_vertical_edgewins(struct list_head *edgewins, AVL *key_regs,
+			int start_y, int cols, int rows_left, int *cols_left, int reverse) {
+	struct edgewin *i;
+	struct aug_region *region;
+	int x;
+
+	(void)(reverse);
+
+	list_for_each(edgewins, i, node) {
+		region = malloc( sizeof( struct aug_region ) );
+		if(region == NULL)
+			err_exit(0, "out of memory");
+			
+		x = cols - *cols_left;
+
+		if(init_region(rows_left, *cols_left - (i->size), \
+				start_y, x, i->size, region) == 0)
+			*cols_left -= i->size;
+		avl_insert(key_regs, i->key, region);
+	}
+}
+
 /* apply the region map to a rectangle of lines X columns dimension
  * and store the result in key_regs which is a map from keys to regions.
  * the leftover space is described by the primary output parameter.
  */
 int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary) {
-	int rows, cols, primary_y;
+	int rows, cols, primary_y, primary_x;
 
 	rows = lines;
 	cols = columns;
@@ -185,8 +229,27 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		cols,
 		1
 	);
-	
-	init_region(rows, cols, primary_y, 0, rows, primary);
+
+	apply_vertical_edgewins(
+		&g_map.left_edgewins, 
+		key_regs,
+		primary_y,
+		columns, 
+		rows,
+		&cols,
+		0
+	);
+	primary_x = columns-cols;
+		
+	init_region(
+		rows, 
+		cols, 
+		primary_y, 
+		primary_x, 
+		rows, 
+		primary
+	);
+
 	return 0;
 }
 
