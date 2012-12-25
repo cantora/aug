@@ -207,7 +207,7 @@ void make_win_alloc_callback(void *cb_pair, WINDOW *win) {
 	(*pair->callback)(win, pair->plugin->callbacks->user);
 }
 
-static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size, 
 				void (*callback)(WINDOW *, void *user) ) {
 	struct plugin_callback_pair *pair;
 	
@@ -218,11 +218,32 @@ static void api_win_alloc_top(struct aug_plugin *plugin, int nlines,
 	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
 	pair->plugin = plugin;
 	pair->callback = callback;
-	region_map_push_top((void *) pair, nlines);
+
+	switch(loc) {
+	case 0:
+		region_map_push_top((void *) pair, size);
+		break;
+	case 1:
+		region_map_push_bot((void *) pair, size);
+		break;
+	default:
+		err_exit(0, "invalid value for loc");
+	}
+
 	screen_resize();
 
 	unlock_screen();
 	AUG_UNLOCK(&g_region_map);
+}
+
+static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+				void (*callback)(WINDOW *, void *user) ) {
+	api_win_alloc(0, plugin, nlines, callback);
+}
+
+static void api_win_alloc_bot(struct aug_plugin *plugin, int nlines, 
+				void (*callback)(WINDOW *, void *user) ) {
+	api_win_alloc(1, plugin, nlines, callback);
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -775,8 +796,8 @@ static void init_plugins(struct aug_api *api) {
 	api->unlock_screen = api_unlock_screen;
 
 	api->screen_win_alloc_top = api_win_alloc_top;
-	/* 
-	api->screen_win_alloc_bot;
+	api->screen_win_alloc_bot = api_win_alloc_bot;
+	/* 	
 	api->screen_win_alloc_left;
 	api->screen_win_alloc_right
 	api->screen_win_dealloc;
