@@ -85,8 +85,8 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 		do { \
 			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":unlock " stringify(_lockable_struct_ptr) ); \
 			AUG_EQUAL( (_lockable_struct_ptr)->locked, 1 ); \
-			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
 			(_lockable_struct_ptr)->locked = 0; \
+			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
 		} while(0)
 #else
 #	define AUG_UNLOCK(_lockable_struct_ptr) \
