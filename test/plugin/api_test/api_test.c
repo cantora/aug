@@ -313,13 +313,18 @@ static void on_r(int chr, void *user) {
 /* screen is locked already */
 void status_bar_cb(WINDOW *win, void *user) {
 	static int ran_once = 0;
-
+	int rows, cols, y, x;
 	(void)(user);
-	(void)(win);
 
 	if(ran_once == 0) {
 		pass("got callback for status bar window");
 		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(rows == 3);
+		ok1(cols == COLS);
+		getparyx(win, y, x);
+		ok1(y == 0);
+		ok1(x == 0);
 		ran_once = 1;
 	}
 
@@ -336,13 +341,19 @@ void status_bar_cb(WINDOW *win, void *user) {
 
 void bottom_bar1_cb(WINDOW *win, void *user) {
 	static int ran_once = 0;
+	int rows, cols, y, x;
 
 	(void)(user);
-	(void)(win);
 
 	if(ran_once == 0) {
 		pass("got callback for bottom bar1 window");
 		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(rows == 4);
+		ok1(cols == COLS);
+		getparyx(win, y, x);
+		ok1(y == LINES-5);
+		ok1(x == 0);
 		ran_once = 1;
 	}
 
@@ -359,13 +370,19 @@ void bottom_bar1_cb(WINDOW *win, void *user) {
 
 void bottom_bar0_cb(WINDOW *win, void *user) {
 	static int ran_once = 0;
+	int rows, cols, y, x;
 
 	(void)(user);
-	(void)(win);
 
 	if(ran_once == 0) {
 		pass("got callback for bottom bar0 window");
 		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(rows == 1);
+		ok1(cols == COLS);
+		getparyx(win, y, x);
+		ok1(y == LINES-1);
+		ok1(x == 0);
 		ran_once = 1;
 	}
 
@@ -381,12 +398,109 @@ void bottom_bar0_cb(WINDOW *win, void *user) {
 	}
 }
 
+void left_bar0_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for left bar0 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 1);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == 0);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		diag("left window: %dx%d", rows, cols);
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '|') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
+void left_bar1_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for left bar1 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 10);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == 1);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '*') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
+void left_bar2_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for left bar2 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 3);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == 11);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '+') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(48);
+	plan_tests(78);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -447,6 +561,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb);
 	(*g_api->screen_win_alloc_bot)(g_plugin, 1, bottom_bar0_cb);
 	(*g_api->screen_win_alloc_bot)(g_plugin, 4, bottom_bar1_cb);
+	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb);
+	(*g_api->screen_win_alloc_left)(g_plugin, 10, left_bar1_cb);
+	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb);
 
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {
