@@ -495,12 +495,140 @@ void left_bar2_cb(WINDOW *win, void *user) {
 	}
 }
 
+void right_bar0_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for right bar0 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 5);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == COLS-5);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '!') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
+void right_bar1_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for right bar1 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 2);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == COLS-7);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '?') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
+void right_bar2_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for right bar2 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 2);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == COLS-9);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '@') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
+void right_bar3_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x, i, j;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for right bar3 window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(cols == 1);
+		ok1(rows == LINES-8);
+		getparyx(win, y, x);
+		ok1(y == 3);
+		ok1(x == COLS-10);
+		ran_once = 1;
+	}
+
+	if(win != NULL) {
+		getmaxyx(win, rows, cols);		
+		for(i = 0; i < rows; i++)
+			for(j = 0; j < cols; j++)
+				if(mvwaddch(win, i, j, '|') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+
+		wsyncup(win);
+		wcursyncup(win);
+		if(wnoutrefresh(win) == ERR)
+			diag("warning: expected to be able to refresh window");
+	}
+}
+
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(78);
+	plan_tests(102);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -564,7 +692,11 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb);
 	(*g_api->screen_win_alloc_left)(g_plugin, 10, left_bar1_cb);
 	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb);
-
+	(*g_api->screen_win_alloc_right)(g_plugin, 5, right_bar0_cb);
+	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar1_cb);
+	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb);
+	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb);
+	
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {
 		diag("expected to be able to create a thread. abort...");

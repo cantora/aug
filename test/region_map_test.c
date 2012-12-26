@@ -860,7 +860,8 @@ void test13() {
 	AVL *key_regs;
 	struct aug_region primary;
 	struct aug_region *val;
-	void *k1, *k2, *k3, *k4;
+	void *k1, *k2, *k3, *k4, *k5, *k6, *k7;
+	void *k8, *k9, *k10;
 	int lines, columns;
 	
 	lines = 37;
@@ -869,6 +870,12 @@ void test13() {
 	k2 = (void *)2;
 	k3 = (void *)3;
 	k4 = (void *)4;
+	k5 = (void *)5;
+	k6 = (void *)6;
+	k7 = (void *)7;
+	k8 = (void *)8;
+	k9 = (void *)9;
+	k10 = (void *)10;
 
 	diag("++++test13++++");	
 	region_map_init();
@@ -880,9 +887,15 @@ void test13() {
 	region_map_push_bot(k2, 1);
 	region_map_push_bot(k3, 4);
 	region_map_push_left(k4, 1);
+	region_map_push_left(k5, 10);
+	region_map_push_left(k6, 3);
+	region_map_push_right(k7, 5);
+	region_map_push_right(k8, 2);
+	region_map_push_right(k9, 2);
+	region_map_push_right(k10, 1);
 
 	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
-	ok1(avl_count(key_regs) == 4);
+	ok1(avl_count(key_regs) == 10);
 
 	val = avl_lookup(key_regs, k1);
 	ok1(val->rows == 3);
@@ -909,17 +922,54 @@ void test13() {
 	ok1(val->y == 3);
 	ok1(val->x == 0);
 
+	val = avl_lookup(key_regs, k5);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 10);
+	ok1(val->y == 3);
+	ok1(val->x == 1);
+
+	val = avl_lookup(key_regs, k6);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 3);
+	ok1(val->y == 3);
+	ok1(val->x == 11);
+
+	val = avl_lookup(key_regs, k7);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 5);
+	ok1(val->y == 3);
+	ok1(val->x == columns-5);
+
+	val = avl_lookup(key_regs, k8);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 2);
+	ok1(val->y == 3);
+	ok1(val->x == columns-7);
+
+	val = avl_lookup(key_regs, k9);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 2);
+	ok1(val->y == 3);
+	ok1(val->x == columns-9);
+
+	val = avl_lookup(key_regs, k10);
+	ok1(val->rows == lines-8);
+	ok1(val->cols == 1);
+	ok1(val->y == 3);
+	ok1(val->x == columns-10);
+
 	ok1(primary.rows == lines-8);
-	ok1(primary.cols == columns-1);
+	ok1(primary.cols == columns-24);
 	ok1(primary.y == 3);
-	ok1(primary.x == 1);
+	ok1(primary.x == 14);
 
 	ok1(region_map_top_size() == 1);
 	ok1(region_map_bot_size() == 2);
-	ok1(region_map_left_size() == 1);
+	ok1(region_map_left_size() == 3);
+	ok1(region_map_right_size() == 4);
 	
 	region_map_key_regs_free(key_regs);
-#define TEST13AMT 1 + 2 + 4*5 + 3
+#define TEST13AMT 1 + 2 + 4*11 + 4
 	diag("----test13----\n#");
 	region_map_free();
 }

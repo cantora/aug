@@ -34,6 +34,7 @@ static struct {
 	struct list_head top_edgewins;
 	struct list_head bot_edgewins;
 	struct list_head left_edgewins;
+	struct list_head right_edgewins;
 } g_map;
 
 static void delete(struct edgewin *);
@@ -43,6 +44,7 @@ void region_map_init() {
 	list_head_init(&g_map.top_edgewins);
 	list_head_init(&g_map.bot_edgewins);
 	list_head_init(&g_map.left_edgewins);
+	list_head_init(&g_map.right_edgewins);
 }
 
 void region_map_free() {
@@ -57,9 +59,12 @@ void region_map_free() {
 	list_for_each_safe(&g_map.left_edgewins, i, next, node) {
 		delete(i);
 	}
+	list_for_each_safe(&g_map.right_edgewins, i, next, node) {
+		delete(i);
+	}
 }
 
-static void edgewin_list_push(struct list_head *head, const void *key, int size) {
+static inline void edgewin_list_push(struct list_head *head, const void *key, int size) {
 	struct edgewin *item;
 
 	if(size < 1)
@@ -79,6 +84,9 @@ void region_map_push_bot(const void *key, int nlines) {
 }
 void region_map_push_left(const void *key, int ncols) { 
 	edgewin_list_push(&g_map.left_edgewins, key, ncols);
+}
+void region_map_push_right(const void *key, int ncols) { 
+	edgewin_list_push(&g_map.right_edgewins, key, ncols);
 }
 
 static void delete(struct edgewin *item) {
@@ -100,6 +108,7 @@ static int edgewin_list_size(const struct list_head *head) {
 int region_map_top_size() { return edgewin_list_size(&g_map.top_edgewins); }
 int region_map_bot_size() { return edgewin_list_size(&g_map.bot_edgewins); }
 int region_map_left_size() { return edgewin_list_size(&g_map.left_edgewins); }
+int region_map_right_size() { return edgewin_list_size(&g_map.right_edgewins); }
 
 int region_map_delete(const void *key) {
 	struct edgewin *next, *i;
@@ -118,6 +127,12 @@ int region_map_delete(const void *key) {
 		}
 	}
 	list_for_each_safe(&g_map.left_edgewins, i, next, node) {
+		if(i->key == key) {
+			delete(i);
+			status = 0;
+		}
+	}
+	list_for_each_safe(&g_map.right_edgewins, i, next, node) {
 		if(i->key == key) {
 			delete(i);
 			status = 0;
@@ -182,14 +197,16 @@ static void apply_vertical_edgewins(struct list_head *edgewins, AVL *key_regs,
 	struct aug_region *region;
 	int x;
 
-	(void)(reverse);
-
+	x = cols;
 	list_for_each(edgewins, i, node) {
 		region = malloc( sizeof( struct aug_region ) );
 		if(region == NULL)
 			err_exit(0, "out of memory");
-			
-		x = cols - *cols_left;
+		
+		if(reverse == 0)			
+			x = cols - *cols_left;
+		else
+			x = x - (i->size);
 
 		if(init_region(rows_left, *cols_left - (i->size), \
 				start_y, x, rows_left, i->size, region) == 0)
@@ -240,6 +257,16 @@ int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *p
 		0
 	);
 	primary_x = columns-cols;
+
+	apply_vertical_edgewins(
+		&g_map.right_edgewins, 
+		key_regs,
+		primary_y,
+		columns, 
+		rows,
+		&cols,
+		1
+	);
 		
 	init_region(
 		rows, 
