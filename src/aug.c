@@ -45,6 +45,8 @@
 
 #include "vterm.h"
 
+#include <ccan/objset/objset.h>
+
 #include "util.h"
 #include "screen.h"
 #include "err.h"
@@ -80,6 +82,10 @@ struct plugin_callback_pair {
 	struct aug_plugin *plugin;
 	void (*callback)(WINDOW *, void *user);
 };
+
+static struct {
+	OBJSET_MEMBERS(struct plugin_callback_pair *);
+} g_edgewin_set;
 
 #define BUF_SIZE 2048*4
 static char g_buf[BUF_SIZE]; /* IO buffer */
@@ -213,12 +219,13 @@ static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size,
 	
 	/* need locks on screen, term, and region_map */
 	AUG_LOCK(&g_region_map);
-	lock_screen();
+	lock_all();
 
 	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
 	pair->plugin = plugin;
 	pair->callback = callback;
-
+	objset_add(&g_edgewin_set, pair);
+	
 	switch(loc) {
 	case 0:
 		region_map_push_top((void *) pair, size);
@@ -238,7 +245,7 @@ static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size,
 
 	screen_resize();
 
-	unlock_screen();
+	unlock_all();
 	AUG_UNLOCK(&g_region_map);
 }
 
@@ -260,6 +267,31 @@ static void api_win_alloc_left(struct aug_plugin *plugin, int ncols,
 static void api_win_alloc_right(struct aug_plugin *plugin, int ncols, 
 				void (*callback)(WINDOW *, void *user) ) {
 	api_win_alloc(3, plugin, ncols, callback);
+}
+
+static void api_win_dealloc(struct aug_plugin *plugin, \
+				void (*callback)(WINDOW *win, void *user)) {
+	struct objset_iter i;
+	struct plugin_callback_pair *pair;
+
+	/* need locks on screen, term, and region_map */
+	AUG_LOCK(&g_region_map);
+	lock_all();
+
+	for(pair = objset_first(&g_edgewin_set, &i); pair != NULL; 
+			pair = objset_next(&g_edgewin_set, &i) ) {
+		if(plugin == pair->plugin && callback == pair->callback)
+			break;
+	}
+
+	if(pair != NULL) {
+		region_map_delete( (void *) pair);
+		objset_del(&g_edgewin_set, pair);
+		screen_resize();
+	}
+
+	unlock_all();
+	AUG_UNLOCK(&g_region_map);
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -815,9 +847,7 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_win_alloc_bot = api_win_alloc_bot;
 	api->screen_win_alloc_left = api_win_alloc_left;
 	api->screen_win_alloc_right = api_win_alloc_right;
-	/* 			
-	api->screen_win_dealloc;
-	*/
+	api->screen_win_dealloc = api_win_dealloc;
 
 	api->screen_panel_alloc = api_screen_panel_alloc;
 	api->screen_panel_dealloc = api_screen_panel_dealloc;
@@ -913,9 +943,10 @@ int aug_main(int argc, char *argv[]) {
 	/* init keymap structure */
 	keymap_init(&g_keymap); /* 5 */
 
-	region_map_init(); /* 6 */
+	objset_init(&g_edgewin_set); /* 6 */
+	region_map_init(); 
 	AUG_LOCK_INIT(&g_region_map);
-
+	
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
 	init_plugins(&api); /* 7 */
@@ -938,6 +969,7 @@ int aug_main(int argc, char *argv[]) {
 
 	region_map_free(); /* 6 */
 	AUG_LOCK_FREE(&g_region_map);
+	objset_clear(&g_edgewin_set);
 
 	keymap_free(&g_keymap); /* 5 */
 	AUG_LOCK_FREE(&g_screen); /* 4 */

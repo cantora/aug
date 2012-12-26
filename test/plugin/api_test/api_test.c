@@ -204,112 +204,6 @@ static int box_and_print(WINDOW *win, const char *str) {
 	return 0;
 }
 
-static void *thread1(void *user) {
-	(void)(user);
-
-	diag("++++thread1++++");
-	check_screen_lock();
-	test_winch();
-	
-	sleep(6);
-	diag("move panel a bit");
-
-	(*g_api->lock_screen)(g_plugin);
-	ok1(move_panel(g_pan1, 10, 30) != ERR);
-	(*g_api->unlock_screen)(g_plugin);
-
-	(*g_api->screen_panel_update)(g_plugin);
-	(*g_api->screen_doupdate)(g_plugin);
-	diag("sleep for a while and then hide bottom panel");
-	sleep(3);
-
-	(*g_api->lock_screen)(g_plugin);
-	ok1(hide_panel(g_pan1) != ERR);
-	(*g_api->unlock_screen)(g_plugin);
-
-	(*g_api->screen_panel_update)(g_plugin);
-	(*g_api->screen_doupdate)(g_plugin);
-	sleep(1);
-	diag("----thread1----\n#");
-	return NULL;
-}
-
-static void *thread2(void *user) {
-	(void)(user);
-	int stack_size;
-	int rows, cols;
-	WINDOW *pan2_win;
-
-	diag("++++thread2++++");
-	check_screen_lock();
-	test_winch();
-
-	diag("allocate a panel");
-	rows = 10;
-	cols = 30;
-	(*g_api->screen_panel_alloc)(g_plugin, rows, cols, 10, 15, &g_pan2);
-	pass("panel allocated");
-
-	diag("there should be only 2 panels");
-
-	todo_start("expected to fail. see below.");
-	(*g_api->screen_panel_size)(g_plugin, &stack_size);
-	ok1(stack_size == 2);
-	todo_end();
-
-	diag("write a message into the panel");
-
-	(*g_api->lock_screen)(g_plugin);
-	if( (pan2_win = panel_window(g_pan2) ) == NULL) {
-		diag("expected to be able to access panel window. abort...");
-		goto unlock;
-	}
-	
-	g_pan2_dwin = derwin(pan2_win, rows - 3, cols - 2, 2, 1);
-
-	if(box_and_print(pan2_win, "the ^R panel") != 0) {
-		diag("box_and_print failed. abort...");
-		goto unlock;
-	}
-	
-	mvwprintw(g_pan2_dwin, 0, 0, "enter a string: ");
-	(*g_api->unlock_screen)(g_plugin);
-
-	(*g_api->screen_panel_update)(g_plugin);
-	(*g_api->screen_doupdate)(g_plugin);
-
-	g_on_r_interaction = true;
-	
-	while(g_on_r_interaction == true)
-		usleep(10000);
-
-	diag("----thread2----\n#");
-	return NULL;
-unlock:
-	(*g_api->unlock_screen)(g_plugin);
-	return NULL;
-}
-
-static void on_r(int chr, void *user) {
-	diag("++++key callback++++");
-	check_screen_lock();
-	test_winch();
-	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);
-	ok( (user == g_user_data), "user ptr is correct");
-		
-	g_got_callback = true;
-	
-	if(g_on_r_interaction != true) {
-		diag("spawn thread for user interaction");
-		if(pthread_create(&g_thread2, NULL, thread2, NULL) != 0) {
-			diag("failed to create user interaction thread...");
-			return;
-		}
-	}
-
-	diag("----key callback----\n#");
-}
-
 /* screen is locked already */
 void status_bar_cb(WINDOW *win, void *user) {
 	static int ran_once = 0;
@@ -622,6 +516,118 @@ void right_bar3_cb(WINDOW *win, void *user) {
 			diag("warning: expected to be able to refresh window");
 	}
 }
+
+static void *thread1(void *user) {
+	(void)(user);
+
+	diag("++++thread1++++");
+	check_screen_lock();
+	test_winch();
+	
+	sleep(6);
+	diag("move panel a bit");
+
+	(*g_api->lock_screen)(g_plugin);
+	ok1(move_panel(g_pan1, 10, 30) != ERR);
+	(*g_api->unlock_screen)(g_plugin);
+
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+	diag("also remove some edge windows");
+	(*g_api->screen_win_dealloc)(g_plugin, bottom_bar0_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb);
+
+	diag("sleep for a while and then hide bottom panel");
+	sleep(3);
+
+	(*g_api->lock_screen)(g_plugin);
+	ok1(hide_panel(g_pan1) != ERR);
+	(*g_api->unlock_screen)(g_plugin);
+	
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+	sleep(1);
+	diag("----thread1----\n#");
+	return NULL;
+}
+
+static void *thread2(void *user) {
+	(void)(user);
+	int stack_size;
+	int rows, cols;
+	WINDOW *pan2_win;
+
+	diag("++++thread2++++");
+	check_screen_lock();
+	test_winch();
+
+	diag("allocate a panel");
+	rows = 10;
+	cols = 30;
+	(*g_api->screen_panel_alloc)(g_plugin, rows, cols, 10, 15, &g_pan2);
+	pass("panel allocated");
+
+	diag("there should be only 2 panels");
+
+	todo_start("expected to fail. see below.");
+	(*g_api->screen_panel_size)(g_plugin, &stack_size);
+	ok1(stack_size == 2);
+	todo_end();
+
+	diag("write a message into the panel");
+
+	(*g_api->lock_screen)(g_plugin);
+	if( (pan2_win = panel_window(g_pan2) ) == NULL) {
+		diag("expected to be able to access panel window. abort...");
+		goto unlock;
+	}
+	
+	g_pan2_dwin = derwin(pan2_win, rows - 3, cols - 2, 2, 1);
+
+	if(box_and_print(pan2_win, "the ^R panel") != 0) {
+		diag("box_and_print failed. abort...");
+		goto unlock;
+	}
+	
+	mvwprintw(g_pan2_dwin, 0, 0, "enter a string: ");
+	(*g_api->unlock_screen)(g_plugin);
+
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+
+	g_on_r_interaction = true;
+	
+	while(g_on_r_interaction == true)
+		usleep(10000);
+
+	diag("----thread2----\n#");
+	return NULL;
+unlock:
+	(*g_api->unlock_screen)(g_plugin);
+	return NULL;
+}
+
+static void on_r(int chr, void *user) {
+	diag("++++key callback++++");
+	check_screen_lock();
+	test_winch();
+	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);
+	ok( (user == g_user_data), "user ptr is correct");
+		
+	g_got_callback = true;
+	
+	if(g_on_r_interaction != true) {
+		diag("spawn thread for user interaction");
+		if(pthread_create(&g_thread2, NULL, thread2, NULL) != 0) {
+			diag("failed to create user interaction thread...");
+			return;
+		}
+	}
+
+	diag("----key callback----\n#");
+}
+
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;

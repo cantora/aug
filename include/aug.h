@@ -223,7 +223,8 @@ struct aug_api {
 		void (*callback)(WINDOW *win, void *user) 
 	); 
 
-	void (*screen_win_dealloc)(struct aug_plugin *plugin, WINDOW **win); 
+	void (*screen_win_dealloc)(struct aug_plugin *plugin, \
+				void (*callback)(WINDOW *win, void *user)); 
 
 	/* allocate a panel on top of the main terminal window and
 	 * on top of all previously allocated (by this plugin or others)

@@ -967,9 +967,71 @@ void test13() {
 	ok1(region_map_bot_size() == 2);
 	ok1(region_map_left_size() == 3);
 	ok1(region_map_right_size() == 4);
+
+	region_map_key_regs_clear(key_regs);
 	
+	region_map_delete(k2);
+	region_map_delete(k5);
+	region_map_delete(k8);
+
+	ok1(region_map_apply(lines, columns, key_regs, &primary) == 0);
+	ok1(avl_count(key_regs) == 7);
+
+	val = avl_lookup(key_regs, k1);
+	ok1(val->rows == 3);
+	ok1(val->cols == columns);
+	ok1(val->y == 0);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k3);
+	ok1(val->rows == 4);
+	ok1(val->cols == columns);
+	ok1(val->y == lines-4);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k4);
+	ok1(val->rows == lines-7);
+	ok1(val->cols == 1);
+	ok1(val->y == 3);
+	ok1(val->x == 0);
+
+	val = avl_lookup(key_regs, k6);
+	ok1(val->rows == lines-7);
+	ok1(val->cols == 3);
+	ok1(val->y == 3);
+	ok1(val->x == 1);
+
+	val = avl_lookup(key_regs, k7);
+	ok1(val->rows == lines-7);
+	ok1(val->cols == 5);
+	ok1(val->y == 3);
+	ok1(val->x == columns-5);
+
+	val = avl_lookup(key_regs, k9);
+	ok1(val->rows == lines-7);
+	ok1(val->cols == 2);
+	ok1(val->y == 3);
+	ok1(val->x == columns-7);
+
+	val = avl_lookup(key_regs, k10);
+	ok1(val->rows == lines-7);
+	ok1(val->cols == 1);
+	ok1(val->y == 3);
+	ok1(val->x == columns-8);
+
+	ok1(primary.rows == lines-7);
+	ok1(primary.cols == columns-12);
+	ok1(primary.y == 3);
+	ok1(primary.x == 4);
+
+	ok1(region_map_top_size() == 1);
+	ok1(region_map_bot_size() == 1);
+	ok1(region_map_left_size() == 2);
+	ok1(region_map_right_size() == 3);
+
+
 	region_map_key_regs_free(key_regs);
-#define TEST13AMT 1 + 2 + 4*11 + 4
+#define TEST13AMT 1 + 2 + 4*11 + 4 + 2 + 4*8 + 4
 	diag("----test13----\n#");
 	region_map_free();
 }
