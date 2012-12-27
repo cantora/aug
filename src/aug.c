@@ -60,6 +60,7 @@
 #include "panel_stack.h"
 #include "region_map.h"
 
+static void resize_and_redraw_screen();
 static void lock_all();
 static void unlock_all();
 static void lock_screen();
@@ -242,8 +243,7 @@ static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size,
 	default:
 		err_exit(0, "invalid value for loc");
 	}
-
-	screen_resize();
+	resize_and_redraw_screen();
 
 	unlock_all();
 	AUG_UNLOCK(&g_region_map);
@@ -269,11 +269,13 @@ static void api_win_alloc_right(struct aug_plugin *plugin, int ncols,
 	api_win_alloc(3, plugin, ncols, callback);
 }
 
-static void api_win_dealloc(struct aug_plugin *plugin, \
+static int api_win_dealloc(struct aug_plugin *plugin, \
 				void (*callback)(WINDOW *win, void *user)) {
 	struct objset_iter i;
 	struct plugin_callback_pair *pair;
+	int status;
 
+	status = -1;
 	/* need locks on screen, term, and region_map */
 	AUG_LOCK(&g_region_map);
 	lock_all();
@@ -285,13 +287,18 @@ static void api_win_dealloc(struct aug_plugin *plugin, \
 	}
 
 	if(pair != NULL) {
-		region_map_delete( (void *) pair);
+		if(region_map_delete( (void *) pair) != 0)
+			err_exit(0, "expected pair to exist in region map!");
+
 		objset_del(&g_edgewin_set, pair);
-		screen_resize();
+		resize_and_redraw_screen();
+		status = 0;
 	}
 
 	unlock_all();
 	AUG_UNLOCK(&g_region_map);
+
+	return status;
 }
 
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
@@ -382,6 +389,14 @@ int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
 	}
 
 	return 0;
+}
+
+static void resize_and_redraw_screen() {
+	screen_clear();
+	screen_resize();
+	screen_redraw_term_win();
+	panel_stack_update();
+	screen_doupdate();
 }
 
 /* MUST LOCK for API access to the following modules:

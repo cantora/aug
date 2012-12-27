@@ -22,6 +22,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include <ccan/objset/objset.h>
+
 #include "ncurses.h"
 #include "util.h"
 #include "err.h"
@@ -51,15 +53,15 @@ static const struct aug_term_io_callbacks CB_TERM_IO = {
 static struct {
 	int color_on;
 	struct aug_term_win term_win;
-	AVL *windows;	
+	struct {
+		OBJSET_MEMBERS(WINDOW *);	
+	} windows;
 } g;	
 
 int screen_init(struct aug_term *term) {
 	g.color_on = 0;
 
-	g.windows = avl_new( (AvlCompare) void_compare );
-	if(g.windows == NULL)
-		goto fail;
+	objset_init(&g.windows);
 	
 	initscr();
 	if(raw() == ERR) 
@@ -83,9 +85,11 @@ fail:
 }
 
 static int free_term_win() {
-	if(g.term_win.win != NULL)
+	if(g.term_win.win != NULL) {
 		if(delwin(g.term_win.win) == ERR)
 			return -1;
+		g.term_win.win = NULL;
+	}
 
 	return 0;
 }
@@ -117,14 +121,16 @@ int screen_cleanup() {
 }
 
 static void free_windows() {
-	AvlIter i;
+	WINDOW *win;
+	struct objset_iter i;
 
-	avl_foreach(i, g.windows) {
-		if(delwin((WINDOW *) i.value) == ERR)
+	for(win = objset_first(&g.windows, &i); win != NULL; 
+			win = objset_next(&g.windows, &i) ) {
+		if(delwin(win) == ERR)
 			err_exit(0, "failed to delete window");
-		
-		avl_remove(g.windows, i.key);
 	}
+
+	objset_clear(&g.windows);
 }
 
 void screen_free() {
@@ -135,8 +141,6 @@ void screen_free() {
 
 	if(screen_cleanup() != 0)
 		err_exit(0, "screen_cleanup failed!");
-
-	avl_free(g.windows);
 }
 
 static void vterm_cb_refresh(void *user) {
@@ -258,6 +262,25 @@ int screen_damage(VTermRect rect, void *user) {
 	return term_win_damage(&g.term_win, rect, g.color_on);
 }
 
+int screen_redraw_term_win() {
+	VTermRect rect;
+	int rows, cols;
+
+	if(g.term_win.win == NULL)
+		return -1;
+	
+	getmaxyx(g.term_win.win, rows, cols);
+	rect.start_row = 0;
+	rect.end_row = rows-1;
+	rect.start_col = 0;
+	rect.end_col = cols-1;
+
+	term_win_damage(&g.term_win, rect, g.color_on);
+	term_win_refresh(&g.term_win);
+
+	return 0;
+}
+
 /*
 int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 	
@@ -317,6 +340,9 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user) {
 
 static WINDOW *derwin_from_region(struct aug_region *region) {
 	WINDOW *win;
+#ifdef AUG_DEBUG
+	int rows, cols, y, x;
+#endif
 
 	win = derwin( 
 		stdscr, 
@@ -329,6 +355,19 @@ static WINDOW *derwin_from_region(struct aug_region *region) {
 	if(win == NULL) 
 		err_exit(0, "failed to create derwin from region");
 
+#ifdef AUG_DEBUG
+	getmaxyx(win, rows, cols);
+	if(rows != region->rows)
+		err_exit(0, "rows: %d != %d", rows, region->rows);
+	if(cols != region->cols)
+		err_exit(0, "cols: %d != %d", cols, region->cols);
+	getparyx(win, y, x);
+	if(y != region->y)
+		err_exit(0, "y: %d != %d", y, region->y);
+	if(x != region->x)
+		err_exit(0, "x: %d != %d", x, region->x);
+#endif		
+
 	return win;
 }
 
@@ -337,41 +376,21 @@ static WINDOW *derwin_from_region(struct aug_region *region) {
 static void resize_edge_windows(AVL *key_regs) {
 	AvlIter i;
 	struct aug_region *edge_reg;
-	int rows, cols;
 	WINDOW *edge_win;
+
+	free_windows();
 
 	avl_foreach(i, key_regs) {
 		edge_reg = (struct aug_region *) i.value;
-		edge_win = avl_lookup(g.windows, i.key);
 
-		if(edge_win == NULL) {
-			if( SCREEN_REGION_VALID(edge_reg) ) {
-				edge_win = derwin_from_region(edge_reg);
-			}
+		if( SCREEN_REGION_VALID(edge_reg) ) {
+			edge_win = derwin_from_region(edge_reg);
+			objset_add(&g.windows, edge_win);
 		}
 		else {
-			if( SCREEN_REGION_VALID(edge_reg) ) {
-				win_dims(edge_win, &rows, &cols);
-				if(rows != edge_reg->rows || cols != edge_reg->cols) {
-					if(delwin(edge_win) == ERR)
-						err_exit(0, "failed to delete edge window");
+			edge_win = NULL;
+		}
 	
-					edge_win = derwin_from_region(edge_reg);				
-				} /* else, the current window is fine */
-			}
-			else { /* screen region is now invalid */
-				avl_remove(g.windows, i.key);
-				if(delwin(edge_win) == ERR)
-					err_exit(0, "failed to delete edge window");
-				edge_win = NULL;
-			}
-		} /* if edge_win is NULL */
-
-		/* store this window so we can free it 
-		 * (if necessary) on the next resize.
-		 */
-		if(edge_win != NULL)
-			avl_insert(g.windows, i.key, edge_win);
 		make_win_alloc_callback(i.key, edge_win);
 	} /* for each region */
 
@@ -401,10 +420,7 @@ void screen_resize() {
 	resize_edge_windows(key_regs);
 	
 	if( SCREEN_REGION_VALID(&primary) ) {
-		win = derwin(stdscr, primary.rows, primary.cols, primary.y, primary.x);
-		if(win == NULL)
-			err_exit(0, "failed to create term window");
-	
+		win = derwin_from_region(&primary);
 		term_win_resize(&g.term_win, win);
 	}
 
@@ -438,4 +454,9 @@ int screen_unctrl(int ch, char *str) {
 void screen_doupdate() {
 	if(doupdate() == ERR) 
 		err_exit(0, "doupdate failed");
+}
+
+void screen_clear() {
+	if(clear() == ERR) 
+		err_exit(0, "failed to clear screen");
 }

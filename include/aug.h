@@ -223,7 +223,11 @@ struct aug_api {
 		void (*callback)(WINDOW *win, void *user) 
 	); 
 
-	void (*screen_win_dealloc)(struct aug_plugin *plugin, \
+	/* return = 0 if a window was deallocated.
+	 * return non-zero if no window associated with callback
+	 * was found.
+	 */
+	int (*screen_win_dealloc)(struct aug_plugin *plugin, \
 				void (*callback)(WINDOW *win, void *user)); 
 
 	/* allocate a panel on top of the main terminal window and

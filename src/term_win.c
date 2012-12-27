@@ -118,7 +118,7 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	int x,y;
 
 	if(tw->win == NULL)
-		return 1;
+		goto done;
 
 	/* save cursor value */
 	getyx(tw->win, y, x);
@@ -133,27 +133,29 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	if(wmove(tw->win, y,x) == ERR) 
 		err_exit(0, "move failed: %d, %d", y, x);
 
+done:
 	return 1;
 }
 
 int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) {
 
 	if(tw->win == NULL)
-		return 1;
+		goto done;
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
 	 if(!win_contained(tw->win, pos.row, pos.col) ) {
 		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos.row, pos.col);
-		return 1;
+		goto done;
 	}
 
 	if(aug_cursor_move(oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
-		return 1;
+		goto done;
 
 	if(wmove(tw->win, pos.row, pos.col) == ERR)
 		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
 
+done:
 	return 1;
 }
 

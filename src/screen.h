@@ -59,5 +59,7 @@ int screen_push_top_edgewin(int nlines, void **win);
 void screen_resize();
 int screen_unctrl(int ch, char *str);
 void screen_doupdate();
+void screen_clear();
+int screen_redraw_term_win();
 
 #endif /* AUG_SCREEN_H */

@@ -534,9 +534,9 @@ static void *thread1(void *user) {
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	diag("also remove some edge windows");
-	(*g_api->screen_win_dealloc)(g_plugin, bottom_bar0_cb);
-	(*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb);
-	(*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb);
+	ok1( (*g_api->screen_win_dealloc)(g_plugin, bottom_bar0_cb) == 0);
+	ok1( (*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb) == 0);
+	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
@@ -634,7 +634,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int stack_size = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(102);
+	plan_tests(105);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
