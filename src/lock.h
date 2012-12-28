@@ -64,6 +64,9 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 
 	return fprintf(f, "THREAD(0x%s)=> %s\n", buf, suffix);
 #else
+	(void)(f);
+	(void)(pt);
+	(void)(suffix);
 	return 0;
 #endif
 }
