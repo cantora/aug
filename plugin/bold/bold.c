@@ -1,9 +1,6 @@
-#include <stdlib.h>
-#include <time.h>
-
 #include "aug_plugin.h"
 
-const char aug_plugin_name[] = "rainbow";
+const char aug_plugin_name[] = "bold";
 
 void cell_update(
 	int rows, int cols, int *row, int *col, wchar_t *wch, 
@@ -27,10 +24,10 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch,
 	(void)(row);
 	(void)(col);
 	(void)(wch);
+	(void)(color_pair);
 	(void)(action);
 	(void)(user);
 	
-	*color_pair = (rand() % 9)*9;
 	*attr = *attr | A_BOLD;
 }
 
@@ -43,7 +40,6 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	g_callbacks.user = NULL;
 	(*g_api->callbacks)(g_plugin, &g_callbacks, NULL);
 
-	srand(time(NULL));
 	return 0;
 }
 
