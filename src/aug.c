@@ -155,8 +155,11 @@ static void api_callbacks(struct aug_plugin *plugin, const struct aug_plugin_cb 
 	if(prev != NULL)
 		*prev = plugin->callbacks;
 
-	if(callbacks != NULL)
+	if(callbacks != NULL) {
+		AUG_LOCK(&g_plugin_list);
 		plugin->callbacks = callbacks;
+		AUG_UNLOCK(&g_plugin_list);
+	}
 }
 
 static int api_key_bind(const struct aug_plugin *plugin, int ch, 
@@ -328,17 +331,13 @@ static void api_screen_panel_size(struct aug_plugin *plugin, int *size) {
 static void api_screen_panel_update(struct aug_plugin *plugin) {
 	(void)(plugin);
 
-	lock_screen();
 	panel_stack_update();
-	unlock_screen();
 }
 
 static void api_screen_doupdate(struct aug_plugin *plugin) {
 	(void)(plugin);
 
-	lock_screen();
 	screen_doupdate();
-	unlock_screen();
 }
 
 /* =================== end API functions ==================== */
@@ -356,10 +355,8 @@ int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_p
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cell_update == NULL)
 			continue;
 
-		unlock_all();		
 		(*(i->plugin.callbacks->cell_update))(row, col, wch, attr, color_pair,
 												 &action, i->plugin.callbacks->user);
-		lock_all();
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;
@@ -379,10 +376,8 @@ int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cursor_move == NULL)
 			continue;
 	
-		unlock_all();	
 		(*(i->plugin.callbacks->cursor_move))(old_row, old_col, new_row, new_col,
 												 &action, i->plugin.callbacks->user);
-		lock_all();
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;
@@ -390,6 +385,7 @@ int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
 
 	return 0;
 }
+/* == end callbacks == */
 
 static void resize_and_redraw_screen() {
 	screen_clear();
@@ -470,10 +466,6 @@ static void handler_winch(int signo) {
 	 * resizes all its windows, then tells the terminal window
 	 * manager and plugins about the resize */
 	screen_resize();
-	unlock_all();
-	AUG_UNLOCK(&g_region_map);
-	fprintf(stderr, "handler_winch: unlocked all\n");
-
 	screen_dims(&rows, &cols);	
 	/* plugin callbacks */
 	if(g_plugins_initialized == true) {
@@ -485,9 +477,14 @@ static void handler_winch(int signo) {
 		}
 	}
 
+	unlock_all();
+	AUG_UNLOCK(&g_region_map);
+	fprintf(stderr, "handler_winch: unlocked all\n");
+
 	fprintf(stderr, "handler_winch: exit\n");
 }
 
+/* all resources should be locked during this function */
 static void push_key(VTerm *vt, int ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
@@ -496,9 +493,7 @@ static void push_key(VTerm *vt, int ch) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
 			continue;
 		
-		unlock_all();
 		(*(i->plugin.callbacks->input_char))(&ch, &action, i->plugin.callbacks->user);
-		lock_all();
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this character */
 			return;
@@ -525,9 +520,8 @@ static void process_keys(VTerm *vt) {
 				push_key(vt, ch);
 			}
 			else { /* invoke the command */
-				unlock_all(); /* note: WINCH is should still be blocked */
+				/* note: WINCH is should still be blocked */
 				(*command_fn)(ch, user);
-				lock_all();
 			}
 			command_key = false;
 		}
@@ -631,7 +625,7 @@ static void loop(struct aug_term *term) {
 			else
 				err_exit(errno, "select");
 		}		
-		LOOP_LOCK(); /* need exclusive access to the screen for all IO */
+		LOOP_LOCK(); /* need exclusive access to resources for all IO */
 
 		if(FD_ISSET(term->master, &in_fds) ) {
 			if(process_master_output(term->vt, term->master) != 0) {

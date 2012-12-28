@@ -95,7 +95,6 @@ void input_char(int *ch, aug_action *action, void *user) {
 			g_got_expected_input = true;
 
 		ok(user == g_user_data, "check that user ptr is correct");
-		check_screen_lock();
 		test_winch();
 		diag("----input_char----\n#");
 	}
@@ -108,18 +107,13 @@ void input_char(int *ch, aug_action *action, void *user) {
 							"check the on_r interactive input data");
 			g_on_r_interaction = false;
 
-			(*g_api->lock_screen)(g_plugin);
 			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
-			(*g_api->unlock_screen)(g_plugin);
-
 			(*g_api->screen_panel_update)(g_plugin);
 		}
 		else {
-			(*g_api->lock_screen)(g_plugin);
 			waddch(g_pan2_dwin, *ch);
 			wsyncup(g_pan2_dwin);
 			wcursyncup(g_pan2_dwin);
-			(*g_api->unlock_screen)(g_plugin);
 
 			(*g_api->screen_panel_update)(g_plugin);
 			(*g_api->screen_doupdate)(g_plugin);
@@ -150,7 +144,6 @@ void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr,
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cell_update++++");
 		ok(user == g_user_data, "check that user ptr is correct");
-		check_screen_lock();
 		test_winch();
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
@@ -172,7 +165,6 @@ void cursor_move(int old_row, int old_col, int *new_row, int *new_col,
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cursor_move++++");
 		ok(user == g_user_data, "check that user ptr is correct");
-		check_screen_lock();
 		test_winch();
 		checked_winch_and_screen_lock = true;
 		diag("----cursor_move----\n#");
@@ -184,7 +176,6 @@ void screen_dims_change(int rows, int cols, void *user) {
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
 	ok(user == g_user_data, "check that user ptr is correct");
-	check_screen_lock();
 	test_winch();
 	diag("----screen_dims_change----\n#");
 }
@@ -529,10 +520,10 @@ static void *thread1(void *user) {
 
 	(*g_api->lock_screen)(g_plugin);
 	ok1(move_panel(g_pan1, 10, 30) != ERR);
-	(*g_api->unlock_screen)(g_plugin);
-
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
+	(*g_api->unlock_screen)(g_plugin);
+
 	diag("also remove some edge windows");
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, bottom_bar0_cb) == 0);
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb) == 0);
@@ -543,10 +534,10 @@ static void *thread1(void *user) {
 
 	(*g_api->lock_screen)(g_plugin);
 	ok1(hide_panel(g_pan1) != ERR);
-	(*g_api->unlock_screen)(g_plugin);
-	
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
+	(*g_api->unlock_screen)(g_plugin);
+
 	sleep(1);
 	diag("----thread1----\n#");
 	return NULL;
@@ -591,10 +582,9 @@ static void *thread2(void *user) {
 	}
 	
 	mvwprintw(g_pan2_dwin, 0, 0, "enter a string: ");
-	(*g_api->unlock_screen)(g_plugin);
-
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
+	(*g_api->unlock_screen)(g_plugin);
 
 	g_on_r_interaction = true;
 	
@@ -610,7 +600,6 @@ unlock:
 
 static void on_r(int chr, void *user) {
 	diag("++++key callback++++");
-	check_screen_lock();
 	test_winch();
 	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);
 	ok( (user == g_user_data), "user ptr is correct");
@@ -634,7 +623,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	int stack_size = -1;
 	WINDOW *pan1_win;
 
-	plan_tests(105);
+	plan_tests(100);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -686,10 +675,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 		diag("box_and_print failed. abort...");
 		goto unlock;
 	}
-	(*g_api->unlock_screen)(g_plugin);
-
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
+	(*g_api->unlock_screen)(g_plugin);
 
 	diag("create status bar window");
 	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb);
@@ -740,7 +728,9 @@ void aug_plugin_free() {
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("dealloc panels");
+	(*g_api->lock_screen)(g_plugin);
 	ok(delwin(g_pan2_dwin) != ERR, "delete derived window");
+	(*g_api->unlock_screen)(g_plugin);
 
 	todo_start("screen_panel_size fails because "
 				"hidden panels are not traversable via "

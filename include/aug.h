@@ -22,9 +22,9 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  * values, so a simple { return; } function
  * pointer will be the same as a NULL 
  * callback. 
- * the plugin should not allocate any windows
- * via screen_win_alloc_* from within these callbacks,
- * as this will probably cause deadlock.
+ * the plugin should not make any api calls from within
+ * a callback, as this will result in thread lock. the only
+ * exceptions are screen_doupdate and screen_panel_update.
  */
 struct aug_plugin_cb {
 	/* called when a unit of input
@@ -244,11 +244,18 @@ struct aug_api {
 	 */
 	void (*screen_panel_size)(struct aug_plugin *plugin, int *size);
 	
-	/* for concurrency reasons, call this function instead of
+
+	/* neither of the following two api calls engage any locks
+	 * so lock_screen and unlock_screen should be used
+	 * to ensure these calls are made safely. in the case of
+	 * api callbacks, these can be called without using the
+	 * lock_screen/unlock_screen api calls. */	
+
+	/* call this function instead of
 	 * calling update_panels() from the panels library. */
 	void (*screen_panel_update)(struct aug_plugin *plugin);
 
-	/* threadsafe access to doupdate() */
+	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 };
 
