@@ -812,7 +812,7 @@ static void load_plugins() {
 		assert(secname != NULL);
 
 		/*fprintf(stderr, "section %d: %s\n", i, secname);*/
-		if( strcmp(secname, CONF_CONFIG_SECTION_CORE) == 0 )
+		if( strncmp(secname, CONF_CONFIG_SECTION_CORE, sizeof(CONF_CONFIG_SECTION_CORE)-1) == 0 )
 			continue;
 
 		seclen = strlen(secname);
@@ -826,27 +826,65 @@ static void load_plugins() {
 		 * go looking for it in the plugin_path */
 		fprintf(stderr, "search for plugin: %s\n", secname);
 		TOK_ITR_FOREACH(path, (1024-seclen-3-1), g_conf.plugin_path, ':', &tok_itr) {
-			size_t len;
+			wordexp_t exp;
+			int exp_status;
+			size_t j;
 
-			len = strlen(path);
-			fprintf(stderr, "\tsearching in %s\n", path);
-			if(path[len-1] != '/') {
-				path[len++] = '/';
-				path[len] = '\0';
+			if( (exp_status = wordexp(path, &exp, WRDE_NOCMD)) != 0 ) {
+				switch(exp_status) {
+				case WRDE_BADCHAR:
+					fprintf(stderr, "bad character in search path %s\n", path);
+					break;
+				case WRDE_CMDSUB:
+					fprintf(stderr, "command substitution in search path %s\n", path);
+					break;
+				case WRDE_SYNTAX:
+					fprintf(stderr, "syntax error in search path %s\n", path);
+					break;
+				default:
+					err_exit(0, "unknown error during configuration file path expansion");
+				}
+
+				continue;
 			}
-				
-			strcat(path, secname);
-			strcat(path, ".so");
-
-			if(access(path, R_OK) == 0) {
-				/* load the plugin */
-				err = NULL;
-				plugin_list_push(&g_plugin_list, path, secname, seclen, &err);
-				if(err == NULL)
-					fprintf(stderr, "\tloaded %s.so\n", secname);
-
-				break;
+			if(exp.we_wordc < 1) {
+				fprintf(stderr, "search path did not expand to any words: %s\n", path);
+				continue;
 			}
+			
+			for(j = 0; j < exp.we_wordc; j++) {
+				size_t len;
+
+				strncpy(
+					path, 
+					exp.we_wordv[j], 
+				    /*              '/'                         '.so' '\0' */
+					(sizeof(path) - (1 + AUG_MAX_PLUGIN_NAME_LEN + 3) - 1)
+				);
+				path[sizeof(path)-1] = '\0';
+				fprintf(stderr, "\tsearching in %s\n", path);
+
+				len = strlen(path);
+				if(path[len-1] != '/') {
+					path[len++] = '/';
+					path[len] = '\0';
+				}
+					
+				strncat(path, secname, AUG_MAX_PLUGIN_NAME_LEN);
+				strcat(path, ".so");
+	
+				if(access(path, R_OK) == 0) {
+					/* load the plugin */
+					err = NULL;
+					plugin_list_push(&g_plugin_list, path, secname, seclen, &err);
+					if(err == NULL)
+						fprintf(stderr, "\tloaded %s.so\n", secname);
+	
+					break;
+				}
+			} /* for each expanded path */
+
+			wordfree(&exp);
 		} /* FOREACH */
 		
 		if(err != NULL)	
