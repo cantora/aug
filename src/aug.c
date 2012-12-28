@@ -42,6 +42,7 @@
 #else
 #	include <pty.h>
 #endif
+#include <wordexp.h>
 
 #include "vterm.h"
 
@@ -701,7 +702,9 @@ static int init_conf(int argc, char *argv[]) {
 	bool have_config = false;
 	int config_err = 0;
 	const char *errmsg;
-
+	wordexp_t exp;
+	int exp_status;
+	
 	conf_init(&g_conf);
 	if(opt_parse(argc, argv, &g_conf) != 0) {
 		switch(errno) {
@@ -722,8 +725,39 @@ static int init_conf(int argc, char *argv[]) {
 		return 1;
 	}
 
-	if(access(g_conf.conf_file, R_OK) == 0) {
-		g_ini = ciniparser_load(g_conf.conf_file);
+	if( (exp_status = wordexp(g_conf.conf_file, &exp, WRDE_NOCMD)) != 0 ) {
+		switch(exp_status) {
+		case WRDE_BADCHAR:
+			fprintf(stdout, "bad character in config file path\n");
+			break;
+		case WRDE_CMDSUB:
+			fprintf(stdout, "command substitution in config file path\n");
+			break;
+		case WRDE_SYNTAX:
+			fprintf(stdout, "syntax error in config file path\n");
+			break;
+		default:
+			err_exit(0, "unknown error during configuration file path expansion");
+		}
+		opt_print_usage(argc, (const char *const *) argv);
+		fputc('\n', stdout);
+		return 1;
+	}
+
+	if(exp.we_wordc != 1) {
+		if(exp.we_wordc == 0)
+			fprintf(stdout, "config file path did not expand to any words\n");
+		else
+			fprintf(stdout, "config file path expanded to multiple words\n");
+
+		opt_print_usage(argc, (const char *const *) argv);
+		fputc('\n', stdout);
+		wordfree(&exp);
+		return 1;
+	}
+
+	if(access(exp.we_wordv[0], R_OK) == 0) {
+		g_ini = ciniparser_load(exp.we_wordv[0]);
 		if(g_ini != NULL) {
 			have_config = true;
 			conf_merge_ini(&g_conf, g_ini);
@@ -731,6 +765,8 @@ static int init_conf(int argc, char *argv[]) {
 	}
 	else
 		config_err = errno;
+
+	wordfree(&exp);
 
 	if(g_conf.debug_file != NULL)
 		debug_file = g_conf.debug_file;
