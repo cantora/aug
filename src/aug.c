@@ -344,7 +344,8 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 
 /* ================= term callbacks for API =========================== */
 
-int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_pair) {
+int aug_cell_update(int rows, int cols, int *row, int *col,
+		wchar_t *wch, attr_t *attr, int *color_pair) {
 	struct aug_plugin_item *i;
 	aug_action action;
 
@@ -355,8 +356,11 @@ int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_p
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cell_update == NULL)
 			continue;
 
-		(*(i->plugin.callbacks->cell_update))(row, col, wch, attr, color_pair,
-												 &action, i->plugin.callbacks->user);
+		(*(i->plugin.callbacks->cell_update))(
+			rows, cols, row, col, 
+			wch, attr, color_pair,
+			&action, i->plugin.callbacks->user
+		);
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;
@@ -365,7 +369,8 @@ int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_p
 	return 0;
 }
 
-int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
+int aug_cursor_move(int rows, int cols, int old_row, int old_col, 
+		int *new_row, int *new_col) {
 	struct aug_plugin_item *i;
 	aug_action action;
 
@@ -376,8 +381,11 @@ int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cursor_move == NULL)
 			continue;
 	
-		(*(i->plugin.callbacks->cursor_move))(old_row, old_col, new_row, new_col,
-												 &action, i->plugin.callbacks->user);
+		(*(i->plugin.callbacks->cursor_move))(
+			rows, cols, old_row, 
+			old_col, new_row, new_col,
+			&action, i->plugin.callbacks->user
+		);
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
 			return -1;

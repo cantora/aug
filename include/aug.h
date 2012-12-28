@@ -46,8 +46,14 @@ struct aug_plugin_cb {
 	 * set action to AUG_ACTION_CANCEL and 
 	 * and prevent the cell from being 
 	 * updated. */
-	void (*cell_update)(int *row, int *col, wchar_t *wch, attr_t *attr,
-							int *color_pair, aug_action *action, void *user);
+	void (*cell_update)(
+		int rows, int cols,
+		int *row, int *col, 
+		wchar_t *wch, attr_t *attr,
+		int *color_pair, 
+		aug_action *action, 
+		void *user
+	);
 
 	/* called when the cursor is about to be
 	 * moved to some location in the terminal window.
@@ -55,13 +61,15 @@ struct aug_plugin_cb {
 	 * new_row, new_col output parameters
 	 * and set action to AUG_ACT_OK to modify
 	 * where the cursor is moved to. */
-	void (*cursor_move)(int old_row, int old_col, int *new_row, int *new_col,
-							aug_action *action, void *user);
+	void (*cursor_move)(
+		int rows, int cols, 
+		int old_row, int old_col, 
+		int *new_row, int *new_col,
+		aug_action *action, void *user
+	);
 
 	/* called when the screen dimensions change.
-	 * old_* hold the old dimensions and new_*
-	 * hold the new dimensions. note that the
-	 * dimensions are for the entire screen, not
+	 * note that the dimensions are for the entire screen, not
 	 * the size of the main window. */
 	void (*screen_dims_change)(int rows, int cols, void *user);
 

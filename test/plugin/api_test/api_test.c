@@ -11,10 +11,10 @@
 const char aug_plugin_name[] = "api_test";
 
 void input_char(int *ch, aug_action *action, void *user);
-void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, 
-					int *color_pair, aug_action *action, void *user);
-void cursor_move(int old_row, int old_col, int *new_row, int *new_col, 
-					aug_action *action, void *user);
+void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, 
+					attr_t *attr, int *color_pair, aug_action *action, void *user);
+void cursor_move(int rows, int cols, int old_row, int old_col, 
+					int *new_row, int *new_col, aug_action *action, void *user);
 void screen_dims_change(int rows, int cols, void *user);
 
 static const struct aug_api *g_api;
@@ -128,8 +128,10 @@ void input_char(int *ch, aug_action *action, void *user) {
 #undef CUTOFF	
 }
 
-void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, 
+void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *attr, 
 					int *color_pair, aug_action *action, void *user) {
+	(void)(rows);
+	(void)(cols);
 	(void)(row);
 	(void)(col);
 	(void)(wch);
@@ -150,8 +152,10 @@ void cell_update(int *row, int *col, wchar_t *wch, attr_t *attr,
 	}
 }
 
-void cursor_move(int old_row, int old_col, int *new_row, int *new_col, 
+void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int *new_col, 
 					aug_action *action, void *user) {
+	(void)(rows);
+	(void)(cols);
 	(void)(old_row);
 	(void)(old_col);
 	(void)(new_row);

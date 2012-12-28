@@ -27,8 +27,14 @@
 #include "attr.h"
 #include "ncurses_util.h"
 
-extern int aug_cell_update(int *row, int *col, wchar_t *wch, attr_t *attr, int *color_pair);
-extern int aug_cursor_move(int old_row, int old_col, int *new_row, int *new_col);
+extern int aug_cell_update(
+	int rows, int cols, int *row, int *col, 
+	wchar_t *wch, attr_t *attr, int *color_pair
+);
+extern int aug_cursor_move(
+	int rows, int cols, int old_row, 
+	int old_col, int *new_row, int *new_col
+);
 
 static void resize_terminal(struct aug_term_win *);
 
@@ -89,7 +95,7 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 	
 	wch = (cell.chars[0] == 0)? &erasech : (wchar_t *) &cell.chars[0];
 
-	if(aug_cell_update(&pos.row, &pos.col, wch, &attr, &pair) != 0) /* run API callbacks */
+	if(aug_cell_update(maxy, maxx, &pos.row, &pos.col, wch, &attr, &pair) != 0) /* run API callbacks */
 		return;
 	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
 		err_exit(0, "setcchar failed");
@@ -138,6 +144,7 @@ done:
 }
 
 int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) {
+	int maxy, maxx;
 
 	if(tw->win == NULL)
 		goto done;
@@ -149,7 +156,8 @@ int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) 
 		goto done;
 	}
 
-	if(aug_cursor_move(oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
+	getmaxyx(tw->win, maxy, maxx);
+	if(aug_cursor_move(maxy, maxx, oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
 		goto done;
 
 	if(wmove(tw->win, pos.row, pos.col) == ERR)
