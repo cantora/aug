@@ -49,6 +49,7 @@
 
 #ifdef AUG_LOCK_DEBUG
 static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
+#ifdef AUG_DEBUG
 	size_t k;
 #define FPRINT_TID_BUFLEN ( sizeof(pthread_t)*2 + 1 )
 	unsigned char *ptc;
@@ -62,6 +63,9 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 #undef FPRINT_TID_BUFLEN
 
 	return fprintf(f, "THREAD(0x%s)=> %s\n", buf, suffix);
+#else
+	return 0;
+#endif
 }
 #endif
 
