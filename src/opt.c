@@ -169,25 +169,25 @@ static void init_long_options(struct option *long_options, char *optstring) {
 }
 
 
-void opt_print_usage(int argc, const char *const argv[]) {
-	fprintf(stdout, "usage: %s [OPTIONS] [CMD [ARG1, ...]]\n", (argc > 0)? argv[0] : "");
+void opt_print_usage(FILE *file, int argc, const char *const argv[]) {
+	fprintf(file, "usage: %s [OPTIONS] [CMD [ARG1, ...]]\n", (argc > 0)? argv[0] : "");
 }
 
-void opt_print_help(int argc, const char *const argv[]) {
+void opt_print_help(FILE *file, int argc, const char *const argv[]) {
 	int i, k, f1_amt;
 #define F1_SIZE 48
 #define F1_WIDTH 44
 	char f1[F1_SIZE];
 	
-	opt_print_usage(argc, argv);
+	opt_print_usage(file, argc, argv);
 	
-	fprintf(stdout, "\n%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", "  CMD", "run CMD with arguments instead of the default");
-	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tdefault: the value of SHELL in the environment\n", "");
-	fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tor if SHELL undefined: ", "");
+	fprintf(file, "\n%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", "  CMD", "run CMD with arguments instead of the default");
+	fprintf(file, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tdefault: the value of SHELL in the environment\n", "");
+	fprintf(file, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s\tor if SHELL undefined: ", "");
 	for(k = 0; k < CONF_DEFAULT_ARGC; k++)
-		fprintf(stdout, "%s ", CONF_DEFAULT_ARGV[k]);
+		fprintf(file, "%s ", CONF_DEFAULT_ARGV[k]);
 	
-	fprintf(stdout, "\nOPTIONS:\n");
+	fprintf(file, "\nOPTIONS:\n");
 	for(i = 0; i < AUG_OPTLEN; i++) {
 		f1_amt = 0;
 		if(f1_amt < F1_SIZE && AUG_OPTIONS[i].lopt.val >= 0 && AUG_OPTIONS[i].lopt.val < 256) 
@@ -202,13 +202,13 @@ void opt_print_help(int argc, const char *const argv[]) {
 
 		/*desc = AUG_OPTIONS[i].desc;
 		do {
-			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", f1, *desc);
+			fprintf(file, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", f1, *desc);
 		} while( *(desc++) != NULL );*/
 		for(k = 0; AUG_OPTIONS[i].desc[k] != NULL; k++) 
-			fprintf(stdout, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), AUG_OPTIONS[i].desc[k]);
+			fprintf(file, "%-" AUG_EXPAND_QUOTE(F1_WIDTH) "s%s\n", (k == 0? f1 : ""), AUG_OPTIONS[i].desc[k]);
 	}
 	
-	fputc('\n', stdout);
+	fputc('\n', file);
 }
 
 static void print_char_reps() {

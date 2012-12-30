@@ -709,17 +709,17 @@ static int init_conf(int argc, char *argv[]) {
 	if(opt_parse(argc, argv, &g_conf) != 0) {
 		switch(errno) {
 		case OPT_ERR_HELP:
-			opt_print_help(argc, (const char *const *) argv);
+			opt_print_help(stderr, argc, (const char *const *) argv);
 			break;
 			
 		case OPT_ERR_USAGE:
-			opt_print_usage(argc, (const char *const *) argv);
+			opt_print_usage(stderr, argc, (const char *const *) argv);
 			break;
 		
 		default:
-			fprintf(stdout, "%s\n", opt_err_msg);
-			opt_print_usage(argc, (const char *const *) argv);
-			fputc('\n', stdout);
+			fprintf(stderr, "%s\n", opt_err_msg);
+			opt_print_usage(stderr, argc, (const char *const *) argv);
+			fputc('\n', stderr);
 		}	
 		
 		return 1;
@@ -728,30 +728,30 @@ static int init_conf(int argc, char *argv[]) {
 	if( (exp_status = wordexp(g_conf.conf_file, &exp, WRDE_NOCMD)) != 0 ) {
 		switch(exp_status) {
 		case WRDE_BADCHAR:
-			fprintf(stdout, "bad character in config file path\n");
+			fprintf(stderr, "bad character in config file path\n");
 			break;
 		case WRDE_CMDSUB:
-			fprintf(stdout, "command substitution in config file path\n");
+			fprintf(stderr, "command substitution in config file path\n");
 			break;
 		case WRDE_SYNTAX:
-			fprintf(stdout, "syntax error in config file path\n");
+			fprintf(stderr, "syntax error in config file path\n");
 			break;
 		default:
 			err_exit(0, "unknown error during configuration file path expansion");
 		}
-		opt_print_usage(argc, (const char *const *) argv);
-		fputc('\n', stdout);
+		opt_print_usage(stderr, argc, (const char *const *) argv);
+		fputc('\n', stderr);
 		return 1;
 	}
 
 	if(exp.we_wordc != 1) {
 		if(exp.we_wordc == 0)
-			fprintf(stdout, "config file path did not expand to any words\n");
+			fprintf(stderr, "config file path did not expand to any words\n");
 		else
-			fprintf(stdout, "config file path expanded to multiple words\n");
+			fprintf(stderr, "config file path expanded to multiple words\n");
 
-		opt_print_usage(argc, (const char *const *) argv);
-		fputc('\n', stdout);
+		opt_print_usage(stderr, argc, (const char *const *) argv);
+		fputc('\n', stderr);
 		wordfree(&exp);
 		return 1;
 	}
@@ -783,7 +783,7 @@ static int init_conf(int argc, char *argv[]) {
 	}
 
 	if(conf_set_derived_vars(&g_conf, &errmsg) != 0) {
-		fprintf(stdout, "%s\n", errmsg);
+		fprintf(stderr, "%s\n", errmsg);
 		return 1;
 	}
 

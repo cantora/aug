@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 	if(conf_set_derived_vars(&c, &errmsg) != 0)
 		err_exit(0, errmsg);
 
-	opt_print_help(argc, argv);
+	opt_print_help(stdout, argc, argv);
 	printf("DEFAULT:\n");
 	conf_fprint(&c, stdout);
 
