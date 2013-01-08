@@ -121,13 +121,9 @@ void term_win_refresh(struct aug_term_win *tw) {
 
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	VTermPos pos;
-	int x,y;
 
 	if(tw->win == NULL)
 		goto done;
-
-	/* save cursor value */
-	getyx(tw->win, y, x);
 
 	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
 		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
@@ -135,9 +131,10 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 		}
 	}
 
+	vterm_state_get_cursorpos(vterm_obtain_state(tw->term->vt), &pos);
 	/* restore cursor (repainting shouldnt modify cursor) */
-	if(wmove(tw->win, y,x) == ERR) 
-		err_exit(0, "move failed: %d, %d", y, x);
+	if(wmove(tw->win, pos.row, pos.col) == ERR) 
+		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
 
 done:
 	return 1;
