@@ -797,6 +797,9 @@ static void load_plugins() {
 	size_t seclen;
 	char path[2048];
 	struct aug_tok_itr tok_itr;
+	size_t core_seclen;
+
+	core_seclen = sizeof(CONF_CONFIG_SECTION_CORE)-1;
 
 	fprintf(stderr, "load plugins...\n");
 	if(g_ini == NULL)
@@ -811,11 +814,11 @@ static void load_plugins() {
 		secname = ciniparser_getsecname(g_ini, i);
 		assert(secname != NULL);
 
+		seclen = strlen(secname);
 		/*fprintf(stderr, "section %d: %s\n", i, secname);*/
-		if( strncmp(secname, CONF_CONFIG_SECTION_CORE, sizeof(CONF_CONFIG_SECTION_CORE)-1) == 0 )
+		if( seclen == core_seclen && strncmp(secname, CONF_CONFIG_SECTION_CORE, core_seclen) == 0 )
 			continue;
 
-		seclen = strlen(secname);
 		if(seclen > AUG_MAX_PLUGIN_NAME_LEN) {  /* seems a bit excessive... */
 			fprintf(stderr, "plugin section name exceeds maximum plugin name length of %d\n", AUG_MAX_PLUGIN_NAME_LEN);
 			continue;
