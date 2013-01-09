@@ -63,8 +63,8 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_CMD_PREFIX_INDEX (OPT_CONFIG_INDEX+1)
 		.usage = OPT_CMD_PREFIX_USAGE,
 		.desc = {"set prefix key for core commands and plugin extension commands.",
-					"see option --char-rep for a list of valid character representation",
-					"strings that can be passed in as an argument here.",
+					"\tsee option --char-rep for a list of valid character representation",
+					"\tstrings that can be passed in as an argument here.",
 					"\tdefault: " CONF_CMD_PREFIX_DEFAULT, NULL},
 		.lopt = {OPT_CMD_PREFIX, 1, 0, 'e' }
 	},
@@ -73,8 +73,8 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_CMD_PREFIX_ESCAPE_INDEX (OPT_CMD_PREFIX_INDEX+1)
 		.usage = OPT_CMD_PREFIX_USAGE,
 		.desc = {"set prefix key escape extension, i.e. if set to 'a' then typing",
-					"^A-a will output a literal ^A to the terminal.",
-					"see man page for details on 'pass through' mode.", 
+					"\t^A-a will output a literal ^A to the terminal.",
+					"\tsee man page for details on 'pass through' mode.", 
 					"\tdefault: 'pass through' mode.", NULL},
 		.lopt = {OPT_CMD_PREFIX_ESCAPE, 1, 0, 'E' }
 	},
@@ -83,7 +83,7 @@ const struct opt_desc AUG_OPTIONS[] = {
 #define OPT_CHAR_REP_INDEX (OPT_CMD_PREFIX_ESCAPE_INDEX+1)
 		.usage = NULL,
 		.desc = {"show a list of character representation strings which",
-					"are valid arguments for -e and -E.", NULL},
+					"\tare valid arguments for -e and -E.", NULL},
 		.lopt = {OPT_CHAR_REP, 0, 0, LONG_ONLY_VAL(OPT_CHAR_REP_INDEX)}
 	},
 	{
