@@ -218,6 +218,13 @@ void make_win_alloc_callback(void *cb_pair, WINDOW *win) {
 	(*pair->callback)(win, pair->plugin->callbacks->user);
 }
 
+void make_win_main_callback(void *cb_pair, WINDOW *win) {
+	struct plugin_callback_pair *pair;
+	
+	pair = (struct plugin_callback_pair *) cb_pair;
+	(*pair->callback)(win, pair->plugin->callbacks->user);
+}
+
 static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size, 
 				void (*callback)(WINDOW *, void *user) ) {
 	struct plugin_callback_pair *pair;

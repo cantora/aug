@@ -33,6 +33,7 @@
 #include "ncurses_util.h"
 
 extern void make_win_alloc_callback(void *cb_pair, WINDOW *win);
+extern void make_win_main_callback(void *cb_pair, WINDOW *win);
 
 static void vterm_cb_refresh(void *user);
 static int free_term_win();
@@ -56,10 +57,14 @@ static struct {
 	struct {
 		OBJSET_MEMBERS(WINDOW *);	
 	} windows;
+	WINDOW *main_reserved;
+	void *main_cb_pair;
 } g;	
 
 int screen_init(struct aug_term *term) {
 	g.color_on = 0;
+	g.main_reserved = NULL;
+	g.main_cb_pair = NULL;
 
 	objset_init(&g.windows);
 	
@@ -99,6 +104,11 @@ static int init_term_win() {
 
 	if(free_term_win() != 0)
 		goto fail;
+
+#ifdef AUG_DEBUG
+	if(g.main_reserved != NULL)
+		err_exit(0, "expected main window to not be reserved");
+#endif
 
 	win = derwin(stdscr, LINES, COLS, 0, 0);
 	if(win == NULL)
@@ -427,6 +437,10 @@ void screen_resize() {
 	region_map_key_regs_free(key_regs);
 }
 #undef SCREEN_REGION_VALID
+
+void screen_reserve_main(void *cb_pair) {
+	
+}
 
 /* converts a character into its string representation.
  * *str* should have enough space for 3 characters + one
