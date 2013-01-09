@@ -61,6 +61,18 @@ void term_dims(const struct aug_term *term, int *rows, int *cols) {
 	vterm_get_size(term->vt, rows, cols);
 }
 
+int term_can_push_char(const struct aug_term *term) {
+	return ( vterm_output_get_buffer_remaining(term->vt) > 0 );
+}
+
+int term_push_char(const struct aug_term *term, uint32_t ch) {
+	if(term_can_push_char(term) == 0)
+		return -1;
+
+	vterm_input_push_char(term->vt, VTERM_MOD_NONE, ch);
+	return 0;
+}
+
 void term_set_callbacks(struct aug_term *term, const VTermScreenCallbacks *screen_callbacks, 
 							const struct aug_term_io_callbacks *io_callbacks, void *user) {
 	VTermScreen *vts;
@@ -81,6 +93,9 @@ void term_clear_callbacks(struct aug_term *term) {
 
 static int term_resize_master(const struct aug_term *term) {
 	struct winsize size;
+
+	if(term->master == 0)
+		return -1;
 
 	term_dims(term, (int *) &size.ws_row, (int *) &size.ws_col);
 	if(ioctl(term->master, TIOCSWINSZ, &size) != 0)
