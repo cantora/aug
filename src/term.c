@@ -61,12 +61,12 @@ void term_dims(const struct aug_term *term, int *rows, int *cols) {
 	vterm_get_size(term->vt, rows, cols);
 }
 
-int term_can_push_char(const struct aug_term *term) {
-	return ( vterm_output_get_buffer_remaining(term->vt) > 0 );
+int term_can_push_chars(const struct aug_term *term) {
+	return vterm_output_get_buffer_remaining(term->vt);
 }
 
 int term_push_char(const struct aug_term *term, uint32_t ch) {
-	if(term_can_push_char(term) == 0)
+	if(term_can_push_chars(term) < 1)
 		return -1;
 
 	vterm_input_push_char(term->vt, VTERM_MOD_NONE, ch);

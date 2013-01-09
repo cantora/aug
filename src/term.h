@@ -35,7 +35,7 @@ struct aug_term {
 
 void term_init(struct aug_term *term, int rows, int cols);
 void term_free(struct aug_term *term);
-int term_can_push_char(const struct aug_term *term);
+int term_can_push_chars(const struct aug_term *term);
 int term_push_char(const struct aug_term *term, uint32_t ch);
 void term_dims(const struct aug_term *term, int *rows, int *cols);
 void term_set_callbacks(struct aug_term *term, const VTermScreenCallbacks *screen_callbacks, 

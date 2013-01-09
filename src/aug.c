@@ -60,6 +60,7 @@
 #include "keymap.h"
 #include "panel_stack.h"
 #include "region_map.h"
+#include "child.h"
 
 static void resize_and_redraw_screen();
 static void lock_all();
@@ -73,6 +74,7 @@ static bool g_plugins_initialized = false;
 static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
+static struct aug_child g_child;
 static struct {
 	AUG_LOCK_MEMBERS;
 } g_screen;
@@ -89,8 +91,6 @@ static struct {
 	OBJSET_MEMBERS(struct plugin_callback_pair *);
 } g_edgewin_set;
 
-#define BUF_SIZE 2048*4
-static char g_buf[BUF_SIZE]; /* IO buffer */
 /* static globals */
 static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
 
@@ -419,6 +419,7 @@ static void unlock_screen() {
 }
 
 static void lock_all() {
+	AUG_LOCK(&g_child);
 	AUG_LOCK(&g_keymap);
 	AUG_LOCK(&g_plugin_list);
 	lock_screen();
@@ -428,6 +429,7 @@ static void unlock_all() {
 	unlock_screen();
 	AUG_UNLOCK(&g_plugin_list);
 	AUG_UNLOCK(&g_keymap);
+	AUG_UNLOCK(&g_child);
 }
 
 static void change_winch(int how) {
@@ -494,7 +496,7 @@ static void handler_winch(int signo) {
 }
 
 /* all resources should be locked during this function */
-static void push_key(VTerm *vt, int ch) {
+static void push_key(struct aug_term *term, int ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
 	
@@ -508,25 +510,27 @@ static void push_key(VTerm *vt, int ch) {
 			return;
 	}
 
-	vterm_input_push_char(vt, VTERM_MOD_NONE, (uint32_t) ch);
+	term_push_char(term, (uint32_t) ch);
 }
 
-static void process_keys(VTerm *vt) {
+static void process_keys(struct aug_term *term, int fd_input) {
 	int ch;
 	static bool command_key = false;
 	aug_on_key_fn command_fn;
 	void *user;
+	
+	(void)(fd_input);
 
 	/* we need at least two spots in the buffer because in 'pass through' 
 	 * command prefix mode we will send both the command key and the following
 	 * key at the same time after finding a non-command */
-	while(vterm_output_get_buffer_remaining(vt) > 1 && screen_getch(&ch) == 0 ) {
+	while(term_can_push_chars(term) > 1 && screen_getch(&ch) == 0 ) {
 		if(command_key == true) { /* treat *ch* as a command extension */
 			fprintf(stderr, "check for command extension 0x%02x\n", ch);
 			keymap_binding(&g_keymap, ch, &command_fn, &user);
 			if(command_fn == NULL) { /* this is not a bound key */
-				push_key(vt, g_conf.cmd_key);
-				push_key(vt, ch);
+				push_key(term, g_conf.cmd_key);
+				push_key(term, ch);
 			}
 			else { /* invoke the command */
 				/* note: WINCH is should still be blocked */
@@ -538,157 +542,9 @@ static void process_keys(VTerm *vt) {
 			command_key = true;	
 		}
 		else {
-			push_key(vt, ch);
+			push_key(term, ch);
 		}
 	}
-}
-
-static void process_vterm_output(VTerm *vt, int master) {
-	size_t buflen;
-
-	while( (buflen = vterm_output_get_buffer_current(vt) ) > 0) {
-		buflen = (buflen < BUF_SIZE)? buflen : BUF_SIZE;
-		buflen = vterm_output_bufferread(vt, g_buf, buflen);
-		write_n_or_exit(master, g_buf, buflen);
-	}
-}
-
-static int process_master_output(VTerm *vt, int master) {
-	ssize_t n_read, total_read;
-
-	total_read = 0;
-	do {
-		n_read = read(master, g_buf + total_read, 512);
-	} while(n_read > 0 && ( (total_read += n_read) + 512 <= BUF_SIZE) );
-	
-	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
-		return -1; /* the master pty is closed, return -1 to signify */
-	}
-	else if(n_read < 0 && errno != EAGAIN) {
-		err_exit(errno, "error reading from pty master (n_read = %d)", n_read);
-	}
-	/* bug? what happens if read returns EAGAIN? */
-
-	vterm_push_bytes(vt, g_buf, total_read);
-	
-	return 0;
-}
-
-static void loop(struct aug_term *term) {
-	fd_set in_fds;
-	int status, force_refresh, just_refreshed;
-
-	struct aug_timer inter_io_timer, refresh_expire;
-	struct timeval tv_select;
-	struct timeval *tv_select_p;
-
-	timer_init(&inter_io_timer);
-	timer_init(&refresh_expire);
-	/* dont initially need to worry about inter_io_timer's need to timeout */
-	just_refreshed = 1;
-
-	while(1) {
-		FD_ZERO(&in_fds);
-		FD_SET(STDIN_FILENO, &in_fds);
-		FD_SET(term->master, &in_fds);
-
-		/* if we just refreshed the screen there
-		 * is no need to timeout the select wait. 
-		 * however if we havent refreshed on the last
-		 * iteration we need to make sure that inter_io_timer
-		 * is given a chance to timeout and cause a refresh.
-		 */
-		tv_select.tv_sec = 0;
-		tv_select.tv_usec = 1000;
-		tv_select_p = (just_refreshed == 0)? &tv_select : NULL;
-
-		/* most of this process's time is spent waiting for
-		 * select's timeout, so this is where we want to handle all
-		 * SIGWINCH signals and MOST (all?) of the asynchronous
-		 * API calls.
-		 */
-#		define LOOP_UNLOCK() \
-			do { unlock_all(); unblock_winch(); } while(0)
-
-#		define LOOP_LOCK() \
-			do { block_winch(); lock_all(); } while(0)
-			
-		LOOP_UNLOCK(); /* winch handler needs to lock the screen. */
-		/* if a plugin thread is caused to handle
-		 * a WINCH signal there could be trouble because the plugin may
-		 * have locked the screen via an API call, then gets interrupted by a WINCH
-		 * signal which will attempt to lock the screen again. of course
-		 * this isnt a problem for this main thread here because it only
-		 * handles WINCH signals while in the following select call. so...
-		 * this means we have to block WINCH and (maybe other signals?) during
-		 * periods where the main thread may call a plugin function, such that
-		 * when the plugin creates a thread it will inherit a signal mask
-		 * with WINCH blocked. the API will expect plugins not to unblock that
-		 * signal in their threads.
-		 */
-		if(select(term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
-			if(errno == EINTR) {
-				LOOP_LOCK();				
-				continue;
-			}
-			else
-				err_exit(errno, "select");
-		}		
-		LOOP_LOCK(); /* need exclusive access to resources for all IO */
-
-		if(FD_ISSET(term->master, &in_fds) ) {
-			if(process_master_output(term->vt, term->master) != 0) {
-				LOOP_UNLOCK();
-				return;
-			}
-
-			process_vterm_output(term->vt, term->master);
-			timer_init(&inter_io_timer);
-		}
-
-#		undef LOOP_LOCK
-#		undef LOOP_UNLOCK
-
-		/* this is here to make sure really long bursts dont 
-		 * look like frozen I/O. the user should see characters
-		 * whizzing by if there is that much output.
-		 */
-		if( (status = timer_thresh(&refresh_expire, 0, 50000)) ) { 
-			force_refresh = 1; /* must refresh at least 20 times per second */
-		}
-		else if(status < 0)
-			err_exit(errno, "timer error");
-		
-		/* if master pty is 'bursting' with I/O at a quick rate
-		 * we want to let the burst finish (up to a point: see refresh_expire)
-		 * and then refresh the screen, otherwise we waste a bunch of time
-		 * refreshing the screen with stuff that just gets scrolled off
-		 */
-		if(force_refresh != 0 || (status = timer_thresh(&inter_io_timer, 0, 700) ) == 1 ) {
-			if(term->io_callbacks.refresh != NULL)
-				(*term->io_callbacks.refresh)(term->user); /* call the term refresh callback */
-
-			//touchwin(stdscr);
-			panel_stack_update();
-			//screen_refresh();
-			screen_doupdate();
-
-			timer_init(&inter_io_timer);
-			timer_init(&refresh_expire);
-			force_refresh = 0;
-			just_refreshed = 1;
-		}
-		else if(status < 0)
-			err_exit(errno, "timer error");
-		else
-			just_refreshed = 0; /* didnt refresh the screen on this iteration */
-
-		if(FD_ISSET(STDIN_FILENO, &in_fds) ) {
-			process_keys(term->vt);
-			process_vterm_output(term->vt, term->master);
-			force_refresh = 1;
-		} /* if stdin set */
-	} /* while(1) */
 }
 
 static void err_exit_cleanup(int error) {
@@ -897,9 +753,11 @@ static void load_plugins() {
 
 }
 
-static void child_init(const char *env_term) {
+static void child_setup() {
 	const char *child_term;
+	const char *env_term;
 
+	env_term = getenv("TERM"); 
 	/* set terminal profile for CHILD to supplied --term arg if exists 
 	 * otherwise make sure to reset the TERM variable to the initial
 	 * environment, even if it was null.
@@ -920,7 +778,6 @@ static void child_init(const char *env_term) {
 	}
 
 	unblock_winch();	
-	execvp(g_conf.cmd_argv[0], (char *const *) g_conf.cmd_argv);
 }
 
 static void init_plugins(struct aug_api *api) {
@@ -971,12 +828,23 @@ static void free_plugins() {
 
 /* ============== MAIN ==============================*/
 
+void to_lock_for_io() {
+	block_winch(); 
+	lock_all();
+}
+
+void to_unlock_after_io() {
+	unlock_all(); 
+	unblock_winch();
+}
+
+void to_refresh_after_io() {
+	panel_stack_update();
+	screen_doupdate();
+}
+
 int aug_main(int argc, char *argv[]) {
-	pid_t child;
-	struct winsize size;
-	const char *env_term;
 	struct termios child_termios;
-	int master;
 	struct aug_api api;
 
 	if(init_conf(argc, argv) != 0) /* 1 */
@@ -988,7 +856,6 @@ int aug_main(int argc, char *argv[]) {
 
 	setlocale(LC_ALL,"");
 	
-	env_term = getenv("TERM"); 
 	/* set the PARENT terminal profile to --ncterm if supplied.
 	 * have to set this before calling screen_init to affect ncurses */
 	if(g_conf.ncterm != NULL)
@@ -1011,25 +878,20 @@ int aug_main(int argc, char *argv[]) {
 	if(screen_init(&g_term) != 0) /* 3 */
 		err_exit(0, "screen_init failure");
 	err_exit_cleanup_fn(err_exit_cleanup);
-	
-	term_dims(&g_term, (int *) &size.ws_row, (int *) &size.ws_col);
-
 	if(g_conf.nocolor == false)
 		if(screen_color_start() != 0) {
 			printf("failed to start color\n");
 			goto screen_cleanup;
 		}
 
-	child = forkpty(&master, NULL, &child_termios, &size);
-	if(child == 0) {
-		child_init(env_term);
-		err_exit(errno, "cannot exec %s", g_conf.cmd_argv[0]);
-	}
+	child_init(
+		&g_child, 
+		&g_term, 
+		(char *const *) g_conf.cmd_argv,
+		child_setup,
+		&child_termios
+	);
 
-	if(set_nonblocking(master) != 0)
-		err_exit(errno, "failed to set master fd to non-blocking");
-	if(term_set_master(&g_term, master) != 0)
-		err_exit(errno, "failed to set master pty in term structure");
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 
@@ -1048,11 +910,20 @@ int aug_main(int argc, char *argv[]) {
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);
+
 	fprintf(stderr, "lock screen\n");
 	lock_all(); /* will be unlocked in *loop* */
 	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
-	loop(&g_term);
+	child_io_loop(
+		&g_child,
+		STDIN_FILENO,
+		to_lock_for_io,
+		to_unlock_after_io,
+		to_refresh_after_io,
+		process_keys
+	);
+
 	/* everything should be unlocked at this point */
 	fprintf(stderr, "end main event loop, exiting...\n");
 

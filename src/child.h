@@ -29,15 +29,18 @@
 #	include <pty.h>
 #endif
 
+#include "lock.h"
+
 #define AUG_CHILD_BUF_SIZE 2048*4
 
 struct aug_child {
 	char buf[AUG_CHILD_BUF_SIZE];
 	struct aug_term *term;	
+	AUG_LOCK_MEMBERS;
 };
 
 void child_init(struct aug_child *child, struct aug_term *term, 
-		char *const *cmd_argv, const char *term_var, 
+		char *const *cmd_argv, void (*exec_cb)(),
 		struct termios *child_termios);
 
 void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(), 

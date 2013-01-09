@@ -8,13 +8,13 @@
 #include "util.h"
 #include "term.h"
 
-static void fork_init(char *const *, const char *);
+static void fork_init(char *const *, void (*exec_cb)() );
 static void process_vterm_output(struct aug_child *);
 static int process_master_output(struct aug_child *);
 static int process_input(struct aug_child *, int);
 
 void child_init(struct aug_child *child, struct aug_term *term, 
-		char *const *cmd_argv, const char *term_var, 
+		char *const *cmd_argv, void (*exec_cb)(),
 		struct termios *child_termios) {
 	struct winsize size;
 	int master;
@@ -22,7 +22,7 @@ void child_init(struct aug_child *child, struct aug_term *term,
 
 	pid = forkpty(&master, NULL, child_termios, &size);
 	if(pid == 0) {
-		fork_init(cmd_argv, term_var);
+		fork_init(cmd_argv, exec_cb);
 		err_exit(errno, "cannot exec %s", cmd_argv[0]);
 	}
 
@@ -32,15 +32,12 @@ void child_init(struct aug_child *child, struct aug_term *term,
 		err_exit(errno, "failed to set master pty in term structure");
 
 	child->term = term;
+	AUG_LOCK_INIT(child);
 }
 
-static void fork_init(char *const *cmd_argv, const char *term_var) {
-	if(term_var != NULL) {
-		if(setenv("TERM", term_var, 1) != 0)
-			err_exit(errno, "error setting environment variable: %s", term_var);
-	}
+static void fork_init(char *const *cmd_argv, void (*exec_cb)() ) {
 
-	/* pre exec callback */
+	(*exec_cb)();
 	execvp(cmd_argv[0], cmd_argv);
 }
 
@@ -111,6 +108,10 @@ static int process_input(struct aug_child *child, int fd_input) {
 	return n_read;
 }
 
+/* this function calls the -to_unlock- callback first, thus it 
+ * expects all resources to be in a locked state when entering
+ * this function.
+ */
 void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(), 
 		void (*to_unlock)(), void (*to_refresh)(), 
 		void (*to_process_input)(struct aug_term *term, int fd_input) ) {
@@ -126,7 +127,6 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(),
 	/* dont initially need to worry about inter_io_timer's need to timeout */
 	just_refreshed = 1;
 
-	(*to_lock)();
 	while(1) {
 		FD_ZERO(&in_fds);
 		FD_SET(fd_input, &in_fds);
