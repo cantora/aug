@@ -113,6 +113,10 @@ struct aug_plugin {
 /* function pointer type for callbacks on key extensions */
 typedef void (*aug_on_key_fn)(int chr, void *user);
 
+struct aug_terminal_win {
+	WINDOW *win;
+};
+
 /* passed to the plugin to provide 
  * an interface to the core application.
  * these functions are thread safe.
@@ -265,6 +269,10 @@ struct aug_api {
 
 	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
+
+	void (*new_terminal)(struct aug_plugin *plugin, struct aug_terminal_win *win,
+							char *const *argv, void *(on_close)() );
+	void (*delete_terminal)(struct aug_plugin *plugin, struct aug_terminal_win *win);
 };
 
 #endif /* AUG_AUG_H */

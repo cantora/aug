@@ -828,6 +828,18 @@ static void free_plugins() {
 
 /* ============== MAIN ==============================*/
 
+/* if a plugin thread is caused to handle
+* a WINCH signal there could be trouble because the plugin may
+* have locked the screen via an API call, then gets interrupted by a WINCH
+* signal which will attempt to lock the screen again. of course
+* this isnt a problem for this main thread here because it only
+* handles WINCH signals while in the following select call. so...
+* this means we have to block WINCH and (maybe other signals?) during
+* periods where the main thread may call a plugin function, such that
+* when the plugin creates a thread it will inherit a signal mask
+* with WINCH blocked. the API will expect plugins not to unblock that
+* signal in their threads.
+*/
 void to_lock_for_io() {
 	block_winch(); 
 	lock_all();
