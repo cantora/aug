@@ -33,7 +33,7 @@ static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
-static PANEL *g_pan1, *g_pan2;
+static PANEL *g_pan1, *g_pan2, *g_pan3;
 static WINDOW *g_pan2_dwin;
 static pthread_t g_thread1, g_thread2;
 
@@ -567,7 +567,7 @@ static void *thread2(void *user) {
 
 	todo_start("expected to fail. see below.");
 	(*g_api->screen_panel_size)(g_plugin, &stack_size);
-	ok1(stack_size == 2);
+	ok1(stack_size == 3);
 	todo_end();
 
 	diag("write a message into the panel");
@@ -625,9 +625,9 @@ static void on_r(int chr, void *user) {
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
-	WINDOW *pan1_win;
+	WINDOW *pan1_win, *pan3_win;
 
-	plan_tests(100);
+	plan_tests(103);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -694,6 +694,30 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar1_cb);
 	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb);
 	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb);
+
+	diag("create terminal panel");
+	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 22, 33, &g_pan3);
+	pass("terminal panel allocated");
+
+	diag("there should be 2 panels");
+	(*g_api->screen_panel_size)(g_plugin, &stack_size);
+	ok1(stack_size == 2);
+
+	diag("write a message into terminal panel");
+
+	(*g_api->lock_screen)(g_plugin);
+	if( (pan3_win = panel_window(g_pan3) ) == NULL) {
+		diag("expected to be able to access panel window. abort...");
+		goto unlock;
+	}
+	
+	if(box_and_print(pan3_win, "the terminal panel") != 0) {
+		diag("box_and_print failed. abort...");
+		goto unlock;
+	}
+	(*g_api->screen_panel_update)(g_plugin);
+	(*g_api->screen_doupdate)(g_plugin);
+	(*g_api->unlock_screen)(g_plugin);
 	
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {
@@ -740,6 +764,9 @@ void aug_plugin_free() {
 				"hidden panels are not traversable via "
 				"panel_below/above functions, which "
 				"messes up panel_stack_size()");
+	(*g_api->screen_panel_size)(g_plugin, &size);
+	ok1( size == 3 );
+	(*g_api->screen_panel_dealloc)(g_plugin, g_pan3);
 	(*g_api->screen_panel_size)(g_plugin, &size);
 	ok1( size == 2 );
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan2);
