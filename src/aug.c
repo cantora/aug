@@ -349,7 +349,7 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 	screen_doupdate();
 }
 
-static void api_new_terminal(struct aug_plugin *plugin, struct aug_terminal_win *twin,
+static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 								char *const *argv, void **terminal, int *pipe_fd ) {
 	struct aug_term_child *tchild;
 	int status;
@@ -407,7 +407,7 @@ static void term_child_process_input(struct aug_term *term, int fd_input) {
 
 }
 
-static void api_run_terminal(struct aug_plugin *plugin, void *terminal) {
+static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	struct aug_term_child *tchild;
 
 	(void)(plugin);
@@ -889,8 +889,8 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_size = api_screen_panel_size;
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
-	api->new_terminal = api_new_terminal;
-	api->run_terminal = api_run_terminal;
+	api->terminal_new = api_terminal_new;
+	api->terminal_run = api_terminal_run;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

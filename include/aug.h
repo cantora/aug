@@ -270,10 +270,11 @@ struct aug_api {
 	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
-	void (*new_terminal)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
+	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal, int *pipe_fd);
-	void (*delete_terminal)(struct aug_plugin *plugin, void *terminal);
-	void (*run_terminal)(struct aug_plugin *plugin, void *terminal);
+	void (*terminal_pid)(struct aug_plugin *plugin, void *terminal);
+	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
+	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
 };
 
 #endif /* AUG_AUG_H */
