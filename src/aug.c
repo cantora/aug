@@ -68,6 +68,7 @@ static void unlock_all();
 static void lock_screen();
 static void unlock_screen();
 static void child_setup();
+static void to_refresh_after_io();
 
 static struct aug_conf g_conf; /* structure of configuration variables */
 static struct aug_plugin_list g_plugin_list;
@@ -99,7 +100,7 @@ struct aug_term_child {
 	struct aug_child child;
 	struct aug_term term;
 	struct aug_terminal_win *twin;
-	void (*on_close)();
+	int pipe;
 };
 /* ================= API FUNCTIONS ==================================== */
 
@@ -349,14 +350,20 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 }
 
 static void api_new_terminal(struct aug_plugin *plugin, struct aug_terminal_win *twin,
-								char *const *argv, void (*on_close)(), void **terminal ) {
-	(void)(plugin);
+								char *const *argv, void **terminal, int *pipe_fd ) {
 	struct aug_term_child *tchild;
-	
+	int status;
+	int pipe_arr[2];
+	(void)(plugin);
+
 	lock_all();
 	
+	if( (status = pipe(pipe_arr) ) != 0)
+		err_exit(errno, "failed to create pipe for child terminal");
+
 	tchild = aug_malloc( sizeof(struct aug_term_child) );
 	tchild->twin = twin;
+	tchild->pipe = pipe_arr[0];
 		
 	term_init(&tchild->term, 1, 1);
 	child_init(
@@ -366,10 +373,56 @@ static void api_new_terminal(struct aug_plugin *plugin, struct aug_terminal_win 
 		child_setup,
 		NULL
 	);
+	
 	*terminal = (void *) tchild;
-	tchild->on_close = on_close;
+	*pipe_fd = pipe_arr[1];
 
 	unlock_all();
+}
+
+static void term_child_process_input(struct aug_term *term, int fd_input) {
+	ssize_t n_read, i;
+	char buf[512];
+	int amt;
+
+	amt = term_can_push_chars(term);
+	if(amt < 1) 
+		return;
+	else if( amt > (int) sizeof(buf) )
+		amt = sizeof(buf);
+
+	n_read = read(fd_input, buf, amt);
+	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
+		return;
+	}
+	else if(n_read < 0 && errno != EAGAIN) {
+		err_exit(errno, "error reading from input fd (n_read = %d)", n_read);
+	}
+	else if(errno == EAGAIN) {
+		return;
+	}
+
+	for(i = 0; i < n_read; i++)
+		term_push_char(term, (uint32_t) buf[i]);
+
+}
+
+static void api_run_terminal(struct aug_plugin *plugin, void *terminal) {
+	struct aug_term_child *tchild;
+
+	(void)(plugin);
+
+	tchild = (struct aug_term_child *) terminal;
+
+	lock_all();
+	child_io_loop(
+		&tchild->child,
+		tchild->pipe,
+		lock_all,
+		unlock_all,
+		to_refresh_after_io,
+		term_child_process_input
+	);
 }
 
 /* =================== end API functions ==================== */
@@ -837,6 +890,7 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
 	api->new_terminal = api_new_terminal;
+	api->run_terminal = api_run_terminal;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);
@@ -872,17 +926,17 @@ static void free_plugins() {
 * with WINCH blocked. the API will expect plugins not to unblock that
 * signal in their threads.
 */
-void to_lock_for_io() {
+static void main_to_lock_for_io() {
 	block_winch(); 
 	lock_all();
 }
 
-void to_unlock_after_io() {
+static void main_to_unlock_after_io() {
 	unlock_all(); 
 	unblock_winch();
 }
 
-void to_refresh_after_io() {
+static void to_refresh_after_io() {
 	panel_stack_update();
 	screen_doupdate();
 }
@@ -962,8 +1016,8 @@ int aug_main(int argc, char *argv[]) {
 	child_io_loop(
 		&g_child,
 		STDIN_FILENO,
-		to_lock_for_io,
-		to_unlock_after_io,
+		main_to_lock_for_io,
+		main_to_unlock_after_io,
 		to_refresh_after_io,
 		process_keys
 	);

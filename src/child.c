@@ -10,7 +10,6 @@
 
 static void process_vterm_output(struct aug_child *);
 static int process_master_output(struct aug_child *);
-static int process_input(struct aug_child *, int);
 
 void child_init(struct aug_child *child, struct aug_term *term, 
 		char *const *cmd_argv, void (*exec_cb)(),
@@ -74,31 +73,6 @@ static int process_master_output(struct aug_child *child) {
 		vterm_push_bytes(child->term->vt, child->buf, total_read);
 	
 	return 0;
-}
-
-static int process_input(struct aug_child *child, int fd_input) {
-	ssize_t n_read, i;
-
-	n_read = read(fd_input, child->buf, AUG_CHILD_BUF_SIZE);
-	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
-		return -1; /* the input fd is closed, return -1 to signify */
-	}
-	else if(n_read < 0 && errno != EAGAIN) {
-		err_exit(errno, "error reading from input fd (n_read = %d)", n_read);
-	}
-	else if(errno == EAGAIN) {
-		return 0;
-	}
-
-	for(i = 0; i < n_read; i++) {
-		vterm_input_push_char(
-			child->term->vt, 
-			VTERM_MOD_NONE, 
-			(uint32_t) child->buf[i]
-		);	
-	}
-
-	return n_read;
 }
 
 /* this function calls the -to_unlock- callback first, thus it 

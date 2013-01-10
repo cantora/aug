@@ -271,7 +271,7 @@ struct aug_api {
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
 	void (*new_terminal)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
-							char *const *argv, void (*on_close)(), void **terminal);
+							char *const *argv, void **terminal, int *pipe_fd);
 	void (*delete_terminal)(struct aug_plugin *plugin, void *terminal);
 	void (*run_terminal)(struct aug_plugin *plugin, void *terminal);
 };
