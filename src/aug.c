@@ -67,6 +67,7 @@ static void lock_all();
 static void unlock_all();
 static void lock_screen();
 static void unlock_screen();
+static void child_setup();
 
 static struct aug_conf g_conf; /* structure of configuration variables */
 static struct aug_plugin_list g_plugin_list;
@@ -94,6 +95,12 @@ static struct {
 /* static globals */
 static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
 
+struct aug_term_child {
+	struct aug_child child;
+	struct aug_term term;
+	struct aug_terminal_win *twin;
+	void (*on_close)();
+};
 /* ================= API FUNCTIONS ==================================== */
 
 static int api_log(struct aug_plugin *plugin, const char *format, ...) {
@@ -339,6 +346,30 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 	(void)(plugin);
 
 	screen_doupdate();
+}
+
+static void api_new_terminal(struct aug_plugin *plugin, struct aug_terminal_win *twin,
+								char *const *argv, void (*on_close)(), void **terminal ) {
+	(void)(plugin);
+	struct aug_term_child *tchild;
+	
+	lock_all();
+	
+	tchild = aug_malloc( sizeof(struct aug_term_child) );
+	tchild->twin = twin;
+		
+	term_init(&tchild->term, 1, 1);
+	child_init(
+		&tchild->child, 
+		&tchild->term, 
+		argv,
+		child_setup,
+		NULL
+	);
+	*terminal = (void *) tchild;
+	tchild->on_close = on_close;
+
+	unlock_all();
 }
 
 /* =================== end API functions ==================== */
@@ -805,6 +836,7 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_size = api_screen_panel_size;
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
+	api->new_terminal = api_new_terminal;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);
@@ -826,7 +858,7 @@ static void free_plugins() {
 	plugin_list_free(&g_plugin_list);
 }
 
-/* ============== MAIN ==============================*/
+/* ============== MAIN ============================== */
 
 /* if a plugin thread is caused to handle
 * a WINCH signal there could be trouble because the plugin may
@@ -914,7 +946,7 @@ int aug_main(int argc, char *argv[]) {
 	objset_init(&g_edgewin_set); /* 6 */
 	region_map_init(); 
 	AUG_LOCK_INIT(&g_region_map);
-	
+		
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
 	init_plugins(&api); /* 7 */

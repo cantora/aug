@@ -37,6 +37,7 @@ struct aug_child {
 	char buf[AUG_CHILD_BUF_SIZE];
 	struct aug_term *term;	
 	AUG_LOCK_MEMBERS;
+	pid_t pid;
 };
 
 void child_init(struct aug_child *child, struct aug_term *term, 

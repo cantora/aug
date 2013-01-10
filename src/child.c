@@ -8,7 +8,6 @@
 #include "util.h"
 #include "term.h"
 
-static void fork_init(char *const *, void (*exec_cb)() );
 static void process_vterm_output(struct aug_child *);
 static int process_master_output(struct aug_child *);
 static int process_input(struct aug_child *, int);
@@ -18,11 +17,11 @@ void child_init(struct aug_child *child, struct aug_term *term,
 		struct termios *child_termios) {
 	struct winsize size;
 	int master;
-	pid_t pid;
 
-	pid = forkpty(&master, NULL, child_termios, &size);
-	if(pid == 0) {
-		fork_init(cmd_argv, exec_cb);
+	child->pid = forkpty(&master, NULL, child_termios, &size);
+	if(child->pid == 0) {
+		(*exec_cb)();
+		execvp(cmd_argv[0], cmd_argv);
 		err_exit(errno, "cannot exec %s", cmd_argv[0]);
 	}
 
@@ -33,12 +32,6 @@ void child_init(struct aug_child *child, struct aug_term *term,
 
 	child->term = term;
 	AUG_LOCK_INIT(child);
-}
-
-static void fork_init(char *const *cmd_argv, void (*exec_cb)() ) {
-
-	(*exec_cb)();
-	execvp(cmd_argv[0], cmd_argv);
 }
 
 static void process_vterm_output(struct aug_child *child) {
