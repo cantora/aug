@@ -33,6 +33,10 @@ void child_init(struct aug_child *child, struct aug_term *term,
 	AUG_LOCK_INIT(child);
 }
 
+void child_free(struct aug_child *child) {
+	AUG_LOCK_FREE(child);
+}
+
 static void process_vterm_output(struct aug_child *child) {
 	size_t buflen;
 

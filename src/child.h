@@ -43,7 +43,7 @@ struct aug_child {
 void child_init(struct aug_child *child, struct aug_term *term, 
 		char *const *cmd_argv, void (*exec_cb)(),
 		struct termios *child_termios);
-
+void child_free(struct aug_child *child);
 void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(), 
 		void (*to_unlock)(), void (*to_refresh)(), 
 		void (*to_process_input)(struct aug_term *term, int fd_input) );

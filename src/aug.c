@@ -380,6 +380,21 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	unlock_all();
 }
 
+static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
+	struct aug_term_child *tchild;
+	(void)(plugin);
+
+	lock_all();
+
+	tchild = (struct aug_term_child *) terminal;
+	
+	child_free(&tchild->child);	
+	term_free(&tchild->term);
+	free(tchild);
+
+	unlock_all();
+}
+
 static void term_child_process_input(struct aug_term *term, int fd_input) {
 	ssize_t n_read, i;
 	char buf[512];
@@ -407,6 +422,15 @@ static void term_child_process_input(struct aug_term *term, int fd_input) {
 
 }
 
+static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
+	const struct aug_term_child *tchild;
+	(void)(plugin);
+
+	tchild = (const struct aug_term_child *) terminal;
+	
+	return tchild->child.pid;
+}
+
 static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	struct aug_term_child *tchild;
 
@@ -424,6 +448,7 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 		term_child_process_input
 	);
 }
+
 
 /* =================== end API functions ==================== */
 
@@ -890,7 +915,9 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
 	api->terminal_new = api_terminal_new;
+	api->terminal_delete = api_terminal_delete;
 	api->terminal_run = api_terminal_run;
+	api->terminal_pid = api_terminal_pid;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

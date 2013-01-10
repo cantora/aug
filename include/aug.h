@@ -5,6 +5,7 @@
 #include <wchar.h>
 #include "ncurses.h"
 #include <panel.h>
+#include <unistd.h>
 
 #define AUG_API_VERSION_MAJOR 0
 #define AUG_API_VERSION_MINOR 0
@@ -272,7 +273,7 @@ struct aug_api {
 
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal, int *pipe_fd);
-	void (*terminal_pid)(struct aug_plugin *plugin, void *terminal);
+	pid_t (*terminal_pid)(struct aug_plugin *plugin, const void *terminal);
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
 	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
 };
