@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/select.h>
 #include <sys/time.h>
 #include <time.h>
@@ -33,20 +34,12 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#if defined(__FreeBSD__)
-#	include <libutil.h>
-#	include <termios.h>
-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
-#	include <termios.h>
-#	include <util.h>
-#else
-#	include <pty.h>
-#endif
 #include <wordexp.h>
 
 #include "vterm.h"
 
 #include <ccan/objset/objset.h>
+#include <ccan/build_assert/build_assert.h>
 
 #include "util.h"
 #include "screen.h"
@@ -77,6 +70,8 @@ static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
 static struct aug_child g_child;
+static sigset_t g_sigset;
+
 static struct {
 	AUG_LOCK_MEMBERS;
 } g_screen;
@@ -93,14 +88,21 @@ static struct {
 	OBJSET_MEMBERS(struct plugin_callback_pair *);
 } g_edgewin_set;
 
+static struct {
+	AVL *tree;
+	AUG_LOCK_MEMBERS;
+} g_tchild_table;
+
 /* static globals */
 static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
+static struct sigaction g_chld_act;
 
 struct aug_term_child {
 	struct aug_child child;
 	struct aug_term term;
 	struct aug_terminal_win *twin;
 	int pipe;
+	int terminated;
 };
 /* ================= API FUNCTIONS ==================================== */
 
@@ -351,13 +353,14 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 
 static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 								char *const *argv, void **terminal, int *pipe_fd ) {
-	struct aug_term_child *tchild;
+	struct aug_term_child *tchild, *old_tchild;
 	int status;
 	int pipe_arr[2];
 	(void)(plugin);
 
 	lock_all();
-	
+	AUG_LOCK(&g_tchild_table);
+
 	if( (status = pipe(pipe_arr) ) != 0)
 		err_exit(errno, "failed to create pipe for child terminal");
 
@@ -366,6 +369,8 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	tchild->pipe = pipe_arr[0];
 		
 	term_init(&tchild->term, 1, 1);
+	tchild->terminated = 0;
+
 	child_init(
 		&tchild->child, 
 		&tchild->term, 
@@ -373,25 +378,63 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 		child_setup,
 		NULL
 	);
-	
+	fprintf(stderr, "started child at pid %d\n", tchild->child.pid);
+
 	*terminal = (void *) tchild;
 	*pipe_fd = pipe_arr[1];
 
+	/* disregard the warning, void * is bigger or equal to pid_t */
+	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
+	old_tchild = avl_lookup(g_tchild_table.tree, (void *) tchild->child.pid);
+	if(old_tchild != NULL) {
+		if(old_tchild->terminated == 0) {
+			fprintf(
+				stderr, 
+				"warning: reusing pid %d before previous child \
+					at that pid terminated", 
+				tchild->child.pid
+			);
+			old_tchild->terminated = 1;
+		}		
+	}
+
+	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
+	avl_insert(g_tchild_table.tree, (void *) tchild->child.pid, tchild);
+
+	AUG_UNLOCK(&g_tchild_table);
 	unlock_all();
 }
 
 static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
 	struct aug_term_child *tchild;
 	(void)(plugin);
-
+	
 	lock_all();
+	AUG_LOCK(&g_tchild_table);
 
 	tchild = (struct aug_term_child *) terminal;
+	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
+	if(avl_remove(g_tchild_table.tree, (void *) tchild->child.pid) != true) {
+#ifdef AUG_DEBUG
+		err_exit(
+			0, 
+			"error: could not locate terminal child at pid %d", 
+			tchild->child.pid
+		);
+#else
+		fprintf(
+			stderr, 
+			"warning: could not locate terminal child at pid %d", 
+			tchild->child.pid
+		);
+#endif
+	}
 	
 	child_free(&tchild->child);	
 	term_free(&tchild->term);
 	free(tchild);
 
+	AUG_UNLOCK(&g_tchild_table);
 	unlock_all();
 }
 
@@ -419,7 +462,6 @@ static void term_child_process_input(struct aug_term *term, int fd_input) {
 
 	for(i = 0; i < n_read; i++)
 		term_push_char(term, (uint32_t) buf[i]);
-
 }
 
 static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
@@ -449,6 +491,14 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	);
 }
 
+static int api_terminal_terminated(struct aug_plugin *plugin, const void *terminal) {
+	const struct aug_term_child *tchild;
+	(void)(plugin);
+
+	tchild = (const struct aug_term_child *) terminal;
+	
+	return (tchild->terminated != 0);
+}
 
 /* =================== end API functions ==================== */
 
@@ -541,29 +591,22 @@ static void unlock_all() {
 	AUG_UNLOCK(&g_child);
 }
 
-static void change_winch(int how) {
-	sigset_t set;
+static void change_sig(int how) {
 
-	if(sigemptyset(&set) != 0) 
-		err_exit(errno, "sigemptyset failed"); 
-
-	if(sigaddset(&set, SIGWINCH) != 0) 
-		err_exit(errno, "sigaddset failed");
-
-	if(sigprocmask(how, &set, NULL) != 0)
+	if(sigprocmask(how, &g_sigset, NULL) != 0)
 		err_exit(errno, "sigprocmask failed");
 }
 
-static inline void block_winch() {
-	change_winch(SIG_BLOCK);
+static inline void block_sigs() {
+	change_sig(SIG_BLOCK);
 }
 
-static inline void unblock_winch() {
-	change_winch(SIG_UNBLOCK);
+static inline void unblock_sigs() {
+	change_sig(SIG_UNBLOCK);
 }
 
 /* handler for SIGWINCH. */
-static void handler_winch(int signo) {
+static void handler_winch() {
 	int rows, cols;
 	struct aug_plugin_item *i;
 
@@ -578,7 +621,7 @@ static void handler_winch(int signo) {
 	/* in case curses installed a winch handler */
 	if(g_prev_winch_act.sa_handler != NULL) {
 		fprintf(stderr, "call previous winch handler\n");
-		(*g_prev_winch_act.sa_handler)(signo);
+		(*g_prev_winch_act.sa_handler)(SIGWINCH);
 	}
 
 	/* tell the screen manager to resize to whatever the new
@@ -602,6 +645,55 @@ static void handler_winch(int signo) {
 	fprintf(stderr, "handler_winch: unlocked all\n");
 
 	fprintf(stderr, "handler_winch: exit\n");
+}
+
+/* handler for SIGCHLD. */
+static void handler_chld() {
+	pid_t pid;
+	int status;
+	struct aug_term_child *tchild;
+
+	fprintf(stderr, "handler_chld: enter\n");
+
+	AUG_LOCK(&g_tchild_table);
+	while( (pid = waitpid(-1, &status, WNOHANG)) > 0) {
+		if(!WIFEXITED(status) && !WIFSIGNALED(status) ) 
+			continue;
+		
+		if(pid == g_child.pid) {
+			fprintf(stderr, "reaped primary child at pid %d\n", pid);
+			continue;
+		}
+
+		BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
+		tchild = avl_lookup(g_tchild_table.tree, (void *) pid);
+		if(tchild == NULL) {
+			fprintf(stderr, "warning: reaped unknown child at pid %d\n", pid);
+			continue;
+		}
+
+		tchild->terminated = 1;	
+	}
+	AUG_UNLOCK(&g_tchild_table);
+
+	if(pid != 0) {
+		err_exit(errno, "waitpid caused an error");
+	}
+
+	fprintf(stderr, "handler_chld: exit\n");
+}
+
+static void handler(int signo) {
+	switch(signo) {
+	case SIGWINCH:
+		handler_winch();
+		break;
+	case SIGCHLD:
+		handler_chld();
+		break;
+	default:
+		fprintf(stderr, "warning: unexpected handling of signal %d\n", signo);
+	}
 }
 
 /* all resources should be locked during this function */
@@ -642,7 +734,7 @@ static void process_keys(struct aug_term *term, int fd_input) {
 				push_key(term, ch);
 			}
 			else { /* invoke the command */
-				/* note: WINCH is should still be blocked */
+				/* note: sigs should still be blocked */
 				(*command_fn)(ch, user);
 			}
 			command_key = false;
@@ -886,7 +978,8 @@ static void child_setup() {
 			err_exit(errno, "error unsetting environment variable: TERM");
 	}
 
-	unblock_winch();	
+	/*fprintf(stderr, "child started!\n");*/
+	unblock_sigs();
 }
 
 static void init_plugins(struct aug_api *api) {
@@ -918,6 +1011,7 @@ static void init_plugins(struct aug_api *api) {
 	api->terminal_delete = api_terminal_delete;
 	api->terminal_run = api_terminal_run;
 	api->terminal_pid = api_terminal_pid;
+	api->terminal_terminated = api_terminal_terminated;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);
@@ -942,25 +1036,25 @@ static void free_plugins() {
 /* ============== MAIN ============================== */
 
 /* if a plugin thread is caused to handle
-* a WINCH signal there could be trouble because the plugin may
-* have locked the screen via an API call, then gets interrupted by a WINCH
-* signal which will attempt to lock the screen again. of course
-* this isnt a problem for this main thread here because it only
-* handles WINCH signals while in the following select call. so...
-* this means we have to block WINCH and (maybe other signals?) during
-* periods where the main thread may call a plugin function, such that
-* when the plugin creates a thread it will inherit a signal mask
-* with WINCH blocked. the API will expect plugins not to unblock that
-* signal in their threads.
-*/
+ * a WINCH signal there could be trouble because the plugin may
+ * have locked the screen via an API call, then gets interrupted by a WINCH
+ * signal which will attempt to lock the screen again. of course
+ * this isnt a problem for this main thread here because it only
+ * handles WINCH signals while in the following select call. so...
+ * this means we have to block WINCH and (maybe other signals?) during
+ * periods where the main thread may call a plugin function, such that
+ * when the plugin creates a thread it will inherit a signal mask
+ * with WINCH blocked. the API will expect plugins not to unblock that
+ * signal in their threads.
+ */
 static void main_to_lock_for_io() {
-	block_winch(); 
+	block_sigs();
 	lock_all();
 }
 
 static void main_to_unlock_after_io() {
-	unlock_all(); 
-	unblock_winch();
+	unlock_all();
+	unblock_sigs();
 }
 
 static void to_refresh_after_io() {
@@ -971,6 +1065,13 @@ static void to_refresh_after_io() {
 int aug_main(int argc, char *argv[]) {
 	struct termios child_termios;
 	struct aug_api api;
+
+	if(sigemptyset(&g_sigset) != 0) 
+		err_exit(errno, "sigemptyset failed"); 
+	if(sigaddset(&g_sigset, SIGWINCH) != 0) 
+		err_exit(errno, "sigaddset failed");
+	if(sigaddset(&g_sigset, SIGCHLD) != 0) 
+		err_exit(errno, "sigaddset failed");
 
 	if(init_conf(argc, argv) != 0) /* 1 */
 		return 1;
@@ -988,14 +1089,17 @@ int aug_main(int argc, char *argv[]) {
 			err_exit(errno, "error setting environment variable: %s", g_conf.ncterm);
 
 
-	/* block winch right off the bat because we want to defer 
-	 * processing of it until curses and vterm are set up. winch
+	/* block sigs right off the bat because we want to defer 
+	 * processing of it until curses and vterm are set up. sigs
 	 * will get unblocked in the loop function.
 	 */
-	block_winch();
-	g_winch_act.sa_handler = handler_winch;
+	block_sigs();	
+	g_winch_act.sa_handler = handler;
 	sigemptyset(&g_winch_act.sa_mask);
 	g_winch_act.sa_flags = 0;
+	g_chld_act.sa_handler = handler;
+	sigemptyset(&g_chld_act.sa_mask);
+	g_chld_act.sa_flags = 0;
 
 	/* screen will resize term to the right size,
 	 * so just initialize to 1x1. */
@@ -1016,9 +1120,7 @@ int aug_main(int argc, char *argv[]) {
 		child_setup,
 		&child_termios
 	);
-
-	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
-		err_exit(errno, "sigaction failed");
+	fprintf(stderr, "started primary child at pid %d\n", g_child.pid);
 
 	AUG_LOCK_INIT(&g_screen); /* 4 */
 	/* init keymap structure */
@@ -1027,6 +1129,8 @@ int aug_main(int argc, char *argv[]) {
 	objset_init(&g_edgewin_set); /* 6 */
 	region_map_init(); 
 	AUG_LOCK_INIT(&g_region_map);
+	g_tchild_table.tree = avl_new( (AvlCompare) void_compare );
+	AUG_LOCK_INIT(&g_tchild_table);
 		
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
@@ -1037,7 +1141,13 @@ int aug_main(int argc, char *argv[]) {
 	conf_fprint(&g_conf, stderr);
 
 	fprintf(stderr, "lock screen\n");
-	lock_all(); /* will be unlocked in *loop* */
+	lock_all(); /* will be unlocked in *loop*, sigs are already blocked */
+
+	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
+		err_exit(errno, "sigaction failed");
+	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0)
+		err_exit(errno, "sigaction failed");
+
 	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
 	child_io_loop(
@@ -1053,9 +1163,19 @@ int aug_main(int argc, char *argv[]) {
 	fprintf(stderr, "end main event loop, exiting...\n");
 
 	/* cleanup */
-	block_winch(); 
+	block_sigs();
 	free_plugins(); /* 7 */
-	unblock_winch();
+
+	/* no longer want to explicitly reap children */
+	g_chld_act.sa_handler = SIG_IGN;
+	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0) 
+		err_exit(errno, "sigaction failed");
+	unblock_sigs();
+
+	/* plugins should have handled cleanup
+	 * of children processes. (maybe put a warning here?) */
+	avl_free(g_tchild_table.tree);
+	AUG_LOCK_FREE(&g_tchild_table);
 
 	region_map_free(); /* 6 */
 	AUG_LOCK_FREE(&g_region_map);
