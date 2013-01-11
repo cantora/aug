@@ -739,7 +739,7 @@ static void handler_chld() {
 	}
 	AUG_UNLOCK(&g_tchild_table);
 
-	if(pid != 0) {
+	if(pid != 0 && errno != ECHILD) {
 		err_exit(errno, "waitpid caused an error");
 	}
 
@@ -1167,10 +1167,16 @@ int aug_main(int argc, char *argv[]) {
 	 */
 	block_sigs();	
 	g_winch_act.sa_handler = handler;
-	sigemptyset(&g_winch_act.sa_mask);
+	if(sigemptyset(&g_winch_act.sa_mask) != 0)
+		err_exit(errno, "sigemptyset failed");
+	if(sigaddset(&g_winch_act.sa_mask, SIGCHLD) != 0)
+		err_exit(errno, "sigaddset failed");
 	g_winch_act.sa_flags = 0;
 	g_chld_act.sa_handler = handler;
-	sigemptyset(&g_chld_act.sa_mask);
+	if(sigemptyset(&g_chld_act.sa_mask) != 0) 
+		err_exit(errno, "sigemptyset failed");
+	if(sigaddset(&g_chld_act.sa_mask, SIGWINCH) != 0)
+		err_exit(errno, "sigaddset failed");
 	g_chld_act.sa_flags = 0;
 
 	/* screen will resize term to the right size,

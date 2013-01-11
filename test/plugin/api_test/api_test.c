@@ -62,9 +62,10 @@ static void check_screen_lock() {
 	pass("screen is unlocked");
 }
 
-static int test_winch() {
+static int test_sigs() {
 	sigset_t sigset;
 	int winch_is_blocked;
+	int chld_is_blocked;
 
 	diag("pthread_sigmask state test");
 	if(pthread_sigmask(SIG_SETMASK, NULL, &sigset) != 0) {
@@ -78,6 +79,13 @@ static int test_winch() {
 	}
 	
 	ok( (winch_is_blocked == 1), "confirm that SIGWINCH is blocked" );
+
+	if( (chld_is_blocked = sigismember(&sigset, SIGCHLD) ) == -1 ) {
+		fail("expected to be able test current sigset.");
+		return -1;
+	}
+	
+	ok( (chld_is_blocked == 1), "confirm that SIGCHLD is blocked" );
 
 	return 0;
 }
@@ -106,7 +114,7 @@ void input_char(int *ch, aug_action *action, void *user) {
 			g_got_expected_input = true;
 
 		ok(user == g_user_data, "check that user ptr is correct");
-		test_winch();
+		test_sigs();
 		diag("----input_char----\n#");
 	}
 
@@ -157,7 +165,7 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cell_update++++");
 		ok(user == g_user_data, "check that user ptr is correct");
-		test_winch();
+		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
 	}
@@ -180,7 +188,7 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cursor_move++++");
 		ok(user == g_user_data, "check that user ptr is correct");
-		test_winch();
+		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cursor_move----\n#");
 	}
@@ -191,7 +199,7 @@ void screen_dims_change(int rows, int cols, void *user) {
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
 	ok(user == g_user_data, "check that user ptr is correct");
-	test_winch();
+	test_sigs();
 	diag("----screen_dims_change----\n#");
 }
 
@@ -321,8 +329,9 @@ void left_bar0_cb(WINDOW *win, void *user) {
 		diag("left window: %dx%d", rows, cols);
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '|') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '|');
+				/*if(mvwaddch(win, i, j, '|') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -353,8 +362,9 @@ void left_bar1_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '*') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '*');
+				/*if(mvwaddch(win, i, j, '*') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -385,8 +395,9 @@ void left_bar2_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '+') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '+');
+				/*if(mvwaddch(win, i, j, '+') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -417,8 +428,9 @@ void right_bar0_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '!') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '!');
+				/*if(mvwaddch(win, i, j, '!') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -449,8 +461,9 @@ void right_bar1_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '?') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '?');
+				/*if(mvwaddch(win, i, j, '?') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -481,8 +494,9 @@ void right_bar2_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '@') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '@');
+				/*if(mvwaddch(win, i, j, '@') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -513,8 +527,9 @@ void right_bar3_cb(WINDOW *win, void *user) {
 		getmaxyx(win, rows, cols);		
 		for(i = 0; i < rows; i++)
 			for(j = 0; j < cols; j++)
-				if(mvwaddch(win, i, j, '|') == ERR)
-					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);
+				mvwaddch(win, i, j, '|');
+				/*if(mvwaddch(win, i, j, '|') == ERR)
+					diag("warning: print on window failed at %d/%d, %d/%d", i, rows, j, cols);*/
 
 		wsyncup(win);
 		wcursyncup(win);
@@ -528,7 +543,7 @@ static void *thread1(void *user) {
 
 	diag("++++thread1++++");
 	check_screen_lock();
-	test_winch();
+	test_sigs();
 	
 	sleep(6);
 	diag("move panel a bit");
@@ -566,7 +581,7 @@ static void *thread2(void *user) {
 
 	diag("++++thread2++++");
 	check_screen_lock();
-	test_winch();
+	test_sigs();
 
 	diag("allocate a panel");
 	rows = 10;
@@ -617,6 +632,7 @@ static void *thread3(void *user) {
 	(void)(user);
 
 	diag("++++thread3++++\n#");
+	test_sigs();
 	diag("run panel terminal io loop");
 	(*g_api->terminal_run)(g_plugin, g_pan_tp_pair.terminal);
 	pass("finished panel terminal io loop");
@@ -627,7 +643,7 @@ static void *thread3(void *user) {
 
 static void on_r(int chr, void *user) {
 	diag("++++key callback++++");
-	test_winch();
+	test_sigs();
 	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);
 	ok( (user == g_user_data), "user ptr is correct");
 		
@@ -651,7 +667,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(108);
+	plan_tests(119);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -659,7 +675,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->log)(g_plugin, "init %s\n", aug_plugin_name);
 
 	check_screen_lock();
-	test_winch();
+	test_sigs();
 
 	g_callbacks.user = g_user_data;
 	api->callbacks(g_plugin, &g_callbacks, NULL);
@@ -788,7 +804,7 @@ void aug_plugin_free() {
 	(*g_api->log)(g_plugin, "free\n");
 
 	check_screen_lock();
-	test_winch();
+	test_sigs();
 
 	if( (*g_api->terminal_terminated)(g_plugin, g_pan_tp_pair.terminal) == 0) {
 		pass("terminal is still running, kill child.");
