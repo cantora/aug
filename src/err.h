@@ -19,7 +19,13 @@
 #ifndef AUG_ERR_H
 #define AUG_ERR_H
 
+#define err_exit(...) \
+	do { \
+		err_exit_fn(__FILE__, __LINE__, __VA_ARGS__); \
+	} while(0)
+
 void err_exit_cleanup_fn(void (*cleanup_fn)(int error) );
-void err_exit(int error, const char *format, ...);
+void err_exit_fn(const char *file, int lineno, 
+					int error, const char *format, ...);
 
 #endif
