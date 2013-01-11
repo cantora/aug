@@ -484,7 +484,7 @@ static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
 	return tchild->child.pid;
 }
 
-static void term_child_process_input(struct aug_term *term, int fd_input, void *user) {
+static int term_child_process_input(struct aug_term *term, int fd_input, void *user) {
 	ssize_t n_read, i;
 	char buf[512];
 	int amt;
@@ -493,23 +493,25 @@ static void term_child_process_input(struct aug_term *term, int fd_input, void *
 
 	amt = term_can_push_chars(term);
 	if(amt < 1) 
-		return;
+		return 0;
 	else if( amt > (int) sizeof(buf) )
 		amt = sizeof(buf);
 
 	n_read = read(fd_input, buf, amt);
 	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
-		return;
+		return -1;
 	}
 	else if(n_read < 0 && errno != EAGAIN) {
 		err_exit(errno, "error reading from input fd (n_read = %d)", n_read);
 	}
 	else if(errno == EAGAIN) {
-		return;
+		return 0;
 	}
 
 	for(i = 0; i < n_read; i++)
 		term_push_char(term, (uint32_t) buf[i]);
+
+	return 0;
 }
 
 static void terminal_run_lock(void *user) {
@@ -773,7 +775,7 @@ static void push_key(struct aug_term *term, int ch) {
 	term_push_char(term, (uint32_t) ch);
 }
 
-static void process_keys(struct aug_term *term, int fd_input, void *user) {
+static int process_keys(struct aug_term *term, int fd_input, void *user) {
 	int ch;
 	static bool command_key = false;
 	aug_on_key_fn command_fn;
@@ -806,6 +808,8 @@ static void process_keys(struct aug_term *term, int fd_input, void *user) {
 			push_key(term, ch);
 		}
 	}
+
+	return 0;
 }
 
 static void err_exit_cleanup(int error) {

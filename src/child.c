@@ -85,7 +85,7 @@ static int process_master_output(struct aug_child *child) {
  */
 void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *), 
 		void (*to_unlock)(void *), void (*to_refresh)(void *), 
-		void (*to_process_input)(struct aug_term *term, int fd_input, void *),
+		int (*to_process_input)(struct aug_term *term, int fd_input, void *),
 		void *user ) {
 	fd_set in_fds;
 	int status, force_refresh, just_refreshed;
@@ -167,7 +167,10 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
 		if(FD_ISSET(fd_input, &in_fds) ) {
-			(*to_process_input)(child->term, fd_input, user); 
+			if( (*to_process_input)(child->term, fd_input, user) != 0 ) {
+				/* fd_input is closed or bad in some way */
+				goto done;
+			}			
 			process_vterm_output(child);
 			force_refresh = 1;
 		} /* if stdin set */

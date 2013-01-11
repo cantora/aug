@@ -46,7 +46,7 @@ void child_init(struct aug_child *child, struct aug_term *term,
 void child_free(struct aug_child *child);
 void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *), 
 		void (*to_unlock)(void *), void (*to_refresh)(void *), 
-		void (*to_process_input)(struct aug_term *term, int fd_input, void *),
+		int (*to_process_input)(struct aug_term *term, int fd_input, void *),
 		void *user );
 
 #endif /* AUG_CHILD_H */
