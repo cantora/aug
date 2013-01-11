@@ -84,6 +84,10 @@ fail:
 	return -1;
 }
 
+int screen_color_on() {
+	return (g.color_on != 0);
+}
+
 static int free_term_win() {
 	if(g.term_win.win != NULL) {
 		if(delwin(g.term_win.win) == ERR)

@@ -38,7 +38,7 @@ static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
 static PANEL *g_pan1, *g_pan2, *g_pan3;
 static struct aug_terminal_win g_pan_twin;
-static WINDOW *g_pan2_dwin;
+static WINDOW *g_pan2_dwin, *g_pan3_dwin;
 static pthread_t g_thread1, g_thread2, g_thread3;
 
 struct term_pipe_pair {
@@ -649,8 +649,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	const char *testkey;
 	int stack_size = -1;
 	WINDOW *pan1_win, *pan3_win;
+	int rows, cols, drows, dcols;
 
-	plan_tests(105);
+	plan_tests(108);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -726,23 +727,32 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_panel_size)(g_plugin, &stack_size);
 	ok1(stack_size == 2);
 
-	diag("write a message into terminal panel");
+	diag("set up terminal panel");
 
 	(*g_api->lock_screen)(g_plugin);
 	if( (pan3_win = panel_window(g_pan3) ) == NULL) {
 		diag("expected to be able to access panel window. abort...");
 		goto unlock;
 	}
-	
-	if(box_and_print(pan3_win, "the terminal panel") != 0) {
-		diag("box_and_print failed. abort...");
+	if(box(pan3_win, 0, 0) == ERR) {
+		diag("box failed. abort...");
 		goto unlock;
 	}
+	
+	getmaxyx(pan3_win, rows, cols);
+	if( (g_pan3_dwin = derwin(pan3_win, rows-2, cols-2, 1, 1) ) == NULL) {
+		diag("expected to be able to derive from terminal window");
+		goto unlock;
+	}
+	getmaxyx(g_pan3_dwin, drows, dcols);
+	ok1(drows == rows-2);
+	ok1(dcols == cols-2);
+
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
 
-	g_pan_twin.win = pan3_win;
+	g_pan_twin.win = g_pan3_dwin;
 	(*g_api->terminal_new)(
 		g_plugin, 
 		&g_pan_twin, 
@@ -804,7 +814,8 @@ void aug_plugin_free() {
 
 	diag("dealloc panels");
 	(*g_api->lock_screen)(g_plugin);
-	ok(delwin(g_pan2_dwin) != ERR, "delete derived window");
+	ok(delwin(g_pan2_dwin) != ERR, "delete derived window (panel 2)");
+	ok(delwin(g_pan3_dwin) != ERR, "delete derived window (panel 3)");
 	(*g_api->unlock_screen)(g_plugin);
 
 	todo_start("screen_panel_size fails because "

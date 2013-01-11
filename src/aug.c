@@ -54,6 +54,7 @@
 #include "panel_stack.h"
 #include "region_map.h"
 #include "child.h"
+#include "term_win.h"
 
 static void resize_and_redraw_screen();
 static void lock_all();
@@ -101,6 +102,9 @@ struct aug_term_child {
 	struct aug_child child;
 	struct aug_term term;
 	struct aug_terminal_win *twin;
+	struct aug_term_win term_win;
+	VTermScreenCallbacks cb_screen;
+	struct aug_term_io_callbacks cb_term_io;
 	int pipe;
 	int terminated;
 };
@@ -351,6 +355,29 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 	screen_doupdate();
 }
 
+static int terminal_cb_damage(VTermRect rect, void *user) {
+	struct aug_term_child *tchild;
+
+	tchild = (struct aug_term_child *) user;
+	return term_win_damage(&tchild->term_win, rect, screen_color_on());
+}
+
+static int terminal_cb_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
+	struct aug_term_child *tchild;
+	(void)(visible);
+
+	tchild = (struct aug_term_child *) user;
+
+	return term_win_movecursor(&tchild->term_win, pos, oldpos);
+}
+
+static void terminal_cb_refresh(void *user) {
+	struct aug_term_child *tchild;
+
+	tchild = (struct aug_term_child *) user;
+	term_win_refresh(&tchild->term_win);
+}
+
 static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 								char *const *argv, void **terminal, int *pipe_fd ) {
 	struct aug_term_child *tchild, *old_tchild;
@@ -370,10 +397,20 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 		
 	term_init(&tchild->term, 1, 1);
 	tchild->terminated = 0;
+	
+	term_win_init(&tchild->term_win, NULL);
+	term_win_set_term(&tchild->term_win, &tchild->term);
+
+	tchild->cb_screen.damage 		= terminal_cb_damage;
+	tchild->cb_screen.movecursor 	= terminal_cb_movecursor;
+	tchild->cb_screen.bell 			= screen_bell;
+	tchild->cb_screen.settermprop	= screen_settermprop;
+	tchild->cb_term_io.refresh		= terminal_cb_refresh;
+	term_set_callbacks(&tchild->term, &tchild->cb_screen, &tchild->cb_term_io, tchild);
 
 	child_init(
 		&tchild->child, 
-		&tchild->term, 
+		&tchild->term,
 		argv,
 		child_setup,
 		NULL
@@ -438,10 +475,21 @@ static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
 	unlock_all();
 }
 
-static void term_child_process_input(struct aug_term *term, int fd_input) {
+static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
+	const struct aug_term_child *tchild;
+	(void)(plugin);
+
+	tchild = (const struct aug_term_child *) terminal;
+	
+	return tchild->child.pid;
+}
+
+static void term_child_process_input(struct aug_term *term, int fd_input, void *user) {
 	ssize_t n_read, i;
 	char buf[512];
 	int amt;
+
+	(void)(user);
 
 	amt = term_can_push_chars(term);
 	if(amt < 1) 
@@ -464,13 +512,23 @@ static void term_child_process_input(struct aug_term *term, int fd_input) {
 		term_push_char(term, (uint32_t) buf[i]);
 }
 
-static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
-	const struct aug_term_child *tchild;
-	(void)(plugin);
+static void terminal_run_lock(void *user) {
+	struct aug_term_child *tchild;
 
-	tchild = (const struct aug_term_child *) terminal;
+	tchild = (struct aug_term_child *) user;
+	lock_all();	
 	
-	return tchild->child.pid;
+	/* update terminal window with new curses window
+	 * if it has changed */
+	if(tchild->twin->win != tchild->term_win.win) {
+		term_win_resize(&tchild->term_win, tchild->twin->win);
+	}
+}
+
+static void terminal_run_unlock(void *user) {
+	(void)(user);
+
+	unlock_all();	
 }
 
 static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
@@ -484,10 +542,11 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	child_io_loop(
 		&tchild->child,
 		tchild->pipe,
-		lock_all,
-		unlock_all,
+		terminal_run_lock,
+		terminal_run_unlock,
 		to_refresh_after_io,
-		term_child_process_input
+		term_child_process_input,
+		terminal
 	);
 }
 
@@ -714,13 +773,14 @@ static void push_key(struct aug_term *term, int ch) {
 	term_push_char(term, (uint32_t) ch);
 }
 
-static void process_keys(struct aug_term *term, int fd_input) {
+static void process_keys(struct aug_term *term, int fd_input, void *user) {
 	int ch;
 	static bool command_key = false;
 	aug_on_key_fn command_fn;
-	void *user;
+	void *key_user;
 	
 	(void)(fd_input);
+	(void)(user);
 
 	/* we need at least two spots in the buffer because in 'pass through' 
 	 * command prefix mode we will send both the command key and the following
@@ -728,14 +788,14 @@ static void process_keys(struct aug_term *term, int fd_input) {
 	while(term_can_push_chars(term) > 1 && screen_getch(&ch) == 0 ) {
 		if(command_key == true) { /* treat *ch* as a command extension */
 			fprintf(stderr, "check for command extension 0x%02x\n", ch);
-			keymap_binding(&g_keymap, ch, &command_fn, &user);
+			keymap_binding(&g_keymap, ch, &command_fn, &key_user);
 			if(command_fn == NULL) { /* this is not a bound key */
 				push_key(term, g_conf.cmd_key);
 				push_key(term, ch);
 			}
 			else { /* invoke the command */
 				/* note: sigs should still be blocked */
-				(*command_fn)(ch, user);
+				(*command_fn)(ch, key_user);
 			}
 			command_key = false;
 		}
@@ -1047,17 +1107,23 @@ static void free_plugins() {
  * with WINCH blocked. the API will expect plugins not to unblock that
  * signal in their threads.
  */
-static void main_to_lock_for_io() {
+static void main_to_lock_for_io(void *user) {
+	(void)(user);
+
 	block_sigs();
 	lock_all();
 }
 
-static void main_to_unlock_after_io() {
+static void main_to_unlock_after_io(void *user) {
+	(void)(user);
+
 	unlock_all();
 	unblock_sigs();
 }
 
-static void to_refresh_after_io() {
+static void to_refresh_after_io(void *user) {
+	(void)(user);
+
 	panel_stack_update();
 	screen_doupdate();
 }
@@ -1156,7 +1222,8 @@ int aug_main(int argc, char *argv[]) {
 		main_to_lock_for_io,
 		main_to_unlock_after_io,
 		to_refresh_after_io,
-		process_keys
+		process_keys,
+		NULL
 	);
 
 	/* everything should be unlocked at this point */
