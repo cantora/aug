@@ -40,9 +40,13 @@ static int init_term_win();
 
 static const VTermScreenCallbacks CB_SCREEN = {
 	.damage = screen_damage,
+	.prescroll = NULL,
+	.moverect = NULL,
 	.movecursor = screen_movecursor,
 	.bell = screen_bell,
-	.settermprop = screen_settermprop
+	.settermprop = screen_settermprop,
+	.setmousefunc = NULL,
+	.resize = NULL
 };
 
 static const struct aug_term_io_callbacks CB_TERM_IO = {

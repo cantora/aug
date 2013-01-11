@@ -401,10 +401,12 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	term_win_init(&tchild->term_win, NULL);
 	term_win_set_term(&tchild->term_win, &tchild->term);
 
+	memset(&tchild->cb_screen, 0, sizeof(VTermScreenCallbacks) );
 	tchild->cb_screen.damage 		= terminal_cb_damage;
 	tchild->cb_screen.movecursor 	= terminal_cb_movecursor;
 	tchild->cb_screen.bell 			= screen_bell;
 	tchild->cb_screen.settermprop	= screen_settermprop;
+	
 	tchild->cb_term_io.refresh		= terminal_cb_refresh;
 	term_set_callbacks(&tchild->term, &tchild->cb_screen, &tchild->cb_term_io, tchild);
 

@@ -12,6 +12,8 @@ OUTPUT			= aug
 BUILD			= ./build
 MKBUILD			:= $(shell mkdir -p $(BUILD) )
 LIBVTERM		= ./libvterm/.libs/libvterm.a
+#LIBVTERM_DBG	= DEBUG=1
+LIBVTERM_DBG	= 
 CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
 LIB 			= -pthread -lutil -lpanel -lncursesw $(LIBVTERM) $(LIBCCAN)
@@ -50,7 +52,7 @@ all: $(OUTPUT) $(PLUGIN_OBJECTS)
 .FORCE:
 
 $(LIBVTERM): ./libvterm
-	$(MAKE) $(MFLAGS) -C ./libvterm
+	$(MAKE) $(MFLAGS) -C ./libvterm $(LIBVTERM_DBG)
 
 ./libvterm:
 	bzr checkout lp:libvterm
