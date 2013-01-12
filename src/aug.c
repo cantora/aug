@@ -57,10 +57,6 @@
 #include "term_win.h"
 
 static void resize_and_redraw_screen();
-static void lock_all();
-static void unlock_all();
-static void lock_screen();
-static void unlock_screen();
 static void child_setup();
 static void to_refresh_after_io();
 
@@ -107,6 +103,39 @@ struct aug_term_child {
 	struct aug_term_io_callbacks cb_term_io;
 	int terminated;
 };
+
+/* MUST LOCK for API access to the following modules:
+ * screen_*
+ * panel_stack_*
+ */
+#define lock_screen() \
+	do { \
+		AUG_LOCK(&g_term); \
+		AUG_LOCK(&g_screen); \
+	} while(0)
+
+#define unlock_screen() \
+	do { \
+		AUG_UNLOCK(&g_screen); \
+		AUG_UNLOCK(&g_term); \
+	} while(0)
+
+#define lock_all() \
+	do { \
+		AUG_LOCK(&g_child); \
+		AUG_LOCK(&g_keymap); \
+		AUG_LOCK(&g_plugin_list); \
+		lock_screen(); \
+	} while(0)
+
+#define unlock_all() \
+	do { \
+		unlock_screen(); \
+		AUG_UNLOCK(&g_plugin_list); \
+		AUG_UNLOCK(&g_keymap); \
+		AUG_UNLOCK(&g_child); \
+	} while(0)
+
 /* ================= API FUNCTIONS ==================================== */
 
 static int api_log(struct aug_plugin *plugin, const char *format, ...) {
@@ -380,6 +409,7 @@ static void terminal_cb_refresh(void *user) {
 static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 								char *const *argv, void **terminal) {
 	struct aug_term_child *tchild, *old_tchild;
+	int fd;
 	(void)(plugin);
 
 	lock_all();
@@ -403,6 +433,16 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	tchild->cb_term_io.refresh		= terminal_cb_refresh;
 	term_set_callbacks(&tchild->term, &tchild->cb_screen, &tchild->cb_term_io, tchild);
 
+	/* very strange bug: for some reason the select call
+	 * during child_io_loop will not receive an EOF
+	 * when the child process is killed unless the parent
+	 * and child have shared a file descriptor at some point.
+	 * i have no idea why, but opening up dev/null and closing
+	 * it here in the parent after the child is created
+	 * fixes it... */
+	if( (fd = open("/dev/null", O_RDONLY) ) == -1)
+		err_exit(errno, "failed to open dev/null");
+
 	child_init(
 		&tchild->child, 
 		&tchild->term,
@@ -410,6 +450,9 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 		child_setup,
 		NULL
 	);
+	if(close(fd) != 0)
+		err_exit(errno, "failed to close file descriptor");
+
 	fprintf(stderr, "started child at pid %d\n", tchild->child.pid);
 
 	*terminal = (void *) tchild;
@@ -588,34 +631,6 @@ static void resize_and_redraw_screen() {
 	screen_redraw_term_win();
 	panel_stack_update();
 	screen_doupdate();
-}
-
-/* MUST LOCK for API access to the following modules:
- * screen_*
- * panel_stack_*
- */
-static void lock_screen() {
-	AUG_LOCK(&g_term);
-	AUG_LOCK(&g_screen);
-}
-
-static void unlock_screen() {
-	AUG_UNLOCK(&g_screen);
-	AUG_UNLOCK(&g_term);
-}
-
-static void lock_all() {
-	AUG_LOCK(&g_child);
-	AUG_LOCK(&g_keymap);
-	AUG_LOCK(&g_plugin_list);
-	lock_screen();
-}
-
-static void unlock_all() {
-	unlock_screen();
-	AUG_UNLOCK(&g_plugin_list);
-	AUG_UNLOCK(&g_keymap);
-	AUG_UNLOCK(&g_child);
 }
 
 static void change_sig(int how) {

@@ -121,7 +121,7 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 
 		(*to_unlock)(user);
 
-		if(select(child->term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
+		if(select(high_fd+1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
 				(*to_lock)(user);
 				continue;
