@@ -87,22 +87,29 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 		void (*to_unlock)(void *), void (*to_refresh)(void *), 
 		int (*to_process_input)(struct aug_term *term, int fd_input, void *),
 		void *user ) {
-	fd_set in_fds;
-	int status, force_refresh, just_refreshed;
-
+	fd_set in_fds, exc_fds;
+	int status, force_refresh, just_refreshed, high_fd;
 	struct aug_timer inter_io_timer, refresh_expire;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
+
+	if(child->term->master < 0) 
+		err_exit(0, "invalid master fd: %d", child->term->master);
 
 	timer_init(&inter_io_timer);
 	timer_init(&refresh_expire);
 	/* dont initially need to worry about inter_io_timer's need to timeout */
 	just_refreshed = 1;
 
+	fprintf(stderr, "fd_input = %d\n", fd_input);	
+	high_fd = (child->term->master > fd_input)? child->term->master : fd_input;
 	while(1) {
 		FD_ZERO(&in_fds);
-		FD_SET(fd_input, &in_fds);
+		FD_ZERO(&exc_fds);
+		if(fd_input >= 0)
+			FD_SET(fd_input, &in_fds);
 		FD_SET(child->term->master, &in_fds);
+		FD_SET(child->term->master, &exc_fds);
 
 		/* if we just refreshed the screen there
 		 * is no need to timeout the select wait. 
@@ -116,7 +123,7 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 
 		(*to_unlock)(user);
 
-		if(select(child->term->master + 1, &in_fds, NULL, NULL, tv_select_p) == -1) {
+		if(select(FD_SETSIZE, &in_fds, NULL, &exc_fds, tv_select_p) == -1) {
 			if(errno == EINTR) {
 				(*to_lock)(user);
 				continue;
@@ -125,6 +132,10 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 				err_exit(errno, "select");
 		}		
 		(*to_lock)(user);
+
+		if(FD_ISSET(child->term->master, &exc_fds) ) {
+			goto done;
+		}
 
 		if(FD_ISSET(child->term->master, &in_fds) ) {
 			if(process_master_output(child) != 0) {
@@ -166,7 +177,7 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 		else
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
-		if(FD_ISSET(fd_input, &in_fds) ) {
+		if( fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
 			if( (*to_process_input)(child->term, fd_input, user) != 0 ) {
 				/* fd_input is closed or bad in some way */
 				goto done;

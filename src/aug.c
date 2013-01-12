@@ -388,12 +388,12 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	lock_all();
 	AUG_LOCK(&g_tchild_table);
 
-	if( (status = pipe(pipe_arr) ) != 0)
-		err_exit(errno, "failed to create pipe for child terminal");
+	/*if( (status = pipe(pipe_arr) ) != 0)
+		err_exit(errno, "failed to create pipe for child terminal");*/
 
 	tchild = aug_malloc( sizeof(struct aug_term_child) );
 	tchild->twin = twin;
-	tchild->pipe = pipe_arr[0];
+	//tchild->pipe = pipe_arr[0];
 		
 	term_init(&tchild->term, 1, 1);
 	tchild->terminated = 0;
@@ -420,7 +420,7 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	fprintf(stderr, "started child at pid %d\n", tchild->child.pid);
 
 	*terminal = (void *) tchild;
-	*pipe_fd = pipe_arr[1];
+	//*pipe_fd = pipe_arr[1];
 
 	/* disregard the warning, void * is bigger or equal to pid_t */
 	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
@@ -545,11 +545,11 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	lock_all();
 	child_io_loop(
 		&tchild->child,
-		tchild->pipe,
+		-1,
 		terminal_run_lock,
 		terminal_run_unlock,
 		to_refresh_after_io,
-		term_child_process_input,
+		NULL,
 		terminal
 	);
 }
