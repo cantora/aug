@@ -633,18 +633,31 @@ static void resize_and_redraw_screen() {
 	screen_doupdate();
 }
 
-static void change_sig(int how) {
+static void change_sigs(int how) {
 
 	if(sigprocmask(how, &g_sigset, NULL) != 0)
 		err_exit(errno, "sigprocmask failed");
 }
 
 static inline void block_sigs() {
-	change_sig(SIG_BLOCK);
+	change_sigs(SIG_BLOCK);
 }
 
 static inline void unblock_sigs() {
-	change_sig(SIG_UNBLOCK);
+	change_sigs(SIG_UNBLOCK);
+}
+
+static void change_sig(int how, int signum) {
+	sigset_t set;
+
+	if(sigemptyset(&set) != 0) 
+		err_exit(errno, "sigemptyset failed"); 
+
+	if(sigaddset(&set, signum) != 0) 
+		err_exit(errno, "sigaddset failed");
+
+	if(sigprocmask(how, &set, NULL) != 0)
+		err_exit(errno, "sigprocmask failed");
 }
 
 /* handler for SIGWINCH. */
@@ -1220,16 +1233,21 @@ int aug_main(int argc, char *argv[]) {
 	fprintf(stderr, "end main event loop, exiting...\n");
 
 	/* cleanup */
-	/* no longer care about maintaining correct 
-	 * screen size characteristics */
-	if(sigaction(SIGWINCH, &g_prev_winch_act, NULL) != 0) 
-		err_exit(errno, "sigaction failed");
 	/* no longer want to explicitly reap children */
 	g_chld_act.sa_handler = SIG_IGN;
 	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0) 
 		err_exit(errno, "sigaction failed");
 
+	/* dont want to handle another SIGWINCH
+	 * until the plugins have been cleaned up */
+	change_sig(SIG_BLOCK, SIGWINCH); 
+	/* no longer care about maintaining correct 
+	 * screen size characteristics */
+	if(sigaction(SIGWINCH, &g_prev_winch_act, NULL) != 0) 
+		err_exit(errno, "sigaction failed");
+
 	free_plugins(); /* 7 */
+	change_sig(SIG_UNBLOCK, SIGWINCH); 
 
 	/* plugins should have handled cleanup
 	 * of children processes. (maybe put a warning here?) */
