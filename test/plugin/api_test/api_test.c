@@ -10,7 +10,6 @@
 #include <ccan/tap/tap.h>
 #include <ccan/array_size/array_size.h>
 
-#warning "TODO: test sig child is off at all times"
 const char aug_plugin_name[] = "api_test";
 
 void input_char(int *ch, aug_action *action, void *user);
@@ -41,12 +40,9 @@ static struct aug_terminal_win g_pan_twin;
 static WINDOW *g_pan2_dwin, *g_pan3_dwin;
 static pthread_t g_thread1, g_thread2, g_thread3;
 
-struct term_pipe_pair {
-	void *terminal;
-	int pipe;
-};
-static struct term_pipe_pair g_pan_tp_pair;
-static char *g_pan_term_argv[] = {"vim", NULL};
+void *g_pan_term;
+static char *g_pan_term_argv[] = {"vim", NULL}; //"/tmp/api_test_vi_file", NULL};
+char g_vi_msg[] = "izoidberg is a crafty consumer! \n"; //(\\/)(,;;,)(\\/)\x03:w\x0a";
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -545,6 +541,15 @@ static void *thread1(void *user) {
 	check_screen_lock();
 	test_sigs();
 	
+	/*sleep(1);
+	diag("write into vi pipe %d", g_pan_tp_pair.pipe);
+	if(write(g_pan_tp_pair.pipe, g_vi_msg, 5 ) != 5 )
+		fail("failed to write message into vi");
+	else {
+		pass("wrote message into vi");
+	}*/
+
+
 	sleep(6);
 	diag("move panel a bit");
 
@@ -634,7 +639,7 @@ static void *thread3(void *user) {
 	diag("++++thread3++++\n#");
 	test_sigs();
 	diag("run panel terminal io loop");
-	(*g_api->terminal_run)(g_plugin, g_pan_tp_pair.terminal);
+	(*g_api->terminal_run)(g_plugin, g_pan_term);
 	pass("finished panel terminal io loop");
 
 	diag("----thread3----\n#");
@@ -667,7 +672,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(119);
+	plan_tests(120);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -773,8 +778,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 		g_plugin, 
 		&g_pan_twin, 
 		g_pan_term_argv,
-		&g_pan_tp_pair.terminal,
-		&g_pan_tp_pair.pipe
+		&g_pan_term
 	);
 	
 	diag("create thread for asynchronous tests");
@@ -799,16 +803,19 @@ unlock:
 
 void aug_plugin_free() {
 	int size;
+	int pid;
 
 	diag("++++plugin_free++++");
 	(*g_api->log)(g_plugin, "free\n");
 
 	check_screen_lock();
-	test_sigs();
 
-	if( (*g_api->terminal_terminated)(g_plugin, g_pan_tp_pair.terminal) == 0) {
+	if( (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
 		pass("terminal is still running, kill child.");
-		kill( (*g_api->terminal_pid)(g_plugin, g_pan_tp_pair.terminal), SIGKILL);
+		pid = (*g_api->terminal_pid)(g_plugin, g_pan_term);
+		(*g_api->log)(g_plugin, "kill pid %d\n", pid);
+		kill(pid , SIGKILL);
+		/* pthread_cancel maybe ? */
 	}
 
 	diag("join threads");
@@ -826,7 +833,7 @@ void aug_plugin_free() {
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("free terminals");
-	(*g_api->terminal_delete)(g_plugin, g_pan_tp_pair.terminal);
+	(*g_api->terminal_delete)(g_plugin, g_pan_term);
 
 	diag("dealloc panels");
 	(*g_api->lock_screen)(g_plugin);

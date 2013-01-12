@@ -88,20 +88,25 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 		int (*to_process_input)(struct aug_term *term, int fd_input, void *),
 		void *user ) {
 	fd_set in_fds;
-	int status, force_refresh, just_refreshed;
-
+	int status, force_refresh, just_refreshed, high_fd;
 	struct aug_timer inter_io_timer, refresh_expire;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
+
+	if(child->term->master < 0) 
+		err_exit(0, "invalid master fd: %d", child->term->master);
 
 	timer_init(&inter_io_timer);
 	timer_init(&refresh_expire);
 	/* dont initially need to worry about inter_io_timer's need to timeout */
 	just_refreshed = 1;
 
+	fprintf(stderr, "fd_input = %d\n", fd_input);	
+	high_fd = (child->term->master > fd_input)? child->term->master : fd_input;
 	while(1) {
 		FD_ZERO(&in_fds);
-		FD_SET(fd_input, &in_fds);
+		if(fd_input >= 0)
+			FD_SET(fd_input, &in_fds);
 		FD_SET(child->term->master, &in_fds);
 
 		/* if we just refreshed the screen there
@@ -166,7 +171,7 @@ void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *
 		else
 			just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
-		if(FD_ISSET(fd_input, &in_fds) ) {
+		if( fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
 			if( (*to_process_input)(child->term, fd_input, user) != 0 ) {
 				/* fd_input is closed or bad in some way */
 				goto done;

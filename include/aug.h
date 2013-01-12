@@ -272,7 +272,7 @@ struct aug_api {
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
-							char *const *argv, void **terminal, int *pipe_fd);
+							char *const *argv, void **terminal);
 	pid_t (*terminal_pid)(struct aug_plugin *plugin, const void *terminal);
 	int (*terminal_terminated)(struct aug_plugin *plugin, const void *terminal);
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);

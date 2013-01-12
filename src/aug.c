@@ -105,7 +105,6 @@ struct aug_term_child {
 	struct aug_term_win term_win;
 	VTermScreenCallbacks cb_screen;
 	struct aug_term_io_callbacks cb_term_io;
-	int pipe;
 	int terminated;
 };
 /* ================= API FUNCTIONS ==================================== */
@@ -379,21 +378,15 @@ static void terminal_cb_refresh(void *user) {
 }
 
 static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
-								char *const *argv, void **terminal, int *pipe_fd ) {
+								char *const *argv, void **terminal) {
 	struct aug_term_child *tchild, *old_tchild;
-	int status;
-	int pipe_arr[2];
 	(void)(plugin);
 
 	lock_all();
 	AUG_LOCK(&g_tchild_table);
 
-	if( (status = pipe(pipe_arr) ) != 0)
-		err_exit(errno, "failed to create pipe for child terminal");
-
 	tchild = aug_malloc( sizeof(struct aug_term_child) );
 	tchild->twin = twin;
-	tchild->pipe = pipe_arr[0];
 		
 	term_init(&tchild->term, 1, 1);
 	tchild->terminated = 0;
@@ -420,7 +413,6 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	fprintf(stderr, "started child at pid %d\n", tchild->child.pid);
 
 	*terminal = (void *) tchild;
-	*pipe_fd = pipe_arr[1];
 
 	/* disregard the warning, void * is bigger or equal to pid_t */
 	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
@@ -486,36 +478,6 @@ static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
 	return tchild->child.pid;
 }
 
-static int term_child_process_input(struct aug_term *term, int fd_input, void *user) {
-	ssize_t n_read, i;
-	char buf[512];
-	int amt;
-
-	(void)(user);
-
-	amt = term_can_push_chars(term);
-	if(amt < 1) 
-		return 0;
-	else if( amt > (int) sizeof(buf) )
-		amt = sizeof(buf);
-
-	n_read = read(fd_input, buf, amt);
-	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
-		return -1;
-	}
-	else if(n_read < 0 && errno != EAGAIN) {
-		err_exit(errno, "error reading from input fd (n_read = %d)", n_read);
-	}
-	else if(errno == EAGAIN) {
-		return 0;
-	}
-
-	for(i = 0; i < n_read; i++)
-		term_push_char(term, (uint32_t) buf[i]);
-
-	return 0;
-}
-
 static void terminal_run_lock(void *user) {
 	struct aug_term_child *tchild;
 
@@ -543,15 +505,17 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	tchild = (struct aug_term_child *) terminal;
 
 	lock_all();
+	/* resources will be unlocked in the function */
 	child_io_loop(
 		&tchild->child,
-		tchild->pipe,
+		-1,
 		terminal_run_lock,
 		terminal_run_unlock,
 		to_refresh_after_io,
-		term_child_process_input,
+		NULL, /* input to terminal is written asynchronously */
 		terminal
 	);
+	/* resources are unlocked at this point */
 }
 
 static int api_terminal_terminated(struct aug_plugin *plugin, const void *terminal) {
@@ -734,7 +698,7 @@ static void handler_chld() {
 			fprintf(stderr, "warning: reaped unknown child at pid %d\n", pid);
 			continue;
 		}
-
+		fprintf(stderr, "reaped child at pid %d\n", pid);
 		tchild->terminated = 1;	
 	}
 	AUG_UNLOCK(&g_tchild_table);
@@ -1237,19 +1201,20 @@ int aug_main(int argc, char *argv[]) {
 		process_keys,
 		NULL
 	);
-
 	/* everything should be unlocked at this point */
 	fprintf(stderr, "end main event loop, exiting...\n");
 
 	/* cleanup */
-	block_sigs();
-	free_plugins(); /* 7 */
-
+	/* no longer care about maintaining correct 
+	 * screen size characteristics */
+	if(sigaction(SIGWINCH, &g_prev_winch_act, NULL) != 0) 
+		err_exit(errno, "sigaction failed");
 	/* no longer want to explicitly reap children */
 	g_chld_act.sa_handler = SIG_IGN;
 	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0) 
 		err_exit(errno, "sigaction failed");
-	unblock_sigs();
+
+	free_plugins(); /* 7 */
 
 	/* plugins should have handled cleanup
 	 * of children processes. (maybe put a warning here?) */
