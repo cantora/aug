@@ -672,7 +672,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(120);
+	plan_tests(117);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -759,7 +759,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 		diag("box failed. abort...");
 		goto unlock;
 	}
-	
+
 	getmaxyx(pan3_win, rows, cols);
 	if( (g_pan3_dwin = derwin(pan3_win, rows-2, cols-2, 1, 1) ) == NULL) {
 		diag("expected to be able to derive from terminal window");
@@ -815,7 +815,6 @@ void aug_plugin_free() {
 		pid = (*g_api->terminal_pid)(g_plugin, g_pan_term);
 		(*g_api->log)(g_plugin, "kill pid %d\n", pid);
 		kill(pid , SIGKILL);
-		/* pthread_cancel maybe ? */
 	}
 
 	diag("join threads");

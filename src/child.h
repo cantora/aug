@@ -30,6 +30,7 @@
 #endif
 
 #include "lock.h"
+#include "timer.h"
 
 #define AUG_CHILD_BUF_SIZE 2048*4
 
@@ -38,15 +39,25 @@ struct aug_child {
 	struct aug_term *term;	
 	AUG_LOCK_MEMBERS;
 	pid_t pid;
+	void (*to_refresh)(void *);
+	void (*to_lock)(void *);
+	void (*to_unlock)(void *);
+	struct aug_timer inter_io_timer, refresh_expire;
+	int force_refresh;
+	int just_refreshed;
+	void *user;
 };
 
 void child_init(struct aug_child *child, struct aug_term *term, 
 		char *const *cmd_argv, void (*exec_cb)(),
-		struct termios *child_termios);
+		void (*to_refresh)(void *), void (*to_lock)(void *), 
+		void (*to_unlock)(void *), struct termios *child_termios,
+		void *user);
 void child_free(struct aug_child *child);
-void child_io_loop(struct aug_child *child, int fd_input, void (*to_lock)(void *), 
-		void (*to_unlock)(void *), void (*to_refresh)(void *), 
-		int (*to_process_input)(struct aug_term *term, int fd_input, void *),
-		void *user );
+void child_io_loop(struct aug_child *child, int fd_input, 
+		int (*to_process_input)(struct aug_term *term, int fd_input, void *) );
+void child_lock(struct aug_child *child);
+void child_unlock(struct aug_child *child);
+void child_refresh(struct aug_child *child);
 
 #endif /* AUG_CHILD_H */

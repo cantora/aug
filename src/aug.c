@@ -122,7 +122,6 @@ struct aug_term_child {
 
 #define lock_all() \
 	do { \
-		AUG_LOCK(&g_child); \
 		AUG_LOCK(&g_keymap); \
 		AUG_LOCK(&g_plugin_list); \
 		lock_screen(); \
@@ -133,7 +132,6 @@ struct aug_term_child {
 		unlock_screen(); \
 		AUG_UNLOCK(&g_plugin_list); \
 		AUG_UNLOCK(&g_keymap); \
-		AUG_UNLOCK(&g_child); \
 	} while(0)
 
 /* ================= API FUNCTIONS ==================================== */
@@ -406,6 +404,24 @@ static void terminal_cb_refresh(void *user) {
 	term_win_refresh(&tchild->term_win);
 }
 
+static void terminal_run_lock(void *user) {
+	struct aug_term_child *tchild;
+
+	tchild = (struct aug_term_child *) user;
+	lock_all();	
+	
+	/* update terminal window with new curses window
+	 * if it has changed */
+	if(tchild->twin->win != tchild->term_win.win) {
+		term_win_resize(&tchild->term_win, tchild->twin->win);
+	}
+}
+
+static void terminal_run_unlock(void *user) {
+	(void)(user);
+	unlock_all();	
+}
+
 static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 								char *const *argv, void **terminal) {
 	struct aug_term_child *tchild, *old_tchild;
@@ -417,11 +433,11 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 
 	tchild = aug_malloc( sizeof(struct aug_term_child) );
 	tchild->twin = twin;
-		
+
 	term_init(&tchild->term, 1, 1);
 	tchild->terminated = 0;
 	
-	term_win_init(&tchild->term_win, NULL);
+	term_win_init(&tchild->term_win, twin->win);
 	term_win_set_term(&tchild->term_win, &tchild->term);
 
 	memset(&tchild->cb_screen, 0, sizeof(VTermScreenCallbacks) );
@@ -448,7 +464,11 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 		&tchild->term,
 		argv,
 		child_setup,
-		NULL
+		to_refresh_after_io,
+		terminal_run_lock,
+		terminal_run_unlock,
+		NULL,
+		tchild
 	);
 	if(close(fd) != 0)
 		err_exit(errno, "failed to close file descriptor");
@@ -521,25 +541,6 @@ static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
 	return tchild->child.pid;
 }
 
-static void terminal_run_lock(void *user) {
-	struct aug_term_child *tchild;
-
-	tchild = (struct aug_term_child *) user;
-	lock_all();	
-	
-	/* update terminal window with new curses window
-	 * if it has changed */
-	if(tchild->twin->win != tchild->term_win.win) {
-		term_win_resize(&tchild->term_win, tchild->twin->win);
-	}
-}
-
-static void terminal_run_unlock(void *user) {
-	(void)(user);
-
-	unlock_all();	
-}
-
 static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 	struct aug_term_child *tchild;
 
@@ -547,16 +548,12 @@ static void api_terminal_run(struct aug_plugin *plugin, void *terminal) {
 
 	tchild = (struct aug_term_child *) terminal;
 
-	lock_all();
+	child_lock(&tchild->child);
 	/* resources will be unlocked in the function */
 	child_io_loop(
 		&tchild->child,
 		-1,
-		terminal_run_lock,
-		terminal_run_unlock,
-		to_refresh_after_io,
-		NULL, /* input to terminal is written asynchronously */
-		terminal
+		NULL /* input to terminal is written asynchronously */
 	);
 	/* resources are unlocked at this point */
 }
@@ -569,6 +566,39 @@ static int api_terminal_terminated(struct aug_plugin *plugin, const void *termin
 	
 	return (tchild->terminated != 0);
 }
+
+/*static void api_terminal_input(struct aug_plugin *plugin, void *terminal, 
+									const uint32_t *data, int n) {
+	int i, amt;
+	const struct aug_term_child *tchild;
+	(void)(plugin);
+
+	tchild = (const struct aug_term_child *) terminal;
+
+	amt = term_can_push_chars(term);
+	if(amt < 1) 
+		return 0;
+	else if( amt > (int) sizeof(buf) )
+		amt = sizeof(buf);
+
+	n_read = read(fd_input, buf, amt);
+	fprintf(stderr, "read %zd bytes of input for terminal\n", n_read);
+	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
+		return -1;
+	}
+	else if(n_read < 0 && errno != EAGAIN) {
+		err_exit(errno, "error reading from input fd %d (n_read = %d)", fd_input, n_read);
+	}
+	else if(errno == EAGAIN) {
+		return 0;
+	}
+
+	for(i = 0; i < n_read; i++)
+		term_push_char(term, (uint32_t) buf[i]);
+
+	return 0;
+}
+*/
 
 /* =================== end API functions ==================== */
 
@@ -1188,7 +1218,11 @@ int aug_main(int argc, char *argv[]) {
 		&g_term, 
 		(char *const *) g_conf.cmd_argv,
 		child_setup,
-		&child_termios
+		to_refresh_after_io,
+		main_to_lock_for_io,
+		main_to_unlock_after_io,
+		&child_termios,
+		NULL
 	);
 	fprintf(stderr, "started primary child at pid %d\n", g_child.pid);
 
@@ -1211,7 +1245,11 @@ int aug_main(int argc, char *argv[]) {
 	conf_fprint(&g_conf, stderr);
 
 	fprintf(stderr, "lock screen\n");
-	lock_all(); /* will be unlocked in *loop*, sigs are already blocked */
+	/* this calls main_to_lock_for_io. resources will be 
+	 * unlocked in child_io_loop by calling main_to_unlock_for_io.
+	 * this will block signals a second time, but that shouldnt
+	 * be a problem. */
+	child_lock(&g_child); 
 
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
@@ -1223,11 +1261,7 @@ int aug_main(int argc, char *argv[]) {
 	child_io_loop(
 		&g_child,
 		STDIN_FILENO,
-		main_to_lock_for_io,
-		main_to_unlock_after_io,
-		to_refresh_after_io,
-		process_keys,
-		NULL
+		process_keys
 	);
 	/* everything should be unlocked at this point */
 	fprintf(stderr, "end main event loop, exiting...\n");
@@ -1260,7 +1294,7 @@ int aug_main(int argc, char *argv[]) {
 
 	keymap_free(&g_keymap); /* 5 */
 	AUG_LOCK_FREE(&g_screen); /* 4 */
-
+	child_free(&g_child);
 screen_cleanup:
 	screen_free(); /* 3 */
 	term_free(&g_term); /* 2 */

@@ -273,6 +273,7 @@ struct aug_api {
 
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal);
+	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
 	pid_t (*terminal_pid)(struct aug_plugin *plugin, const void *terminal);
 	
 	/* informs whether or not the process associated with the terminal
@@ -284,7 +285,8 @@ struct aug_api {
 	int (*terminal_terminated)(struct aug_plugin *plugin, const void *terminal);
 
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
-	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
+	/*void (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
+								const uint32_t *data, int n);*/
 };
 
 #endif /* AUG_AUG_H */
