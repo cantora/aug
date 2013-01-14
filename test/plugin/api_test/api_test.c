@@ -36,14 +36,17 @@ static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
 static PANEL *g_pan1, *g_pan2, *g_pan3;
-static struct aug_terminal_win g_pan_twin;
+static struct aug_terminal_win g_pan_twin, g_top_twin;
 static WINDOW *g_pan2_dwin, *g_pan3_dwin;
-static pthread_t g_thread1, g_thread2, g_thread3;
+static pthread_t g_thread1, g_thread2, g_thread3, g_thread4;
 
-void *g_pan_term;
-const char g_vi_test_file[] = "/tmp/api_test_file";
+static void *g_pan_term;
+static char g_vi_test_file[] = "/tmp/api_test_file";
 static char *g_pan_term_argv[] = {"vi", g_vi_test_file, NULL};
-const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
+static const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
+
+static void *g_top_term;
+static char *g_top_term_argv[] = {"/bin/sh", NULL};
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -689,6 +692,56 @@ static void *thread3(void *user) {
 	return NULL;
 }
 
+static void *thread4(void *user) {
+	(void)(user);
+
+	diag("++++thread4++++\n#");
+	test_sigs();
+
+	diag("run top terminal io loop");
+	(*g_api->terminal_run)(g_plugin, g_top_term);
+	pass("finished top terminal io loop");
+
+	diag("free terminal");
+	(*g_api->terminal_delete)(g_plugin, g_top_term);
+
+	diag("----thread4----\n#");
+	return NULL;
+}
+
+void top_terminal_cb(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	int rows, cols, y, x;
+	WINDOW *dwin;
+
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("got callback for top terminal window");
+		ok1(win != NULL);
+		getmaxyx(win, rows, cols);
+		ok1(rows == 8);
+		ok1(cols == COLS);
+		getparyx(win, y, x);
+		ok1(y == 0);
+		ok1(x == 0);
+		ran_once = 1;
+	}
+
+	if(box(win, 0, 0) == ERR) {
+		diag("warning, box failed...");
+	}
+
+	getmaxyx(win, rows, cols);
+	if( (dwin = derwin(win, rows-2, cols-2, 1, 1) ) == NULL) {
+		diag("warning, expected to be able to derive from terminal window");
+		g_top_twin.win = win;
+		return;
+	}
+
+	g_top_twin.win = dwin;
+}
+
 static void on_r(int chr, void *user) {
 	diag("++++key callback++++");
 	test_sigs();
@@ -824,6 +877,19 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 		&g_pan_term
 	);
 	
+	g_top_twin.win = NULL;
+	(*g_api->screen_win_alloc_top)(g_plugin, 8, top_terminal_cb);
+	
+	while(g_top_twin.win == NULL)
+		usleep(10000);
+
+	(*g_api->terminal_new)(
+		g_plugin, 
+		&g_top_twin, 
+		g_top_term_argv,
+		&g_top_term
+	);
+
 	diag("create thread for asynchronous tests");
 	if(pthread_create(&g_thread1, NULL, thread1, NULL) != 0) {
 		diag("expected to be able to create a thread. abort...");
@@ -832,6 +898,12 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 
 	diag("create thread for panel terminal");
 	if(pthread_create(&g_thread3, NULL, thread3, NULL) != 0) {
+		diag("expected to be able to create a thread. abort...");
+		return -1;
+	}
+
+	diag("create thread for top terminal");
+	if(pthread_create(&g_thread4, NULL, thread4, NULL) != 0) {
 		diag("expected to be able to create a thread. abort...");
 		return -1;
 	}
