@@ -41,8 +41,9 @@ static WINDOW *g_pan2_dwin, *g_pan3_dwin;
 static pthread_t g_thread1, g_thread2, g_thread3;
 
 void *g_pan_term;
-static char *g_pan_term_argv[] = {"vim", "vim", NULL}; //"/tmp/api_test_vi_file", NULL};
-char g_vi_msg[] = "izoidberg is a crafty consumer!"; //(\\/)(,;;,)(\\/)\x03:w\x0a";
+const char g_vi_test_file[] = "/tmp/api_test_file";
+static char *g_pan_term_argv[] = {"vi", g_vi_test_file, NULL};
+const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -536,23 +537,55 @@ void right_bar3_cb(WINDOW *win, void *user) {
 
 static void *thread1(void *user) {
 	int amt;
+	FILE *fp;
+	char closevi[] = "\x03:wq\n";
+	char buf[64];
 	(void)(user);
 
 	diag("++++thread1++++");
 	check_screen_lock();
 	test_sigs();
 	
-	sleep(1);
 	diag("write into panel terminal");
+	while((*g_api->terminal_input_chars)(g_plugin, g_pan_term, "i", 1 ) != 1) 
+		usleep(10000);
+		
 	amt = 0;
-	while(amt < (int) sizeof(g_vi_msg) ) {
-		amt += (*g_api->terminal_input_chars)(g_plugin, g_pan_term, g_vi_msg, sizeof(g_vi_msg) );
+	while(amt < (int) (sizeof(g_vi_msg)-1) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_pan_term, g_vi_msg+amt, 1 );
+		usleep(50000);
 	}
 	pass("wrote message into vi");
 
-	sleep(6);
-	diag("move panel a bit");
+	sleep(1);
+	diag("close vi");
 
+	amt = 0;
+	while(amt < (int) (sizeof(closevi)-1) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_pan_term, closevi+amt, 1 );
+		usleep(50000);
+	}
+	if( (fp = fopen(g_vi_test_file, "r") ) == NULL) {
+		fail("vi test file does not exist");
+	}
+	if( fread(buf, sizeof(char), 63, fp) < (sizeof(g_vi_msg) - 1) )
+		fail("vi test file does not have the correct amount of bytes");
+	else {
+		if(strncmp(buf, g_vi_msg, sizeof(g_vi_msg)-1) != 0) {
+			fail("vi test file contents do not match g_vi_msg");
+			buf[sizeof(g_vi_msg)-1] = '\0';		
+			diag("test file: %s", buf);
+			diag("test msg : %s", g_vi_msg);
+		}
+		else
+			pass("vi test file contents match g_vi_msg");
+	}
+	
+	unlink(g_vi_test_file);
+
+	sleep(4);
+	diag("move panel a bit");
+	
 	(*g_api->lock_screen)(g_plugin);
 	ok1(move_panel(g_pan1, 10, 30) != ERR);
 	(*g_api->screen_panel_update)(g_plugin);
@@ -811,7 +844,7 @@ void aug_plugin_free() {
 	check_screen_lock();
 
 	if( (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
-		pass("terminal is still running, kill child.");
+		fail("terminal is still running, kill child.");
 		pid = (*g_api->terminal_pid)(g_plugin, g_pan_term);
 		(*g_api->log)(g_plugin, "kill pid %d\n", pid);
 		kill(pid , SIGKILL);

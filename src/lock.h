@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include "util.h"
 
-#define AUG_LOCK_DEBUG
+/*#define AUG_LOCK_DEBUG*/
 
 #ifdef AUG_LOCK_DEBUG
 #	define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx; \
