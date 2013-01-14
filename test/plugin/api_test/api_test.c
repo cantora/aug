@@ -675,6 +675,16 @@ static void *thread3(void *user) {
 	(*g_api->terminal_run)(g_plugin, g_pan_term);
 	pass("finished panel terminal io loop");
 
+	diag("free terminal");
+	(*g_api->terminal_delete)(g_plugin, g_pan_term);
+
+	diag("cleanup window and panel");
+	(*g_api->lock_screen)(g_plugin);
+	ok(delwin(g_pan3_dwin) != ERR, "delete derived window (panel 3)");
+	(*g_api->unlock_screen)(g_plugin);
+
+	(*g_api->screen_panel_dealloc)(g_plugin, g_pan3);
+
 	diag("----thread3----\n#");
 	return NULL;
 }
@@ -705,7 +715,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(118);
+	plan_tests(117);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -864,22 +874,16 @@ void aug_plugin_free() {
 	ok( (g_got_cell_update == true), "check to see if cell_update callback got called");
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
-	diag("free terminals");
-	(*g_api->terminal_delete)(g_plugin, g_pan_term);
-
 	diag("dealloc panels");
 	(*g_api->lock_screen)(g_plugin);
 	ok(delwin(g_pan2_dwin) != ERR, "delete derived window (panel 2)");
-	ok(delwin(g_pan3_dwin) != ERR, "delete derived window (panel 3)");
 	(*g_api->unlock_screen)(g_plugin);
 
 	todo_start("screen_panel_size fails because "
 				"hidden panels are not traversable via "
 				"panel_below/above functions, which "
 				"messes up panel_stack_size()");
-	(*g_api->screen_panel_size)(g_plugin, &size);
-	ok1( size == 3 );
-	(*g_api->screen_panel_dealloc)(g_plugin, g_pan3);
+
 	(*g_api->screen_panel_size)(g_plugin, &size);
 	ok1( size == 2 );
 	(*g_api->screen_panel_dealloc)(g_plugin, g_pan2);
