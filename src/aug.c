@@ -567,38 +567,66 @@ static int api_terminal_terminated(struct aug_plugin *plugin, const void *termin
 	return (tchild->terminated != 0);
 }
 
-/*static void api_terminal_input(struct aug_plugin *plugin, void *terminal, 
-									const uint32_t *data, int n) {
-	int i, amt;
-	const struct aug_term_child *tchild;
+static void terminal_push_data(struct aug_term *term, 
+		const uint32_t *data, int amt) {
+	int i;
+
+	for(i = 0; i < amt; i++)
+		if(term_push_char(term, data[i]) != 0)
+			err_exit(0, "expected term to be able to push a character");
+}
+
+static void terminal_push_char_data(struct aug_term *term, 
+		const char *data, int amt) {
+	int i;
+
+	for(i = 0; i < amt; i++)
+		if(term_push_char(term, (uint32_t) data[i]) != 0)
+			err_exit(0, "expected term to be able to push a character");
+}
+
+static int terminal_input(struct aug_plugin *plugin, void *terminal, 
+		const void *data, int is_char_data, int n) {
+	int amt, status;
+	struct aug_term_child *tchild;
 	(void)(plugin);
 
-	tchild = (const struct aug_term_child *) terminal;
+	tchild = (struct aug_term_child *) terminal;
 
-	amt = term_can_push_chars(term);
-	if(amt < 1) 
-		return 0;
-	else if( amt > (int) sizeof(buf) )
-		amt = sizeof(buf);
+	child_lock(&tchild->child);
 
-	n_read = read(fd_input, buf, amt);
-	fprintf(stderr, "read %zd bytes of input for terminal\n", n_read);
-	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
-		return -1;
+	amt = term_can_push_chars(tchild->child.term);
+	if(amt < 1) {
+		status = 0;
+		fprintf(stderr, "terminal cannot push chars right now\n");
+		goto done;
 	}
-	else if(n_read < 0 && errno != EAGAIN) {
-		err_exit(errno, "error reading from input fd %d (n_read = %d)", fd_input, n_read);
-	}
-	else if(errno == EAGAIN) {
-		return 0;
-	}
+	else if( amt > n )
+		amt = n;
 
-	for(i = 0; i < n_read; i++)
-		term_push_char(term, (uint32_t) buf[i]);
+	if(is_char_data != 0)
+		terminal_push_char_data(tchild->child.term, data, amt);
+	else
+		terminal_push_data(tchild->child.term, data, amt);
+	fprintf(stderr, "pushed %d/%d chars to terminal\n", amt, n);
+	child_process_term_output(&tchild->child);
+	child_refresh(&tchild->child);
+	status = amt;
 
-	return 0;
+done:
+	child_unlock(&tchild->child);
+	return status;
 }
-*/
+
+static int api_terminal_input(struct aug_plugin *plugin, void *terminal, 
+		const uint32_t *data, int n) {
+	return terminal_input(plugin, terminal, data, 0, n);
+}
+
+static int api_terminal_input_chars(struct aug_plugin *plugin, void *terminal, 
+		const char *data, int n) {
+	return terminal_input(plugin, terminal, data, 1, n);
+}
 
 /* =================== end API functions ==================== */
 
@@ -1100,6 +1128,8 @@ static void init_plugins(struct aug_api *api) {
 	api->terminal_run = api_terminal_run;
 	api->terminal_pid = api_terminal_pid;
 	api->terminal_terminated = api_terminal_terminated;
+	api->terminal_input = api_terminal_input;
+	api->terminal_input_chars = api_terminal_input_chars;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

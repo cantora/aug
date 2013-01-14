@@ -285,8 +285,10 @@ struct aug_api {
 	int (*terminal_terminated)(struct aug_plugin *plugin, const void *terminal);
 
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
-	/*void (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
-								const uint32_t *data, int n);*/
+	int (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
+								const uint32_t *data, int n);
+	int (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
+								const char *data, int n);
 };
 
 #endif /* AUG_AUG_H */

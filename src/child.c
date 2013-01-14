@@ -7,7 +7,6 @@
 #include "util.h"
 #include "term.h"
 
-static void process_vterm_output(struct aug_child *);
 static int process_master_output(struct aug_child *);
 
 void child_init(struct aug_child *child, struct aug_term *term, 
@@ -44,7 +43,7 @@ void child_free(struct aug_child *child) {
 	AUG_LOCK_FREE(child);
 }
 
-static void process_vterm_output(struct aug_child *child) {
+void child_process_term_output(struct aug_child *child) {
 	size_t buflen;
 
 	while( (buflen = vterm_output_get_buffer_current(child->term->vt) ) > 0) {
@@ -141,7 +140,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 				goto done;
 			}
 
-			process_vterm_output(child);
+			child_process_term_output(child);
 			timer_init(&child->inter_io_timer);
 		}
 
@@ -174,7 +173,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 				/* fd_input is closed or bad in some way */
 				goto done;
 			}			
-			process_vterm_output(child);
+			child_process_term_output(child);
 			child->force_refresh = 1;
 		} /* if stdin set */
 	} /* while(1) */

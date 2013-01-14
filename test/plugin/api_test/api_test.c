@@ -41,8 +41,8 @@ static WINDOW *g_pan2_dwin, *g_pan3_dwin;
 static pthread_t g_thread1, g_thread2, g_thread3;
 
 void *g_pan_term;
-static char *g_pan_term_argv[] = {"vim", NULL}; //"/tmp/api_test_vi_file", NULL};
-char g_vi_msg[] = "izoidberg is a crafty consumer! \n"; //(\\/)(,;;,)(\\/)\x03:w\x0a";
+static char *g_pan_term_argv[] = {"vim", "vim", NULL}; //"/tmp/api_test_vi_file", NULL};
+char g_vi_msg[] = "izoidberg is a crafty consumer!"; //(\\/)(,;;,)(\\/)\x03:w\x0a";
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -535,20 +535,20 @@ void right_bar3_cb(WINDOW *win, void *user) {
 }
 
 static void *thread1(void *user) {
+	int amt;
 	(void)(user);
 
 	diag("++++thread1++++");
 	check_screen_lock();
 	test_sigs();
 	
-	/*sleep(1);
-	diag("write into vi pipe %d", g_pan_tp_pair.pipe);
-	if(write(g_pan_tp_pair.pipe, g_vi_msg, 5 ) != 5 )
-		fail("failed to write message into vi");
-	else {
-		pass("wrote message into vi");
-	}*/
-
+	sleep(1);
+	diag("write into panel terminal");
+	amt = 0;
+	while(amt < (int) sizeof(g_vi_msg) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_pan_term, g_vi_msg, sizeof(g_vi_msg) );
+	}
+	pass("wrote message into vi");
 
 	sleep(6);
 	diag("move panel a bit");
@@ -672,7 +672,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(117);
+	plan_tests(118);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
