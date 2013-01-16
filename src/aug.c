@@ -78,7 +78,8 @@ static struct {
 
 struct plugin_callback_pair {
 	struct aug_plugin *plugin;
-	void (*callback)(WINDOW *, void *user);
+	void (*window_fn)(WINDOW *, void *user);
+	void (*free_fn)(WINDOW *, void *user);
 };
 
 static struct {
@@ -247,28 +248,45 @@ static void api_unlock_screen(const struct aug_plugin *plugin) {
 	unlock_screen();
 }
 
+/* called by screen module from within screen_resize when an
+ * old window has been destroyed for an allocated plugin window.
+ * the plugin should take any necessary steps to cleanup the 
+ * resources it allocated for this window.
+ * screen, term, region_map will be locked when this is called.
+ */
+void make_win_alloc_cb_free(void *cb_pair, WINDOW *win) {
+	struct plugin_callback_pair *pair;
+	
+	pair = (struct plugin_callback_pair *) cb_pair;
+	if(pair->free_fn != NULL)
+		(*pair->free_fn)(win, pair->plugin->callbacks->user);
+}
+
 /* called by screen module from within screen_resize when a new
  * window has been created for an allocated plugin window.
  * screen, term, region_map will be locked when this is called.
  */
-void make_win_alloc_callback(void *cb_pair, WINDOW *win) {
+void make_win_alloc_cb_new(void *cb_pair, WINDOW *win) {
 	struct plugin_callback_pair *pair;
 	
 	pair = (struct plugin_callback_pair *) cb_pair;
-	(*pair->callback)(win, pair->plugin->callbacks->user);
+	(*pair->window_fn)(win, pair->plugin->callbacks->user);
 }
 
-static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size, 
-				void (*callback)(WINDOW *, void *user) ) {
+static inline void api_screen_win_alloc(int loc, struct aug_plugin *plugin, int size, 
+		void (*window_cb)(WINDOW *, void *),
+		void (*free_cb)(WINDOW *, void *) ) {
 	struct plugin_callback_pair *pair;
+	
+	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
+	pair->plugin = plugin;
+	pair->window_fn = window_cb;
+	pair->free_fn = free_cb;
 	
 	/* need locks on screen, term, and region_map */
 	AUG_LOCK(&g_region_map);
 	lock_all();
 
-	pair = aug_malloc( sizeof(struct plugin_callback_pair) );
-	pair->plugin = plugin;
-	pair->callback = callback;
 	objset_add(&g_edgewin_set, pair);
 	
 	switch(loc) {
@@ -293,28 +311,32 @@ static inline void api_win_alloc(int loc, struct aug_plugin *plugin, int size,
 	AUG_UNLOCK(&g_region_map);
 }
 
-static void api_win_alloc_top(struct aug_plugin *plugin, int nlines, 
-				void (*callback)(WINDOW *, void *user) ) {
-	api_win_alloc(0, plugin, nlines, callback);
+static void api_screen_win_alloc_top(struct aug_plugin *plugin, int nlines, 
+		void (*window_cb)(WINDOW *, void *),
+		void (*free_cb)(WINDOW *, void *) ) {
+	api_screen_win_alloc(0, plugin, nlines, window_cb, free_cb);
 }
 
-static void api_win_alloc_bot(struct aug_plugin *plugin, int nlines, 
-				void (*callback)(WINDOW *, void *user) ) {
-	api_win_alloc(1, plugin, nlines, callback);
+static void api_screen_win_alloc_bot(struct aug_plugin *plugin, int nlines, 
+		void (*window_cb)(WINDOW *, void *),
+		void (*free_cb)(WINDOW *, void *) ) {
+	api_screen_win_alloc(1, plugin, nlines, window_cb, free_cb);
 }
 
-static void api_win_alloc_left(struct aug_plugin *plugin, int ncols, 
-				void (*callback)(WINDOW *, void *user) ) {
-	api_win_alloc(2, plugin, ncols, callback);
+static void api_screen_win_alloc_left(struct aug_plugin *plugin, int ncols, 
+		void (*window_cb)(WINDOW *, void *),
+		void (*free_cb)(WINDOW *, void *) ) {
+	api_screen_win_alloc(2, plugin, ncols, window_cb, free_cb);
 }
 
-static void api_win_alloc_right(struct aug_plugin *plugin, int ncols, 
-				void (*callback)(WINDOW *, void *user) ) {
-	api_win_alloc(3, plugin, ncols, callback);
+static void api_screen_win_alloc_right(struct aug_plugin *plugin, int ncols, 
+		void (*window_cb)(WINDOW *, void *),
+		void (*free_cb)(WINDOW *, void *) ) {
+	api_screen_win_alloc(3, plugin, ncols, window_cb, free_cb);
 }
 
-static int api_win_dealloc(struct aug_plugin *plugin, \
-				void (*callback)(WINDOW *win, void *user)) {
+static int api_screen_win_dealloc(struct aug_plugin *plugin, \
+				void (*window_cb)(WINDOW *, void *)) {
 	struct objset_iter i;
 	struct plugin_callback_pair *pair;
 	int status;
@@ -326,7 +348,7 @@ static int api_win_dealloc(struct aug_plugin *plugin, \
 
 	for(pair = objset_first(&g_edgewin_set, &i); pair != NULL; 
 			pair = objset_next(&g_edgewin_set, &i) ) {
-		if(plugin == pair->plugin && callback == pair->callback)
+		if(plugin == pair->plugin && window_cb == pair->window_fn)
 			break;
 	}
 
@@ -1112,11 +1134,11 @@ static void init_plugins(struct aug_api *api) {
 	api->lock_screen = api_lock_screen;
 	api->unlock_screen = api_unlock_screen;
 
-	api->screen_win_alloc_top = api_win_alloc_top;
-	api->screen_win_alloc_bot = api_win_alloc_bot;
-	api->screen_win_alloc_left = api_win_alloc_left;
-	api->screen_win_alloc_right = api_win_alloc_right;
-	api->screen_win_dealloc = api_win_dealloc;
+	api->screen_win_alloc_top = api_screen_win_alloc_top;
+	api->screen_win_alloc_bot = api_screen_win_alloc_bot;
+	api->screen_win_alloc_left = api_screen_win_alloc_left;
+	api->screen_win_alloc_right = api_screen_win_alloc_right;
+	api->screen_win_dealloc = api_screen_win_dealloc;
 
 	api->screen_panel_alloc = api_screen_panel_alloc;
 	api->screen_panel_dealloc = api_screen_panel_dealloc;

@@ -146,22 +146,17 @@ AVL *region_map_key_regs_alloc() {
 	return avl_new( (AvlCompare) void_compare );
 }
 
-static void free_regions(AVL *key_regs) {
-	AvlIter i;
-	
-	avl_foreach(i, key_regs) {
-		free(i.value);
-		avl_remove(key_regs, i.key);
-	}
-}
-
 void region_map_key_regs_clear(AVL *key_regs) {
 	region_map_key_regs_free(key_regs);
 	key_regs = region_map_key_regs_alloc();
 }
 
 void region_map_key_regs_free(AVL *key_regs) {
-	free_regions(key_regs);
+	AvlIter i;
+	
+	avl_foreach(i, key_regs) {
+		free(i.value);
+	}
 	avl_free(key_regs);
 }
 

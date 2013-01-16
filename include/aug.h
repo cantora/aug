@@ -215,33 +215,37 @@ struct aug_api {
 	void (*screen_win_alloc_top)(
 		struct aug_plugin *plugin, 
 		int nlines, 
-		void (*callback)(WINDOW *win, void *user) 
+		void (*window_cb)(WINDOW *win, void *user),
+		void (*free_cb)(WINDOW *win, void *user)
 	); 
 
 	void (*screen_win_alloc_bot)(
 		struct aug_plugin *plugin, 
 		int nlines, 
-		void (*callback)(WINDOW *win, void *user) 
+		void (*window_cb)(WINDOW *win, void *user),
+		void (*free_cb)(WINDOW *win, void *user)
 	); 
 
 	void (*screen_win_alloc_left)(
 		struct aug_plugin *plugin, 
 		int ncols, 
-		void (*callback)(WINDOW *win, void *user) 
+		void (*window_cb)(WINDOW *win, void *user),
+		void (*free_cb)(WINDOW *win, void *user)
 	); 
 
 	void (*screen_win_alloc_right)(
 		struct aug_plugin *plugin, 
 		int ncols, 
-		void (*callback)(WINDOW *win, void *user) 
+		void (*window_cb)(WINDOW *win, void *user),
+		void (*free_cb)(WINDOW *win, void *user)
 	); 
 
 	/* return = 0 if a window was deallocated.
-	 * return non-zero if no window associated with callback
+	 * return non-zero if no window associated with window_cb
 	 * was found.
 	 */
 	int (*screen_win_dealloc)(struct aug_plugin *plugin, \
-				void (*callback)(WINDOW *win, void *user)); 
+				void (*window_cb)(WINDOW *win, void *user)); 
 
 	/* allocate a panel on top of the main terminal window and
 	 * on top of all previously allocated (by this plugin or others)

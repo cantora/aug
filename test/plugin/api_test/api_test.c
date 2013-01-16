@@ -571,20 +571,22 @@ static void *thread1(void *user) {
 	if( (fp = fopen(g_vi_test_file, "r") ) == NULL) {
 		fail("vi test file does not exist");
 	}
-	if( fread(buf, sizeof(char), 63, fp) < (sizeof(g_vi_msg) - 1) )
-		fail("vi test file does not have the correct amount of bytes");
 	else {
-		if(strncmp(buf, g_vi_msg, sizeof(g_vi_msg)-1) != 0) {
-			fail("vi test file contents do not match g_vi_msg");
-			buf[sizeof(g_vi_msg)-1] = '\0';		
-			diag("test file: %s", buf);
-			diag("test msg : %s", g_vi_msg);
+		if( fread(buf, sizeof(char), 63, fp) < (sizeof(g_vi_msg) - 1) )
+			fail("vi test file does not have the correct amount of bytes");
+		else {
+			if(strncmp(buf, g_vi_msg, sizeof(g_vi_msg)-1) != 0) {
+				fail("vi test file contents do not match g_vi_msg");
+				buf[sizeof(g_vi_msg)-1] = '\0';		
+				diag("test file: %s", buf);
+				diag("test msg : %s", g_vi_msg);
+			}
+			else
+				pass("vi test file contents match g_vi_msg");
 		}
-		else
-			pass("vi test file contents match g_vi_msg");
+		
+		unlink(g_vi_test_file);
 	}
-	
-	unlink(g_vi_test_file);
 
 	sleep(4);
 	diag("move panel a bit");
@@ -709,7 +711,21 @@ static void *thread4(void *user) {
 	return NULL;
 }
 
-void top_terminal_cb(WINDOW *win, void *user) {
+void top_terminal_cb_free(WINDOW *win, void *user) {
+	static int ran_once = 0;
+	(void)(win);
+	(void)(user);
+
+	if(ran_once == 0) {
+		pass("free callback for top terminal window");
+		ran_once = 1;
+	}
+
+	delwin(g_top_twin.win);
+	g_top_twin.win = NULL;
+}
+
+void top_terminal_cb_new(WINDOW *win, void *user) {
 	static int ran_once = 0;
 	int rows, cols, y, x;
 	WINDOW *dwin;
@@ -825,16 +841,16 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->unlock_screen)(g_plugin);
 
 	diag("create status bar window");
-	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb);
-	(*g_api->screen_win_alloc_bot)(g_plugin, 1, bottom_bar0_cb);
-	(*g_api->screen_win_alloc_bot)(g_plugin, 4, bottom_bar1_cb);
-	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb);
-	(*g_api->screen_win_alloc_left)(g_plugin, 10, left_bar1_cb);
-	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb);
-	(*g_api->screen_win_alloc_right)(g_plugin, 5, right_bar0_cb);
-	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar1_cb);
-	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb);
-	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb);
+	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb, NULL);
+	(*g_api->screen_win_alloc_bot)(g_plugin, 1, bottom_bar0_cb, NULL);
+	(*g_api->screen_win_alloc_bot)(g_plugin, 4, bottom_bar1_cb, NULL);
+	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb, NULL);
+	(*g_api->screen_win_alloc_left)(g_plugin, 10, left_bar1_cb, NULL);
+	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 5, right_bar0_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar1_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb, NULL);
 
 	diag("create terminal panel");
 	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 22, 33, &g_pan3);
@@ -878,7 +894,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	);
 	
 	g_top_twin.win = NULL;
-	(*g_api->screen_win_alloc_top)(g_plugin, 8, top_terminal_cb);
+	(*g_api->screen_win_alloc_top)(g_plugin, 8, top_terminal_cb_new, top_terminal_cb_free);
 	
 	while(g_top_twin.win == NULL)
 		usleep(10000);
@@ -945,6 +961,17 @@ void aug_plugin_free() {
 	ok( (g_got_expected_input == true), "check to see if input callback got expected user input");
 	ok( (g_got_cell_update == true), "check to see if cell_update callback got called");
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
+
+	diag("dealloc windows");
+
+	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb, NULL);
+	(*g_api->screen_win_alloc_bot)(g_plugin, 4, bottom_bar1_cb, NULL);
+	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb, NULL);
+	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 5, right_bar0_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb, NULL);
+	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb, NULL);
+	(*g_api->screen_win_dealloc)(g_plugin, top_terminal_cb_new);
 
 	diag("dealloc panels");
 	(*g_api->lock_screen)(g_plugin);

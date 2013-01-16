@@ -32,7 +32,8 @@
 #include "region_map.h"
 #include "ncurses_util.h"
 
-extern void make_win_alloc_callback(void *cb_pair, WINDOW *win);
+extern void make_win_alloc_cb_new(void *cb_pair, WINDOW *win);
+extern void make_win_alloc_cb_free(void *cb_pair, WINDOW *win);
 
 static void vterm_cb_refresh(void *user);
 static int free_term_win();
@@ -57,15 +58,17 @@ static const struct aug_term_io_callbacks CB_TERM_IO = {
 static struct {
 	int color_on;
 	struct aug_term_win term_win;
-	struct {
-		OBJSET_MEMBERS(WINDOW *);	
-	} windows;
+	AVL *windows;
 } g;	
+
+static AVL *init_window_table() {
+	return avl_new( (AvlCompare) void_compare);
+}
 
 int screen_init(struct aug_term *term) {
 	g.color_on = 0;
 
-	objset_init(&g.windows);
+	g.windows = init_window_table();
 	
 	initscr();
 	if(raw() == ERR) 
@@ -129,21 +132,26 @@ int screen_cleanup() {
 }
 
 static void free_windows() {
-	WINDOW *win;
-	struct objset_iter i;
+	AvlIter i;
 
-	for(win = objset_first(&g.windows, &i); win != NULL; 
-			win = objset_next(&g.windows, &i) ) {
-		if(delwin(win) == ERR)
+	avl_foreach(i, g.windows) {
+		make_win_alloc_cb_free(i.value, i.key);
+		if(delwin(i.key) == ERR)
 			err_exit(0, "failed to delete window");
 	}
 
-	objset_clear(&g.windows);
+	avl_free(g.windows);
 }
 
 void screen_free() {
-	free_windows();
-	
+	AvlIter i;
+
+	avl_foreach(i, g.windows) {
+		if(delwin(i.key) == ERR)
+			fprintf(stderr, "warning: failed to delete window\n");
+	}
+	avl_free(g.windows);
+
 	if(free_term_win() != 0)
 		err_exit(0, "free_term_win failed!");
 
@@ -387,19 +395,20 @@ static void resize_edge_windows(AVL *key_regs) {
 	WINDOW *edge_win;
 
 	free_windows();
+	g.windows = init_window_table();
 
 	avl_foreach(i, key_regs) {
 		edge_reg = (struct aug_region *) i.value;
 
 		if( SCREEN_REGION_VALID(edge_reg) ) {
 			edge_win = derwin_from_region(edge_reg);
-			objset_add(&g.windows, edge_win);
+			avl_insert(g.windows, edge_win, i.key);
 		}
 		else {
 			edge_win = NULL;
 		}
 	
-		make_win_alloc_callback(i.key, edge_win);
+		make_win_alloc_cb_new(i.key, edge_win);
 	} /* for each region */
 
 }
