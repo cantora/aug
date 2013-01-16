@@ -541,14 +541,37 @@ void right_bar3_cb(WINDOW *win, void *user) {
 static void *thread1(void *user) {
 	int amt;
 	FILE *fp;
-	char closevi[] = "\x03:wq\n";
+	const char closevi[] = "\x03:wq\n";
 	char buf[64];
+	const char sh_cmd1[] = "echo 'i am an edge window terminal created by a plugin ^_^'\n";
+	const char sh_cmd2[] = "echo 'some test text. blah blah blah qwer' > /tmp/api_test_sh_test\n";
+	const char sh_cmd3[] = "for i in 3 2 1; do echo $i; sleep 1; done; exit\n";
 	(void)(user);
 
 	diag("++++thread1++++");
 	check_screen_lock();
 	test_sigs();
 	
+	sleep(1);
+	diag("write into top terminal");
+	amt = 0;
+	while(amt < (int) (sizeof(sh_cmd1)-1) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd1+amt, 1 );
+		usleep(50000);
+	}
+
+	amt = 0;
+	while(amt < (int) (sizeof(sh_cmd2)-1) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd2+amt, 1 );
+		usleep(50000);
+	}
+
+	amt = 0;
+	while(amt < (int) (sizeof(sh_cmd3)-1) ) {
+		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd3+amt, 1 );
+		usleep(50000);
+	}
+
 	diag("write into panel terminal");
 	while((*g_api->terminal_input_chars)(g_plugin, g_pan_term, "i", 1 ) != 1) 
 		usleep(10000);
