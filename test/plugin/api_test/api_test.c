@@ -739,7 +739,7 @@ void top_terminal_cb_new(WINDOW *win, void *user) {
 		ok1(rows == 8);
 		ok1(cols == COLS);
 		getparyx(win, y, x);
-		ok1(y == 0);
+		ok1(y == 3);
 		ok1(x == 0);
 		ran_once = 1;
 	}
@@ -784,7 +784,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(117);
+	plan_tests(126);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
