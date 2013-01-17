@@ -557,19 +557,19 @@ static void *thread1(void *user) {
 	amt = 0;
 	while(amt < (int) (sizeof(sh_cmd1)-1) ) {
 		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd1+amt, 1 );
-		usleep(50000);
+		usleep(5000);
 	}
 
 	amt = 0;
 	while(amt < (int) (sizeof(sh_cmd2)-1) ) {
 		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd2+amt, 1 );
-		usleep(50000);
+		usleep(5000);
 	}
 
 	amt = 0;
 	while(amt < (int) (sizeof(sh_cmd3)-1) ) {
 		amt += (*g_api->terminal_input_chars)(g_plugin, g_top_term, sh_cmd3+amt, 1 );
-		usleep(50000);
+		usleep(5000);
 	}
 
 	diag("write into panel terminal");
@@ -972,6 +972,7 @@ void aug_plugin_free() {
 	}
 
 	diag("join threads");
+	pthread_join(g_thread4, NULL);	
 	pthread_join(g_thread3, NULL);
 	pthread_join(g_thread2, NULL);
 	pthread_join(g_thread1, NULL);

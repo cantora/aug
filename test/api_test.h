@@ -57,6 +57,7 @@ static int api_test_main(int argc, char *argv[]) {
 		sleep(API_TEST_IO_PAUSE); //usleep(100000);
 		nct_printf(api_test_on_r_response);
 		sleep(API_TEST_IO_PAUSE);
+		sleep(8);
 		nct_printf("\nexit\n");
 		/*diag("child: end");*/
 		exit(0);

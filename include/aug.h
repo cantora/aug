@@ -277,6 +277,10 @@ struct aug_api {
 
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal);
+
+	/* obviously, do not call any other api call with *terminal after
+	 * deleting it (for example, one thread deletes the terminal and
+	 * another is still writing into it). */
 	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
 	pid_t (*terminal_pid)(struct aug_plugin *plugin, const void *terminal);
 	

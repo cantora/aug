@@ -53,5 +53,8 @@ void err_exit_fn(const char *file, int lineno,
 		fflush(stdout);
 	}
 
+#ifdef AUG_ERR_COREDUMP
+	*( (int *) 0) = 1;
+#endif
 	exit(1);
 }
