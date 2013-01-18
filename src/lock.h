@@ -24,9 +24,17 @@
 
 #define AUG_LOCK_DEBUG
 
+
+#ifdef AUG_LOCK_DEBUG
+#	include <stdarg.h>
+#	include "timer.h"
+#endif
+
 #ifdef AUG_LOCK_DEBUG
 #	define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx; \
-		int locked;
+		int aug_lock_locked; \
+		struct aug_timer aug_lock_tmr; \
+		struct timeval aug_lock_elapsed;		
 #else
 #	define AUG_LOCK_MEMBERS pthread_mutex_t aug_mtx
 #endif
@@ -35,7 +43,7 @@
 #	define AUG_LOCK_INIT(_lockable_struct_ptr) \
 		do { \
 			AUG_STATUS_EQUAL( pthread_mutex_init( &(_lockable_struct_ptr)->aug_mtx, NULL ), 0 ); \
-			(_lockable_struct_ptr)->locked = 0; \
+			(_lockable_struct_ptr)->aug_lock_locked = 0; \
 		} while(0)
 #else
 #	define AUG_LOCK_INIT(_lockable_struct_ptr) \
@@ -47,13 +55,15 @@
 
 #ifdef AUG_LOCK_DEBUG
 static inline int fprint_tid(const char *src, const char *func, int lineno, 
-		FILE *f, pthread_t pt, const char *suffix) {
+		FILE *f, pthread_t pt, const char *suffix, ...) {
 #ifdef AUG_DEBUG
+	va_list args;
 	size_t k;
 #define FPRINT_TID_BUFLEN ( sizeof(pthread_t)*2 + 1 )
 	unsigned char *ptc;
 	char buf[FPRINT_TID_BUFLEN];
-	
+	char suf_buf[512];
+
 	ptc = (unsigned char*)(void*)(&pt);
 	for(k = 0; k < sizeof(pthread_t); k++) 
 		snprintf(buf+k*2, 3, "%02x", (unsigned)(ptc[k]));
@@ -61,7 +71,11 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 	buf[FPRINT_TID_BUFLEN-1] = '\0';
 #undef FPRINT_TID_BUFLEN
 
-	return fprintf(f, "(0x%s)%s#%s@%d=> %s\n", buf, src, func, lineno, suffix);
+	va_start(args, suffix);
+	vsnprintf(suf_buf, sizeof(suf_buf), suffix, args);
+	va_end(args);
+
+	return fprintf(f, "(0x%s)%s#%s@%d=> %s\n", buf, src, func, lineno, suf_buf);
 #else
 	(void)(src);
 	(void)(func);
@@ -75,13 +89,35 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 #endif
 
 #ifdef AUG_LOCK_DEBUG
+#define CHECK_ELAPSED(_lockable_struct_ptr, _fmt) \
+	do { \
+		if( (_lockable_struct_ptr)->aug_lock_elapsed.tv_sec > 0 \
+				|| (_lockable_struct_ptr)->aug_lock_elapsed.tv_usec > 100000) { \
+			fprint_tid(__FILE__, __func__, __LINE__, stderr, pthread_self(), \
+				_fmt, \
+				(int) (_lockable_struct_ptr)->aug_lock_elapsed.tv_sec, \
+				(int) (_lockable_struct_ptr)->aug_lock_elapsed.tv_usec \
+			); \
+		} \
+	} while(0)
+
+#endif
+
+#ifdef AUG_LOCK_DEBUG
 #	define AUG_LOCK(_lockable_struct_ptr) \
 		do { \
 			fprint_tid(__FILE__, __func__, __LINE__, stderr, pthread_self(), \
 				":lock " stringify(_lockable_struct_ptr) ); \
+			AUG_STATUS_EQUAL( timer_init( &(_lockable_struct_ptr)->aug_lock_tmr ), 0); \
 			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
-			AUG_EQUAL( (_lockable_struct_ptr)->locked, 0 ); \
-			(_lockable_struct_ptr)->locked = 1; \
+			AUG_STATUS_EQUAL( timer_elapsed( &(_lockable_struct_ptr)->aug_lock_tmr, \
+				&(_lockable_struct_ptr)->aug_lock_elapsed ), 0); \
+			CHECK_ELAPSED( (_lockable_struct_ptr), \
+				":waited %d secs, %d usecs for lock on " \
+				stringify(_lockable_struct_ptr) ); \
+			AUG_EQUAL( (_lockable_struct_ptr)->aug_lock_locked, 0 ); \
+			(_lockable_struct_ptr)->aug_lock_locked = 1; \
+			AUG_STATUS_EQUAL( timer_init( &(_lockable_struct_ptr)->aug_lock_tmr ), 0); \
 		} while(0)
 #else
 #	define AUG_LOCK(_lockable_struct_ptr) \
@@ -95,8 +131,13 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 		do { \
 			fprint_tid(__FILE__, __func__, __LINE__, stderr, pthread_self(), \
 				":unlock " stringify(_lockable_struct_ptr) ); \
-			AUG_EQUAL( (_lockable_struct_ptr)->locked, 1 ); \
-			(_lockable_struct_ptr)->locked = 0; \
+			AUG_EQUAL( (_lockable_struct_ptr)->aug_lock_locked, 1 ); \
+			(_lockable_struct_ptr)->aug_lock_locked = 0; \
+			AUG_STATUS_EQUAL( timer_elapsed( &(_lockable_struct_ptr)->aug_lock_tmr, \
+				&(_lockable_struct_ptr)->aug_lock_elapsed ), 0); \
+			CHECK_ELAPSED( (_lockable_struct_ptr), \
+				":held lock on " stringify(_lockable_struct_ptr) \
+				" for %d secs, %d usecs" ); \
 			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
 		} while(0)
 #else

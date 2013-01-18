@@ -807,7 +807,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(126);
+	plan_tests(127);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
