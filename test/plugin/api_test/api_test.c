@@ -551,7 +551,7 @@ static void *thread1(void *user) {
 	diag("++++thread1++++");
 	check_screen_lock();
 	test_sigs();
-	
+
 	sleep(1);
 	diag("write into top terminal");
 	amt = 0;
@@ -876,7 +876,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb, NULL);
 
 	diag("create terminal panel");
-	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 22, 33, &g_pan3);
+	(*g_api->screen_panel_alloc)(g_plugin, 10, 30, 15, 43, &g_pan3);
 	pass("terminal panel allocated");
 
 	diag("there should be 2 panels");

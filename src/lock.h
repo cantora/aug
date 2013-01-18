@@ -45,10 +45,9 @@
 #define AUG_LOCK_FREE(_lockable_struct_ptr) \
 	AUG_STATUS_EQUAL( pthread_mutex_destroy( &(_lockable_struct_ptr)->aug_mtx ), 0 )
 
-#define AUG_LOCK_DEBUG_PREFIX __FILE__ "@" stringify(__LINE__) 
-
 #ifdef AUG_LOCK_DEBUG
-static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
+static inline int fprint_tid(const char *src, const char *func, int lineno, 
+		FILE *f, pthread_t pt, const char *suffix) {
 #ifdef AUG_DEBUG
 	size_t k;
 #define FPRINT_TID_BUFLEN ( sizeof(pthread_t)*2 + 1 )
@@ -62,8 +61,11 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 	buf[FPRINT_TID_BUFLEN-1] = '\0';
 #undef FPRINT_TID_BUFLEN
 
-	return fprintf(f, "THREAD(0x%s)=> %s\n", buf, suffix);
+	return fprintf(f, "(0x%s)%s#%s@%d=> %s\n", buf, src, func, lineno, suffix);
 #else
+	(void)(src);
+	(void)(func);
+	(void)lineno;
 	(void)(f);
 	(void)(pt);
 	(void)(suffix);
@@ -75,7 +77,8 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 #ifdef AUG_LOCK_DEBUG
 #	define AUG_LOCK(_lockable_struct_ptr) \
 		do { \
-			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":lock " stringify(_lockable_struct_ptr) ); \
+			fprint_tid(__FILE__, __func__, __LINE__, stderr, pthread_self(), \
+				":lock " stringify(_lockable_struct_ptr) ); \
 			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
 			AUG_EQUAL( (_lockable_struct_ptr)->locked, 0 ); \
 			(_lockable_struct_ptr)->locked = 1; \
@@ -90,7 +93,8 @@ static inline int fprint_tid(FILE *f, pthread_t pt, const char *suffix) {
 #ifdef AUG_LOCK_DEBUG
 #	define AUG_UNLOCK(_lockable_struct_ptr) \
 		do { \
-			fprint_tid(stderr, pthread_self(), AUG_LOCK_DEBUG_PREFIX ":unlock " stringify(_lockable_struct_ptr) ); \
+			fprint_tid(__FILE__, __func__, __LINE__, stderr, pthread_self(), \
+				":unlock " stringify(_lockable_struct_ptr) ); \
 			AUG_EQUAL( (_lockable_struct_ptr)->locked, 1 ); \
 			(_lockable_struct_ptr)->locked = 0; \
 			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
