@@ -611,7 +611,7 @@ static void *thread1(void *user) {
 		unlink(g_vi_test_file);
 	}
 
-	sleep(4);
+	sleep(1);
 	diag("move panel a bit");
 	
 	(*g_api->lock_screen)(g_plugin);
@@ -619,6 +619,8 @@ static void *thread1(void *user) {
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
+
+	sleep(1);
 
 	diag("also remove some edge windows");
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, bottom_bar0_cb) == 0);
@@ -634,7 +636,6 @@ static void *thread1(void *user) {
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
 
-	sleep(1);
 	diag("----thread1----\n#");
 	return NULL;
 }

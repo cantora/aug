@@ -71,7 +71,7 @@ static int nct_printf(const char *format, ...) {
 		if(write(nct_pipe_fds[1], buf + i, 1) != 1)
 			err_exit(0, "error writing to nct pipe");
 
-		usleep(15000);
+		usleep(50000);
 	}
 
 	return result;

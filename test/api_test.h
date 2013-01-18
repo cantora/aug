@@ -58,7 +58,10 @@ static int api_test_main(int argc, char *argv[]) {
 		nct_printf(api_test_on_r_response);
 		sleep(API_TEST_IO_PAUSE);
 		sleep(8);
-		nct_printf("\nexit\n");
+		nct_printf("echo 'blah'\n");
+		nct_printf("echo 'asdfasdfasdf'\n");
+		nct_printf("echo 'wertwertwert'\n");
+		nct_printf("exit\n");
 		/*diag("child: end");*/
 		exit(0);
 	}

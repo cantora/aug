@@ -121,7 +121,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		 * is given a chance to timeout and cause a refresh.
 		 */
 		tv_select.tv_sec = 0;
-		tv_select.tv_usec = (child->force_refresh != 0)? 0 : 1000;
+		tv_select.tv_usec = (child->force_refresh != 0)? 1 : 1000;
 		tv_select_p = (child->just_refreshed == 0)? &tv_select : NULL;
 
 		if(locked != 0) {
@@ -179,7 +179,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 				goto done;
 			}			
 			child_process_term_output(child);
-			child_refresh(child);
+			child->force_refresh = 1;
 		} /* if stdin set */
 	} /* while(1) */
 
