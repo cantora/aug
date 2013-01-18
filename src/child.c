@@ -92,7 +92,7 @@ static int process_master_output(struct aug_child *child) {
 void child_io_loop(struct aug_child *child, int fd_input, 
 		int (*to_process_input)(struct aug_term *term, int fd_input, void *) ) {
 	fd_set in_fds;
-	int status, high_fd;
+	int status, high_fd, locked;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
 
@@ -107,6 +107,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 
 	fprintf(stderr, "fd_input = %d\n", fd_input);	
 	high_fd = (child->term->master > fd_input)? child->term->master : fd_input;
+	locked = 1;
 	while(1) {
 		FD_ZERO(&in_fds);
 		if(fd_input >= 0)
@@ -123,17 +124,21 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		tv_select.tv_usec = (child->force_refresh != 0)? 0 : 1000;
 		tv_select_p = (child->just_refreshed == 0)? &tv_select : NULL;
 
-		child_unlock(child);
+		if(locked != 0) {
+			child_unlock(child);
+			locked = 0;
+		}
 
 		if(select(high_fd+1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
-				child_lock(child);
+				/* locked == 0 */
 				continue;
 			}
 			else
 				err_exit(errno, "select");
 		}		
 		child_lock(child);
+		locked = 1;
 
 		if(FD_ISSET(child->term->master, &in_fds) ) {
 			if(process_master_output(child) != 0) {
@@ -174,7 +179,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 				goto done;
 			}			
 			child_process_term_output(child);
-			child->force_refresh = 1;
+			child_refresh(child);
 		} /* if stdin set */
 	} /* while(1) */
 
