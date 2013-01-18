@@ -30,17 +30,27 @@ int timer_init(struct aug_timer *tmr) {
  * returns -1 on error with errno set.
  */
 int timer_thresh(struct aug_timer *tmr, int sec, int usec) {
-	struct timeval now, diff, amt;
+	struct timeval diff, amt;
 	amt.tv_sec = sec;
 	amt.tv_usec = usec;
+
+	if(timer_elapsed(tmr, &diff) != 0)
+		return -1;
+	
+	if(!timercmp(&diff, &amt, <) )
+		return 1;
+	
+	return 0;
+}
+
+int timer_elapsed(struct aug_timer *tmr, struct timeval *elapsed) {
+	struct timeval now;
 
 	if(gettimeofday(&now, NULL) != 0)
 		return -1;
 
-	timersub(&now, &tmr->start, &diff);
-	if(!timercmp(&diff, &amt, <) )
-		return 1;
-	
+	timersub(&now, &tmr->start, elapsed);	
+
 	return 0;
 }
 

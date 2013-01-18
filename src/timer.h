@@ -27,5 +27,6 @@ struct aug_timer {
 
 int timer_init(struct aug_timer *tmr);
 int timer_thresh(struct aug_timer *tmr, int sec, int usec);
+int timer_elapsed(struct aug_timer *tmr, struct timeval *elapsed);
 
 #endif /* AUG_TIMER_H */
