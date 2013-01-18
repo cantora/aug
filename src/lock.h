@@ -89,7 +89,7 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 #endif
 
 #ifdef AUG_LOCK_DEBUG
-#define CHECK_ELAPSED(_lockable_struct_ptr, _fmt) \
+#define AUG_LOCK_CHECK_ELAPSED(_lockable_struct_ptr, _fmt) \
 	do { \
 		if( (_lockable_struct_ptr)->aug_lock_elapsed.tv_sec > 0 \
 				|| (_lockable_struct_ptr)->aug_lock_elapsed.tv_usec > 100000) { \
@@ -112,7 +112,7 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 			AUG_STATUS_EQUAL( pthread_mutex_lock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
 			AUG_STATUS_EQUAL( timer_elapsed( &(_lockable_struct_ptr)->aug_lock_tmr, \
 				&(_lockable_struct_ptr)->aug_lock_elapsed ), 0); \
-			CHECK_ELAPSED( (_lockable_struct_ptr), \
+			AUG_LOCK_CHECK_ELAPSED( (_lockable_struct_ptr), \
 				":waited %d secs, %d usecs for lock on " \
 				stringify(_lockable_struct_ptr) ); \
 			AUG_EQUAL( (_lockable_struct_ptr)->aug_lock_locked, 0 ); \
@@ -135,7 +135,7 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 			(_lockable_struct_ptr)->aug_lock_locked = 0; \
 			AUG_STATUS_EQUAL( timer_elapsed( &(_lockable_struct_ptr)->aug_lock_tmr, \
 				&(_lockable_struct_ptr)->aug_lock_elapsed ), 0); \
-			CHECK_ELAPSED( (_lockable_struct_ptr), \
+			AUG_LOCK_CHECK_ELAPSED( (_lockable_struct_ptr), \
 				":held lock on " stringify(_lockable_struct_ptr) \
 				" for %d secs, %d usecs" ); \
 			AUG_STATUS_EQUAL( pthread_mutex_unlock( &(_lockable_struct_ptr)->aug_mtx ), 0 ); \
