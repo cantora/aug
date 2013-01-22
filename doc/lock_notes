@@ -1,0 +1,47 @@
+callbacks:
+	input_char
+	cell_update
+	cursor_move
+	screen_dims_change
+
+all resources locked, so no api calls
+aside from screen_doupdate and screen_panel_update
+
+init, free:
+	nothing locked
+
+api calls:
+	log: 
+		none
+	conf_val:
+		none
+	callbacks
+		plugin_list
+	key_bind
+		keymap
+	key_unbind
+		keymap
+	lock_screen
+		screen
+	unlock_screen
+		none		
+	screen_win_alloc_{top,bot,left,right}
+		region_map, keymap, plugin_list, screen
+	screen_win_dealloc
+		region_map, keymap, plugin_list, screen
+	screen_panel_{alloc,dealloc,size}
+		screen
+	screen_panel_update
+		none
+	screen_doupdate
+		none
+	terminal_{new,delete,
+		keymap, plugin_list, screen, tchild_table
+	terminal_pid
+		none
+	terminal_terminated
+		none
+	terminal_run
+		keymap, plugin_list, screen, tchild_table
+	terminal_{input,terminal_input_chars}
+		none
