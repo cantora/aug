@@ -22,9 +22,6 @@
 #include <stdio.h>
 #include "util.h"
 
-#define AUG_LOCK_DEBUG
-
-
 #ifdef AUG_LOCK_DEBUG
 #	include <stdarg.h>
 #	include "timer.h"
@@ -56,7 +53,7 @@
 #ifdef AUG_LOCK_DEBUG
 static inline int fprint_tid(const char *src, const char *func, int lineno, 
 		FILE *f, pthread_t pt, const char *suffix, ...) {
-#ifdef AUG_DEBUG
+#if defined(AUG_DEBUG) && defined(AUG_LOCK_DEBUG_PRINT)
 	va_list args;
 	size_t k;
 #define FPRINT_TID_BUFLEN ( sizeof(pthread_t)*2 + 1 )
@@ -84,9 +81,9 @@ static inline int fprint_tid(const char *src, const char *func, int lineno,
 	(void)(pt);
 	(void)(suffix);
 	return 0;
-#endif
+#endif /* AUG_DEBUG && AUG_LOCK_DEBUG_PRINT */
 }
-#endif
+#endif /* AUG_LOCK_DEBUG */
 
 #ifdef AUG_LOCK_DEBUG
 #define AUG_LOCK_CHECK_ELAPSED(_lockable_struct_ptr, _fmt) \
