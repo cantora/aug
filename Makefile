@@ -140,24 +140,33 @@ $(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
 
 $(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) \
-		$(PLUGIN_OBJECTS) sandbox/plugin/api_test/api_test.so
+		$(PLUGIN_OBJECTS) sandbox/plugin/api_test/api_test.so sandbox/plugin/unload/unload.so
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -o $@
 
 screen_api_test: $(BUILD)/screen_api_test
 	$<
 
-./sandbox/plugin/api_test/api_test.so: .FORCE
-	cat ./test/plugin/api_test/api_test.c \
+define screen-test-plugin-template
+./sandbox/plugin/$(1)/$(1).so: .FORCE
+	cp ./test/plugin/test_plugin.mk ./sandbox/plugin/
+	mkdir -p ./sandbox/plugin/$(1)
+	cp ./test/plugin/$(1)/Makefile ./sandbox/plugin/$(1)/
+	echo 'INCLUDES += -iquote"$$$$(AUG_DIR)/sandbox"' >> ./sandbox/plugin/$(1)/Makefile
+	cat ./test/plugin/$(1)/$(1).c \
 		| sed 's/#include <ccan\/tap\/tap.h>/#include "stderr_tap.h"/' \
-		> ./sandbox/plugin/api_test/api_test.c
-	$(MAKE) $(MFLAGS) -C $(dir $@) 
+		> ./sandbox/plugin/$(1)/$(1).c
+	$(MAKE) $(MFLAGS) -C $$(dir $$@) 
+
+endef
+
+$(foreach x, api_test unload, $(eval $(call screen-test-plugin-template,$(x)) ) )
 
 .PHONY: clean 
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
-	$(MAKE) $(MFLAGS) -C ./sandbox/plugin/api_test clean && rm -f ./sandbox/plugin/api_test/api_test.c
+	rm -rvf ./sandbox/plugin/*
 
 .PHONY: libclean
 libclean: clean

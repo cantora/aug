@@ -20,7 +20,7 @@ define cc-template
 $(CXX_CMD) $(DEP_FLAGS) -fPIC -c $< -o $@
 endef
 
-%.o: %.c
+%.o: %.c $(CCAN_CP)
 	$(cc-template)
 
 tap.o: $(CCAN_CP)/tap/tap.c

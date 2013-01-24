@@ -10,3 +10,5 @@ libvterm
 *.so
 *.o
 script
+sandbox/plugin/*
+core
