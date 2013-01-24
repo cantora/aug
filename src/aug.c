@@ -75,6 +75,9 @@ static struct {
 static struct {
 	AUG_LOCK_MEMBERS;
 } g_region_map;
+static struct {
+	AUG_LOCK_MEMBERS;
+} g_free_plugin_lock;
 
 struct plugin_callback_pair {
 	struct aug_plugin *plugin;
@@ -147,6 +150,38 @@ static int api_log(struct aug_plugin *plugin, const char *format, ...) {
 	va_end(args);
 
 	return result;
+}
+
+static int api_unload(struct aug_plugin *plugin) {
+	struct aug_plugin_item *i;
+	int found;
+
+	/* this lock is to prevent a plugin from being
+	 * freed by this call as well as the terminating
+	 * free_plugins() call. */
+	AUG_LOCK(&g_free_plugin_lock); 
+	AUG_LOCK(&g_plugin_list);
+	found = 0;
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if( &i->plugin == plugin ) {
+			found = 1;
+			break;
+		}
+	}
+	AUG_UNLOCK(&g_plugin_list);
+	if(found == 0)
+		goto unlock;
+
+	(*i->plugin.free)();
+	AUG_LOCK(&g_plugin_list);
+	plugin_list_del(&g_plugin_list, i);
+	AUG_UNLOCK(&g_plugin_list);
+
+	AUG_UNLOCK(&g_free_plugin_lock);
+	return 0;
+unlock:
+	AUG_UNLOCK(&g_free_plugin_lock);
+	return -1;
 }
 
 /* for the time being, g_ini is not modified after initialization,
@@ -630,7 +665,7 @@ static int terminal_input(struct aug_plugin *plugin, void *terminal,
 		terminal_push_char_data(tchild->child.term, data, amt);
 	else
 		terminal_push_data(tchild->child.term, data, amt);
-	fprintf(stderr, "pushed %d/%d chars to terminal\n", amt, n);
+	/*fprintf(stderr, "pushed %d/%d chars to terminal\n", amt, n);*/
 	child_process_term_output(&tchild->child);
 	child_refresh(&tchild->child);
 	status = amt;
@@ -1025,7 +1060,7 @@ static void load_plugins() {
 		fprintf(stderr, "search for plugin: %s\n", secname);
 		TOK_ITR_FOREACH(path, (1024-seclen-3-1), g_conf.plugin_path, ':', &tok_itr) {
 			wordexp_t exp;
-			int exp_status;
+			int exp_status, found;
 			size_t j;
 
 			if( (exp_status = wordexp(path, &exp, WRDE_NOCMD)) != 0 ) {
@@ -1050,6 +1085,7 @@ static void load_plugins() {
 				continue;
 			}
 			
+			found = 0;
 			for(j = 0; j < exp.we_wordc; j++) {
 				size_t len;
 
@@ -1077,12 +1113,15 @@ static void load_plugins() {
 					plugin_list_push(&g_plugin_list, path, secname, seclen, &err);
 					if(err == NULL)
 						fprintf(stderr, "\tloaded %s.so\n", secname);
-	
+
+					found = 1;	
 					break;
 				}
 			} /* for each expanded path */
 
 			wordfree(&exp);
+			if(found != 0)
+				break;
 		} /* FOREACH */
 		
 		if(err != NULL)	
@@ -1126,6 +1165,7 @@ static void init_plugins(struct aug_api *api) {
 	plugin_list_init(&g_plugin_list);
 	load_plugins();
 	api->log = api_log;
+	api->unload = api_unload;
 	api->conf_val = api_conf_val;
 	api->callbacks = api_callbacks;
 	api->key_bind = api_key_bind;
@@ -1165,10 +1205,12 @@ static void init_plugins(struct aug_api *api) {
 static void free_plugins() {
 	struct aug_plugin_item *i;
 
+	AUG_LOCK(&g_free_plugin_lock);
 	PLUGIN_LIST_FOREACH_REV(&g_plugin_list, i) {
 		fprintf(stderr, "free %s...\n", i->plugin.name);
 		(*i->plugin.free)();
 	}
+	AUG_UNLOCK(&g_free_plugin_lock);
 
 	plugin_list_free(&g_plugin_list);
 }
@@ -1279,6 +1321,7 @@ int aug_main(int argc, char *argv[]) {
 	fprintf(stderr, "started primary child at pid %d\n", g_child.pid);
 
 	AUG_LOCK_INIT(&g_screen); /* 4 */
+	AUG_LOCK_INIT(&g_free_plugin_lock);
 	/* init keymap structure */
 	keymap_init(&g_keymap); /* 5 */
 
@@ -1290,8 +1333,10 @@ int aug_main(int argc, char *argv[]) {
 		
 	/* this is first point where api functions will be called
 	 * and locks will be utilized */
+	AUG_LOCK(&g_free_plugin_lock);
 	init_plugins(&api); /* 7 */
 	g_plugins_initialized = true;
+	AUG_UNLOCK(&g_free_plugin_lock);
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);
@@ -1345,6 +1390,7 @@ int aug_main(int argc, char *argv[]) {
 	objset_clear(&g_edgewin_set);
 
 	keymap_free(&g_keymap); /* 5 */
+	AUG_LOCK_FREE(&g_free_plugin_lock);
 	AUG_LOCK_FREE(&g_screen); /* 4 */
 	child_free(&g_child);
 screen_cleanup:

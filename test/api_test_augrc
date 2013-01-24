@@ -4,6 +4,8 @@ term = screen ;
 ncterm = screen ;
 cmd-prefix = ^A ;
 
+[unload]
+
 [hello]
 
 #nothing to configure

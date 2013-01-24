@@ -119,6 +119,10 @@ fail:
 
 void plugin_list_del(struct aug_plugin_list *pl, struct aug_plugin_item *item) {
 	list_del_from(&pl->head, &item->node);
-	dlclose(item->plugin.so_handle);
+	/* if a plugin leaves a thread running after we unload the 
+	 * plugin .so the program will crash, so i think its best to
+	 * just leave the .so loaded in memory.
+	 * dlclose(item->plugin.so_handle);
+	 */
 	free(item);
 }

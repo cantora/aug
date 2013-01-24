@@ -130,6 +130,11 @@ struct aug_api {
 	 */
 	int (*log)(struct aug_plugin *plugin, const char *format, ...);
 
+	/* unload the calling plugin. do not call this
+	 * during aug_plugin_init or aug_plugin_free.
+	 */
+	int (*unload)(struct aug_plugin *plugin);
+
 	/* call this function to query for a
 	 * user specified configuration value
 	 * parsed from the command line or the
