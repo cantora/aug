@@ -14,6 +14,8 @@
 
 #define aug_log(...) \
 	AUG_API_CALL(log, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
+#define aug_unload() \
+	AUG_API_CALL(unload, (AUG_PLUGIN_HANDLE))
 #define aug_conf_val(...) \
 	AUG_API_CALL(conf_val, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_callbacks(...) \
