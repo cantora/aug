@@ -9,6 +9,7 @@ build
 libvterm
 *.so
 *.o
+*.d
 script
 sandbox/plugin/*
 core

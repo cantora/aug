@@ -405,8 +405,13 @@ static int api_screen_win_dealloc(struct aug_plugin *plugin, \
 static void api_screen_panel_alloc(struct aug_plugin *plugin, int nlines, int ncols, 
 								int begin_y, int begin_x, PANEL **panel) {
 	lock_screen();
+
+	if(nlines < 1 || ncols < 1) {
+		screen_dims(&nlines, &ncols);
+	}		
 	panel_stack_push(plugin, nlines, ncols, begin_y, begin_x);
 	panel_stack_top(panel);
+
 	unlock_screen();	
 }
 
