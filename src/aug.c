@@ -172,6 +172,7 @@ static int api_unload(struct aug_plugin *plugin) {
 	if(found == 0)
 		goto unlock;
 
+	fprintf(stderr, "unload plugin %s\n", i->plugin.name);
 	(*i->plugin.free)();
 	AUG_LOCK(&g_plugin_list);
 	plugin_list_del(&g_plugin_list, i);
@@ -876,6 +877,7 @@ static void push_key(struct aug_term *term, int ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
 	
+	/*fprintf(stderr, "push_key: 0x%04x\n", ch);*/
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
 			continue;

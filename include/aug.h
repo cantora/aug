@@ -26,6 +26,26 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  * the plugin should not make any api calls from within
  * a callback, as this will result in thread lock. the only
  * exceptions are screen_doupdate and screen_panel_update.
+ * warning: also do not wait on any locks which another
+ * thread may have locked when that other thread may be making
+ * api calls; this will cause a circular dependency and most
+ * likely the threads will become deadlocked. example:
+ *    __________________________________________________
+ *   | aug thread             |   plugin thread1        |
+ *   |------------------------|-------------------------|
+ *   |                        |   *locks mtx1*          |
+ *   |  *locks api*           |                         |
+ *   |  invokes api callback  |                         |
+ *   |(now in plugin callback)|                         |
+ *   |*locks mtx1* (blocked)  |                         | <- (1)
+ *   |                        | makes api call (blocked)| <- (2)
+ *   |------------------------|-------------------------|
+ *   |                    DEADLOCKED                    |
+ *
+ *   (1) the aug thread cant unlock the api until the callback completes
+ *   (2) the callback will never complete until thread1 does its business 
+ *       and unlocks mtx1, but thread1 is blocked on the api call because 
+ *       the api is locked.
  */
 struct aug_plugin_cb {
 	/* called when a unit of input

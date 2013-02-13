@@ -62,7 +62,9 @@ static int process_master_output(struct aug_child *child) {
 	 * than 512 is available, so by looping here, we try
 	 * to get as close to filling up the buffer as possible */
 	do {
+		/*fprintf(stderr, "child: read master pty\n");*/
 		n_read = read(child->term->master, child->buf + total_read, 512);
+		/*fprintf(stderr, "child: done reading master pty\n");*/
 	} while(n_read > 0 && ( (total_read += n_read) + 512 <= AUG_CHILD_BUF_SIZE) );
 	
 	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
@@ -128,19 +130,23 @@ void child_io_loop(struct aug_child *child, int fd_input,
 			child_unlock(child);
 			locked = 0;
 		}
-
+	
+		/*fprintf(stderr, "child: select begin\n");*/
 		if(select(high_fd+1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
+				/*fprintf(stderr, "child: select interupted\n");*/
 				/* locked == 0 */
 				continue;
 			}
 			else
 				err_exit(errno, "select");
-		}		
+		}
+		/*fprintf(stderr, "child: select end\n");*/
 		child_lock(child);
 		locked = 1;
 
 		if(FD_ISSET(child->term->master, &in_fds) ) {
+			/*fprintf(stderr, "child: process_master_output\n");*/
 			if(process_master_output(child) != 0) {
 				goto done;
 			}
