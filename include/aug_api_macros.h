@@ -62,5 +62,9 @@
 	AUG_API_CALL(terminal_input, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_terminal_input_chars(...) \
 	AUG_API_CALL(terminal_input_chars, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
+#define aug_primary_input(...) \
+	AUG_API_CALL(primary_input, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
+#define aug_primary_input_chars(...) \
+	AUG_API_CALL(primary_input_chars, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 
 #endif /* AUG_AUG_API_H */
