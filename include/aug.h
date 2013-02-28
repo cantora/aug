@@ -322,6 +322,15 @@ struct aug_api {
 								const uint32_t *data, int n);
 	int (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
 								const char *data, int n);
+
+	/* similar to the terminal input api calls, these allow
+	 * a plugin to write input keys/data to the primary 
+	 * terminal. */
+	int (*primary_input)(struct aug_plugin *plugin,
+								const uint32_t *data, int n);
+	int (*primary_input_chars)(struct aug_plugin *plugin,
+									const char *data, int n);
+
 };
 
 #endif /* AUG_AUG_H */

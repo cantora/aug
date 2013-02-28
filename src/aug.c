@@ -700,6 +700,49 @@ static int api_terminal_input_chars(struct aug_plugin *plugin, void *terminal,
 	return terminal_input(plugin, terminal, data, 1, n);
 }
 
+static int primary_input(struct aug_plugin *plugin, const void *data, 
+			int is_char_data, int n) {
+	int amt, status;
+	(void)(plugin);
+
+	/* this will invoke the configured lock callback,
+	 * so theres no need to explicity lock anything else here.
+	 * (see main() ). */
+	child_lock(&g_child);
+
+	amt = term_can_push_chars(g_child.term);
+	if(amt < 1) {
+		status = 0;
+		fprintf(stderr, "terminal cannot push chars right now\n");
+		goto done;
+	}
+	else if( amt > n )
+		amt = n;
+
+	if(is_char_data != 0)
+		terminal_push_char_data(g_child.term, data, amt);
+	else
+		terminal_push_data(g_child.term, data, amt);
+
+	child_process_term_output(&g_child);
+	child_refresh(&g_child);
+	status = amt;
+
+done:
+	child_unlock(&g_child);
+	return status;
+}
+
+static int api_primary_input(struct aug_plugin *plugin,
+		const uint32_t *data, int n) {
+	return primary_input(plugin, data, 0, n);
+}
+
+static int api_primary_input_chars(struct aug_plugin *plugin,
+		const char *data, int n) {
+	return primary_input(plugin, data, 1, n);
+}
+
 /* =================== end API functions ==================== */
 
 /* ================= term callbacks for API =========================== */
@@ -1208,6 +1251,8 @@ static void init_plugins(struct aug_api *api) {
 	api->terminal_terminated = api_terminal_terminated;
 	api->terminal_input = api_terminal_input;
 	api->terminal_input_chars = api_terminal_input_chars;
+	api->primary_input = api_primary_input;
+	api->primary_input_chars = api_primary_input_chars;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

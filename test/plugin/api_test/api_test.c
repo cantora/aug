@@ -627,6 +627,9 @@ static void *thread1(void *user) {
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb) == 0);
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
+	diag("also write some stuff into the primary terminal");
+	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\n";
+	ok1((*g_api->primary_input_chars)(g_plugin, primary_echo, ARRAY_SIZE(primary_echo)) == ARRAY_SIZE(primary_echo));
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
 
@@ -808,7 +811,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(127);
+	plan_tests(128);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
