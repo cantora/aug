@@ -382,6 +382,7 @@ static int api_screen_win_dealloc(struct aug_plugin *plugin, \
 	AUG_LOCK(&g_region_map);
 	lock_all();
 
+	/* find the edgewin */
 	for(pair = objset_first(&g_edgewin_set, &i); pair != NULL; 
 			pair = objset_next(&g_edgewin_set, &i) ) {
 		if(plugin == pair->plugin && window_cb == pair->window_fn)
@@ -389,10 +390,18 @@ static int api_screen_win_dealloc(struct aug_plugin *plugin, \
 	}
 
 	if(pair != NULL) {
+		/* delete it from the region map. the next time
+		 * the screen is re-assessed all window regions will be
+		 * freed (with provided _free callbacks begin called) 
+		 * and then reallocated. since this particular region
+		 * will have been deleted from the region map it will
+		 * not be reallocated space and thus will have been freed
+		 * for good. */
 		if(region_map_delete( (void *) pair) != 0)
 			err_exit(0, "expected pair to exist in region map!");
 
 		objset_del(&g_edgewin_set, pair);
+		/* re-assess what the screen should look like */
 		resize_and_redraw_screen();
 		status = 0;
 	}

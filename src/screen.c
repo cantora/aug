@@ -135,6 +135,9 @@ static void free_windows() {
 	AvlIter i;
 
 	avl_foreach(i, g.windows) {
+		/* defined in aug.c: inform plugin that the WINDOW
+		 * object it was given for its edge window is about
+		 * to be destroyed so it can free associated resources */
 		make_win_alloc_cb_free(i.value, i.key);
 		if(delwin(i.key) == ERR)
 			err_exit(0, "failed to delete window");
@@ -407,7 +410,9 @@ static void resize_edge_windows(AVL *key_regs) {
 		else {
 			edge_win = NULL;
 		}
-	
+
+		/* defined in aug.c: inform plugin of new WINDOW object
+		 * that it should use for its allocated edge window */
 		make_win_alloc_cb_new(i.key, edge_win);
 	} /* for each region */
 

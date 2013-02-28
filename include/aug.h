@@ -229,7 +229,7 @@ struct aug_api {
 	 * the screen will be locked during this callback, so
 	 * the plugin must not make any API calls which lock the screen. the 
 	 * callback will either provide a window with at least as much width/height as requested by
-	 * the screen_win_alloc_* call or it there is not enough space, the
+	 * the screen_win_alloc_* call or if there is not enough space, the
 	 * WINDOW pointer will be NULL which means the plugin does not have
 	 * access to its window until there is enough free space that the callback
 	 * is invoked with a non-null window.
@@ -267,7 +267,7 @@ struct aug_api {
 
 	/* return = 0 if a window was deallocated.
 	 * return non-zero if no window associated with window_cb
-	 * was found.
+	 * was found. the relevant *free_cb callback will be invoked.
 	 */
 	int (*screen_win_dealloc)(struct aug_plugin *plugin, \
 				void (*window_cb)(WINDOW *win, void *user)); 
