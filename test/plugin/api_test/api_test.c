@@ -12,7 +12,7 @@
 
 const char aug_plugin_name[] = "api_test";
 
-void input_char(int *ch, aug_action *action, void *user);
+void input_char(uint32_t *ch, aug_action *action, void *user);
 void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, 
 					attr_t *attr, int *color_pair, aug_action *action, void *user);
 void cursor_move(int rows, int cols, int old_row, int old_col, 
@@ -29,7 +29,7 @@ static struct aug_plugin_cb g_callbacks = {
 	.cursor_move = cursor_move,
 	.screen_dims_change = screen_dims_change
 };
-static int g_callback_key = 0x12;
+static uint32_t g_callback_key = 0x12;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
@@ -90,7 +90,7 @@ static int test_sigs() {
 	return 0;
 }
 
-void input_char(int *ch, aug_action *action, void *user) {
+void input_char(uint32_t *ch, aug_action *action, void *user) {
 	static unsigned int total_chars = 0;
 #	define CUTOFF (ARRAY_SIZE(api_test_user_input) - 1 )
 	static char firstn[CUTOFF+1];
@@ -798,7 +798,7 @@ void top_terminal_cb_new(WINDOW *win, void *user) {
 	g_top_twin.win = dwin;
 }
 
-static void on_r(int chr, void *user) {
+static void on_r(uint32_t chr, void *user) {
 	diag("++++key callback++++");
 	test_sigs();
 	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);

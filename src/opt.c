@@ -215,7 +215,7 @@ static void print_char_reps() {
 	int i;
 	char s[8];
 
-	for(i = 0; i <= 0xff; i++) {
+	for(i = 0; i <= 0x7f; i++) {
 		if(screen_unctrl(i, s) != 0)
 			err_exit(0, "could not derive unctrl string for 0x%02x", i);
 		

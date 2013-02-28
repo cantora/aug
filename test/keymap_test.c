@@ -11,10 +11,10 @@ struct aug_test {
 	int amt;
 };
 
-static int test1chr = '1';
+static uint32_t test1chr = '1';
 static void * test1user = &test1chr;
 
-void test1_cb1(int chr, void *user) {
+void test1_cb1(uint32_t chr, void *user) {
 	diag("test1_cb1: enter");
 	ok1(chr == test1chr);
 	ok1(user == test1user);
@@ -47,10 +47,10 @@ void test1() {
 	keymap_free(&map);
 }
 
-static int test2chr1 = '2';
+static uint32_t test2chr1 = '2';
 static void * test2user1 = (void *) 0x0021;
 
-void test2_cb1(int chr, void *user) {
+void test2_cb1(uint32_t chr, void *user) {
 	diag("test2_cb1: enter");
 	ok1(chr == test2chr1);
 	ok1(user == test2user1);
@@ -59,7 +59,7 @@ void test2_cb1(int chr, void *user) {
 
 static void * test2user2 = (void *) 0x0022;
 
-void test2_cb2(int chr, void *user) {
+void test2_cb2(uint32_t chr, void *user) {
 	diag("test2_cb2: enter");
 	ok1(chr == test2chr1);
 	ok1(user == test2user2);
@@ -107,10 +107,10 @@ void test2() {
 	keymap_free(&map);
 }
 
-static int test3chr = '3';
+static uint32_t test3chr = '3';
 static void * test3user = &test3chr;
 
-void test3_cb1(int chr, void *user) {
+void test3_cb1(uint32_t chr, void *user) {
 	diag("test3_cb1: enter");
 	ok1(chr == test3chr);
 	ok1(user == test3user);

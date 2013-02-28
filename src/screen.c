@@ -181,19 +181,19 @@ void screen_dims(int *rows, int *cols) {
 	*cols = COLS;
 }
 
-int screen_getch(int *ch) {
-	*ch = getch();
+int screen_getch(uint32_t *ch) {
 
+	if(get_wch(ch) == ERR)
+		return -1;
+	
 	/* resize will be handled by signal
 	 * so flush out all the resize keys
 	 */
 	if(*ch == KEY_RESIZE) 
 		while(*ch == KEY_RESIZE) {
-			*ch = getch();
+			if(get_wch(ch) == ERR)
+				return -1;
 		}
-
-	if(*ch == ERR) 
-		return -1;
 
 	return 0;
 }
@@ -451,22 +451,26 @@ void screen_resize() {
 #undef SCREEN_REGION_VALID
 
 /* converts a character into its string representation.
- * *str* should have enough space for 3 characters + one
+ * *str* should have enough space for 2 characters + one
  * one null byte.
  */
-int screen_unctrl(int ch, char *str) {
-	const char *s;
-	size_t len;
+int screen_unctrl(uint32_t ch, char *str) {
+	const wchar_t *s;
+	cchar_t cch;
+	size_t len, i;
 
-	s = unctrl(ch);
+	setcchar(&cch, (wchar_t *)&ch, 0, 0, NULL);
+	s = wunctrl(&cch);
 	if(s == NULL)
 		return -1;
 
-	len = strlen(s);
+	len = wcslen(s);
 	
-	strncpy(str, s, 3);
-	if(len > 3)
-		len = 3;
+	if(len > 2)
+		len = 2;
+
+	for(i = 0; i < len; i++)
+		str[i] = (char) s[i];
 
 	str[len] = '\0';
 

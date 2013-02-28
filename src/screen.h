@@ -39,7 +39,7 @@ int screen_cleanup();
 void screen_free();
 void screen_set_term(struct aug_term *term);
 void screen_dims(int *rows, int *cols);
-int screen_getch(int *ch);
+int screen_getch(uint32_t *ch);
 /*void screen_err_msg(int error, char **msg);*/
 int screen_color_start();
 int screen_damage(VTermRect rect, void *user);
@@ -58,7 +58,7 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
 int screen_push_top_edgewin(int nlines, void **win);
 
 void screen_resize();
-int screen_unctrl(int ch, char *str);
+int screen_unctrl(uint32_t ch, char *str);
 void screen_doupdate();
 void screen_clear();
 int screen_redraw_term_win();

@@ -56,7 +56,7 @@ struct aug_plugin_cb {
 	 * the plugin can set action to 
 	 * AUG_ACT_CANCEL to cause the input
 	 * to be filtered from the terminal. */
-	void (*input_char)(int *ch, aug_action *action, void *user);
+	void (*input_char)(uint32_t *ch, aug_action *action, void *user);
 
 	/* called when a cell in the terminal window is
 	 * about to be updated. the plugin can
@@ -132,7 +132,7 @@ struct aug_plugin {
 };
 
 /* function pointer type for callbacks on key extensions */
-typedef void (*aug_on_key_fn)(int chr, void *user);
+typedef void (*aug_on_key_fn)(uint32_t chr, void *user);
 
 struct aug_terminal_win {
 	WINDOW *win;
@@ -190,8 +190,8 @@ struct aug_api {
 	 * needs to use the binding or when aug_plugin_free
 	 * function is called.
 	 */
-	int (*key_bind)(const struct aug_plugin *plugin, int ch, aug_on_key_fn on_key, void *user );
-	int (*key_unbind)(const struct aug_plugin *plugin, int ch);
+	int (*key_bind)(const struct aug_plugin *plugin, uint32_t ch, aug_on_key_fn on_key, void *user );
+	int (*key_unbind)(const struct aug_plugin *plugin, uint32_t ch);
 
 	/* ======== screen windows/panels ======================== 
 	 * there are two types of screen real estate

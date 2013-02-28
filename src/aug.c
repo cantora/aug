@@ -240,7 +240,7 @@ static void api_callbacks(struct aug_plugin *plugin, const struct aug_plugin_cb 
 	}
 }
 
-static int api_key_bind(const struct aug_plugin *plugin, int ch, 
+static int api_key_bind(const struct aug_plugin *plugin, uint32_t ch, 
 							aug_on_key_fn on_key, void *user) {
 	aug_on_key_fn ok;
 	int result = 0;
@@ -263,7 +263,7 @@ unlock:
 	return result;
 }
 
-static int api_key_unbind(const struct aug_plugin *plugin, int ch) {
+static int api_key_unbind(const struct aug_plugin *plugin, uint32_t ch) {
 	int result;
 	(void)(plugin);
 	
@@ -917,7 +917,7 @@ static void handler(int signo) {
 }
 
 /* all resources should be locked during this function */
-static void push_key(struct aug_term *term, int ch) {
+static void push_key(struct aug_term *term, uint32_t ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
 	
@@ -932,11 +932,11 @@ static void push_key(struct aug_term *term, int ch) {
 			return;
 	}
 
-	term_push_char(term, (uint32_t) ch);
+	term_push_char(term, ch);
 }
 
 static int process_keys(struct aug_term *term, int fd_input, void *user) {
-	int ch;
+	uint32_t ch;
 	static bool command_key = false;
 	aug_on_key_fn command_fn;
 	void *key_user;

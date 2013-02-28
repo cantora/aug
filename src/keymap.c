@@ -53,7 +53,7 @@ void keymap_free(struct aug_keymap *map) {
 	AUG_LOCK_FREE(map);
 }
 
-void keymap_bind(struct aug_keymap *map, int ch, aug_on_key_fn on_key,
+void keymap_bind(struct aug_keymap *map, uint32_t ch, aug_on_key_fn on_key,
 					void *user) {
 	struct aug_keymap_desc *desc;
 	
@@ -67,7 +67,7 @@ void keymap_bind(struct aug_keymap *map, int ch, aug_on_key_fn on_key,
 	avl_insert(map->avl, (void *) (intptr_t) ch, desc);
 } 
 
-void keymap_binding(struct aug_keymap *map, int ch, aug_on_key_fn *on_key,
+void keymap_binding(struct aug_keymap *map, uint32_t ch, aug_on_key_fn *on_key,
 					void **user) {
 	struct aug_keymap_desc *desc;
 
@@ -84,7 +84,7 @@ void keymap_binding(struct aug_keymap *map, int ch, aug_on_key_fn *on_key,
 	}
 }
 
-int keymap_unbind(struct aug_keymap *map, int ch) {
+int keymap_unbind(struct aug_keymap *map, uint32_t ch) {
 	struct aug_keymap_desc *desc;
 
 	desc = avl_lookup(map->avl, (void *) (intptr_t) ch);

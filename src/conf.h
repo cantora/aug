@@ -98,8 +98,8 @@ struct aug_conf {
 	const char *const *cmd_argv;
 
 	/* values derived from variables above */
-	int cmd_key;
-	int escape_key;
+	uint32_t cmd_key;
+	uint32_t escape_key;
 
 	/* objset to determine what was specified
 	 * on the command line */

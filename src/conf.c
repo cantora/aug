@@ -92,8 +92,8 @@ void conf_merge_ini(struct aug_conf *conf, dictionary *ini) {
 #undef MERGE_VAR
 }
 
-static int char_rep_to_char(const char *str, int *ch) {
-	int i;
+static int char_rep_to_char(const char *str, uint32_t *ch) {
+	uint32_t i;
 	char s[8];
 
 	for(i = 0; i <= 0xff; i++) {
