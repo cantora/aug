@@ -318,8 +318,10 @@ struct aug_api {
 	int (*terminal_terminated)(struct aug_plugin *plugin, const void *terminal);
 
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
+	/* input utf-32 (wide characters/wchar_t) to the terminal */
 	int (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
 								const uint32_t *data, int n);
+	/* input ASCII to the terminal */
 	int (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
 								const char *data, int n);
 

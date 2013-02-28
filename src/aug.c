@@ -639,27 +639,37 @@ static int api_terminal_terminated(struct aug_plugin *plugin, const void *termin
 	return (tchild->terminated != 0);
 }
 
-static void terminal_push_data(struct aug_term *term, 
+static int terminal_push_data(struct aug_term *term, 
 		const uint32_t *data, int amt) {
 	int i;
 
-	for(i = 0; i < amt; i++)
+	for(i = 0; i < amt; i++) {
+		if(term_can_push_chars(term) < 1)
+			break;
 		if(term_push_char(term, data[i]) != 0)
 			err_exit(0, "expected term to be able to push a character");
+	}
+
+	return i;
 }
 
-static void terminal_push_char_data(struct aug_term *term, 
+static int terminal_push_char_data(struct aug_term *term, 
 		const char *data, int amt) {
 	int i;
 
-	for(i = 0; i < amt; i++)
+	for(i = 0; i < amt; i++) {
+		if(term_can_push_chars(term) < 1)
+			break;
 		if(term_push_char(term, (uint32_t) data[i]) != 0)
 			err_exit(0, "expected term to be able to push a character");
+	}
+
+	return i;
 }
 
 static int terminal_input(struct aug_plugin *plugin, void *terminal, 
 		const void *data, int is_char_data, int n) {
-	int amt, status;
+	int amt;
 	struct aug_term_child *tchild;
 	(void)(plugin);
 
@@ -667,27 +677,18 @@ static int terminal_input(struct aug_plugin *plugin, void *terminal,
 
 	child_lock(&tchild->child);
 
-	amt = term_can_push_chars(tchild->child.term);
-	if(amt < 1) {
-		status = 0;
-		fprintf(stderr, "terminal cannot push chars right now\n");
-		goto done;
-	}
-	else if( amt > n )
-		amt = n;
-
 	if(is_char_data != 0)
-		terminal_push_char_data(tchild->child.term, data, amt);
+		amt = terminal_push_char_data(tchild->child.term, data, n);
 	else
-		terminal_push_data(tchild->child.term, data, amt);
-	/*fprintf(stderr, "pushed %d/%d chars to terminal\n", amt, n);*/
-	child_process_term_output(&tchild->child);
-	child_refresh(&tchild->child);
-	status = amt;
+		amt = terminal_push_data(tchild->child.term, data, n);
 
-done:
+	if(amt > 0) {
+		child_process_term_output(&tchild->child);
+		child_refresh(&tchild->child);
+	}
+
 	child_unlock(&tchild->child);
-	return status;
+	return amt;
 }
 
 static int api_terminal_input(struct aug_plugin *plugin, void *terminal, 
@@ -702,7 +703,7 @@ static int api_terminal_input_chars(struct aug_plugin *plugin, void *terminal,
 
 static int primary_input(struct aug_plugin *plugin, const void *data, 
 			int is_char_data, int n) {
-	int amt, status;
+	int amt;
 	(void)(plugin);
 
 	/* this will invoke the configured lock callback,
@@ -710,27 +711,18 @@ static int primary_input(struct aug_plugin *plugin, const void *data,
 	 * (see main() ). */
 	child_lock(&g_child);
 
-	amt = term_can_push_chars(g_child.term);
-	if(amt < 1) {
-		status = 0;
-		fprintf(stderr, "terminal cannot push chars right now\n");
-		goto done;
-	}
-	else if( amt > n )
-		amt = n;
-
 	if(is_char_data != 0)
-		terminal_push_char_data(g_child.term, data, amt);
+		amt = terminal_push_char_data(g_child.term, data, n);
 	else
-		terminal_push_data(g_child.term, data, amt);
+		amt = terminal_push_data(g_child.term, data, n);
 
-	child_process_term_output(&g_child);
-	child_refresh(&g_child);
-	status = amt;
+	if(amt > 0) {
+		child_process_term_output(&g_child);
+		child_refresh(&g_child);
+	}
 
-done:
 	child_unlock(&g_child);
-	return status;
+	return amt;
 }
 
 static int api_primary_input(struct aug_plugin *plugin,

@@ -45,7 +45,7 @@ void write_n_or_exit(int fd, const void *buf, size_t n) {
 			error = 0;
 		else
 			error = errno;
-		
+
 		err_exit(error, "partial write");
 	}
 }

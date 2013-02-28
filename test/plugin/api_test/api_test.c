@@ -628,8 +628,21 @@ static void *thread1(void *user) {
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
 	diag("also write some stuff into the primary terminal");
-	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\n";
-	ok1((*g_api->primary_input_chars)(g_plugin, primary_echo, ARRAY_SIZE(primary_echo)) == ARRAY_SIZE(primary_echo));
+	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\necho 'utf-8 doesnt work with input chars: \xE2\x97\xB0'\n";
+	size_t echoed = 0;
+
+	while(echoed < ARRAY_SIZE(primary_echo)) {
+		echoed += (*g_api->primary_input_chars)(g_plugin, primary_echo+echoed, ARRAY_SIZE(primary_echo)-echoed);
+	}
+
+	diag("now write some utf-32 into the primary terminal");
+	const wchar_t primary_echo32[] = L"\n\necho 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\n";
+	echoed = 0;
+
+	while(echoed < ARRAY_SIZE(primary_echo32)) {
+		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, ARRAY_SIZE(primary_echo32)-echoed);
+	}
+	
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
 
@@ -811,7 +824,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(128);
+	plan_tests(127);
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
