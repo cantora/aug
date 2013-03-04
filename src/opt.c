@@ -212,7 +212,7 @@ void opt_print_help(FILE *file, int argc, const char *const argv[]) {
 }
 
 static void print_char_reps() {
-	int i;
+	uint32_t i;
 	char s[8];
 
 	for(i = 0; i <= 0x7f; i++) {

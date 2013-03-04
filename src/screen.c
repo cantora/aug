@@ -455,22 +455,24 @@ void screen_resize() {
  * one null byte.
  */
 int screen_unctrl(uint32_t ch, char *str) {
-	const wchar_t *s;
-	cchar_t cch;
+	char *s;
 	size_t len, i;
 
-	setcchar(&cch, (wchar_t *)&ch, 0, 0, NULL);
-	s = wunctrl(&cch);
+	s = key_name(ch);
 	if(s == NULL)
 		return -1;
 
-	len = wcslen(s);
-	
-	if(len > 2)
+	len = strlen(s);
+	if(len < 1)
+		err_exit(0, "expected unctrl string of non-zero length\n");
+	else if(len > 2)
 		len = 2;
 
-	for(i = 0; i < len; i++)
-		str[i] = (char) s[i];
+	for(i = 0; i < len; i++) {
+		if(s[i] >= 0x7f)
+			err_exit(0, "expected ascii character. got 0x%02x at index %d", s[i], i);
+		str[i] = (char) s[i];		
+	}
 
 	str[len] = '\0';
 
