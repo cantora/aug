@@ -58,7 +58,7 @@
  * will simply pass through to the terminal.
  * this allows aug to use the same command character as a
  * screen/tmux session running inside aug with the appearance
- * of having simply 'rebound' certain key combinations to aug.
+ * of having simply 're-bound' certain key combinations to aug.
  * for example, suppose both aug and screen use command
  * character ^A, and screen is running inside of aug, and some
  * plugin command is bound to ^A-r, then typing ^A-r would of course
@@ -69,9 +69,10 @@
  * terminal. 
  * if prefix escape is non-null, then aug will act like screen/tmux
  * where a command key followed by an unbound extension will simply
- * get filtered out and do nothing, and typing the command key
- * followed by the escape will output a literal command key to the
+ * get filtered out and do nothing, and typing the escape key
+ * followed by the command key will output a literal command key to the
  * terminal.
+ * NOTE: this is not yet implemented in the aug.c 
  */
 #define CONF_CMD_PREFIX_ESCAPE "cmd-prefix-escape"
 #define CONF_CMD_PREFIX_ESCAPE_DEFAULT NULL
@@ -100,6 +101,7 @@ struct aug_conf {
 	/* values derived from variables above */
 	uint32_t cmd_key;
 	uint32_t escape_key;
+	int pass_through;
 
 	/* objset to determine what was specified
 	 * on the command line */

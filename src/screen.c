@@ -455,7 +455,7 @@ void screen_resize() {
  * one null byte.
  */
 int screen_unctrl(uint32_t ch, char *str) {
-	char *s;
+	const char *s;
 	size_t len, i;
 
 	s = key_name(ch);

@@ -37,6 +37,7 @@ void conf_init(struct aug_conf *conf) {
 	conf->plugin_path = CONF_PLUGIN_PATH_DEFAULT;
 	conf->cmd_prefix = CONF_CMD_PREFIX_DEFAULT;
 	conf->cmd_prefix_escape = CONF_CMD_PREFIX_ESCAPE_DEFAULT;
+	conf->pass_through = 0;
 
 	shell = getenv("SHELL");
 	if(shell != NULL) {
@@ -125,7 +126,7 @@ int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg) {
 		}
 	}
 	else 
-		conf->escape_key = -1;
+		conf->pass_through = 1;
 
 	return 0;	
 }
@@ -149,8 +150,8 @@ void conf_fprint(struct aug_conf *c, FILE *f) {
 	fprintf(f, "]\n");
 
 	fprintf(f, "cmd_key: 0x%02x\n", c->cmd_key);
-	if(c->escape_key >= 0)
-		fprintf(f, "escape_key: 0x%02x\n", c->escape_key);
-	else
+	if(c->pass_through != 0)
 		fprintf(f, "pass through mode = on\n");
+	else
+		fprintf(f, "escape_key: 0x%02x\n", c->escape_key);
 }
