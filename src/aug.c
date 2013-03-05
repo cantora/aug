@@ -1419,6 +1419,7 @@ int aug_main(int argc, char *argv[]) {
 	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0)
 		err_exit(errno, "sigaction failed");
 
+	screen_redraw_term_win();
 	fprintf(stderr, "start main event loop\n");
 	/* main event loop */	
 	child_io_loop(
