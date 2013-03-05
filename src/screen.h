@@ -59,6 +59,7 @@ int screen_push_top_edgewin(int nlines, void **win);
 
 void screen_resize();
 int screen_unctrl(uint32_t ch, char *str);
+int screen_keyname_to_key(const char *str, uint32_t *ch);
 void screen_doupdate();
 void screen_clear();
 int screen_redraw_term_win();

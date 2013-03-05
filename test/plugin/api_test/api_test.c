@@ -29,7 +29,7 @@ static struct aug_plugin_cb g_callbacks = {
 	.cursor_move = cursor_move,
 	.screen_dims_change = screen_dims_change
 };
-static uint32_t g_callback_key = 0x12;
+static uint32_t g_callback_key;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
@@ -849,6 +849,11 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	else {
 		fail("testkey not found.");
 	}	
+
+	if( (*g_api->keyname_to_key)(g_plugin, "^R", &g_callback_key) != 0) {
+		diag("expected to be able to find key from keyname ^R. abort...");
+		return -1;
+	}
 
 	/* register a callback for when the user types command key + 'r' */
 	if( (*g_api->key_bind)(g_plugin, g_callback_key, on_r, g_user_data) != 0) {

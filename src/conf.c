@@ -93,34 +93,14 @@ void conf_merge_ini(struct aug_conf *conf, dictionary *ini) {
 #undef MERGE_VAR
 }
 
-static int char_rep_to_char(const char *str, uint32_t *ch) {
-	uint32_t i;
-	char s[8];
-
-	for(i = 0; i <= 0xff; i++) {
-		if(screen_unctrl(i, s) != 0)
-			err_exit(0, "could not derive unctrl string for 0x%02x", i);
-
-		if(strcasecmp(str, s) == 0) {
-			*ch = i;
-			break;	
-		}
-	}
-
-	if(i > 0xff)
-		return -1;
-
-	return 0;
-}
-
 int conf_set_derived_vars(struct aug_conf *conf, const char **err_msg) {
-	if( char_rep_to_char(conf->cmd_prefix, &conf->cmd_key) != 0) {
+	if( screen_keyname_to_key(conf->cmd_prefix, &conf->cmd_key) != 0) {
 		*err_msg = "could not understand command prefix character representation.";
 		return -1;
 	}
 
 	if(conf->cmd_prefix_escape != NULL) {
-		if( char_rep_to_char(conf->cmd_prefix_escape, &conf->escape_key) != 0) {
+		if( screen_keyname_to_key(conf->cmd_prefix_escape, &conf->escape_key) != 0) {
 			*err_msg = "could not understand command prefix character representation.";
 			return -1;
 		}

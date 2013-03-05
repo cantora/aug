@@ -152,6 +152,18 @@ static int api_log(struct aug_plugin *plugin, const char *format, ...) {
 	return result;
 }
 
+static int api_keyname_to_key(const struct aug_plugin *plugin, 
+		const char *keyname, uint32_t *ch) {
+	int result;
+	(void)(plugin);
+	
+	lock_screen();
+	result = screen_keyname_to_key(keyname, ch);
+	unlock_screen();
+
+	return result;
+}
+
 static int api_unload(struct aug_plugin *plugin) {
 	struct aug_plugin_item *i;
 	int found;
@@ -1216,6 +1228,7 @@ static void init_plugins(struct aug_api *api) {
 	plugin_list_init(&g_plugin_list);
 	load_plugins();
 	api->log = api_log;
+	api->keyname_to_key = api_keyname_to_key;
 	api->unload = api_unload;
 	api->conf_val = api_conf_val;
 	api->callbacks = api_callbacks;

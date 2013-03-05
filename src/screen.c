@@ -479,6 +479,26 @@ int screen_unctrl(uint32_t ch, char *str) {
 	return 0;
 }
 
+int screen_keyname_to_key(const char *str, uint32_t *ch) {
+	uint32_t i;
+	char s[8];
+
+	for(i = 0; i <= 0xff; i++) {
+		if(screen_unctrl(i, s) != 0)
+			err_exit(0, "could not derive unctrl string for 0x%02x", i);
+
+		if(strcasecmp(str, s) == 0) {
+			*ch = i;
+			break;	
+		}
+	}
+
+	if(i > 0xff)
+		return -1;
+
+	return 0;
+}
+
 void screen_doupdate() {
 	if(doupdate() == ERR) 
 		err_exit(0, "doupdate failed");

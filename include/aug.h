@@ -149,6 +149,13 @@ struct aug_api {
 	 * a negative value on error.
 	 */
 	int (*log)(struct aug_plugin *plugin, const char *format, ...);
+	
+	/* convert a keyname such as ^R or ^C to its utf-32 value.
+	 * returns 0 if a value was found for the string and returns
+	 * non-zero if the value was not found.
+	 */
+	int (*keyname_to_key)(const struct aug_plugin *plugin, 
+					const char *keyname, uint32_t *ch);
 
 	/* unload the calling plugin. do not call this
 	 * during aug_plugin_init or aug_plugin_free.
