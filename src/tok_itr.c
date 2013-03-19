@@ -38,10 +38,9 @@ void tok_itr_next(struct aug_tok_itr *itr) {
 		itr->curr++;
 }
 
-int tok_itr_val(const struct aug_tok_itr *itr, char *val, size_t size) {
+size_t tok_itr_val(const struct aug_tok_itr *itr, char *val, size_t size) {
 	char *next;
 	size_t amt, len;
-	int result;
 
 	assert(size > 0);
 	assert(itr->curr != NULL);
@@ -50,7 +49,7 @@ int tok_itr_val(const struct aug_tok_itr *itr, char *val, size_t size) {
 	if(next == NULL) 
 		len = strlen(itr->curr);
 	else if(next == itr->curr)
-		len = 0; /* -> will get bumped up to 1 below */
+		len = 0; 
 	else {  /* next > itr->curr */ 
 		assert(next > itr->curr);
 		len = next - itr->curr;
@@ -59,14 +58,7 @@ int tok_itr_val(const struct aug_tok_itr *itr, char *val, size_t size) {
 	/* only want to copy at most size - 1 bytes because
 	 * we need to save the last spot for '\0' */
 	size--; 
-	if(len > size) {
-		amt = size;
-		result = -1;
-	}
-	else {
-		amt = len;
-		result = 0;
-	}
+	amt = (len > size)? size : len;
 
 	if(amt > 0)
 		strncpy(val, itr->curr, amt);
@@ -75,5 +67,5 @@ int tok_itr_val(const struct aug_tok_itr *itr, char *val, size_t size) {
 	 * now add the null byte to pos at *amt*       */
 	val[amt] = '\0';
 
-	return result;
+	return len;
 }

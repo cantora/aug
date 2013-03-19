@@ -30,7 +30,7 @@ void test1() {
 
 	i = 0;
 	for(tok_itr_init(&itr, str, ':'); !tok_itr_end(&itr); tok_itr_next(&itr) ) {
-		ok1( tok_itr_val(&itr, val, 32) == 0 );	
+		ok1( tok_itr_val(&itr, val, 32) == strlen(arr[i]) );	
 		//printf("%d: '%s'\t(%s) %d\n", i, val, str, strlen(arr[i]) );
 		ok1( strcmp(val, arr[i++]) == 0 );
 	}	
@@ -67,7 +67,7 @@ void test2() {
 
 	i = 0;
 	for(tok_itr_init(&itr, str, ':'); !tok_itr_end(&itr); tok_itr_next(&itr) ) {
-		ok1( tok_itr_val(&itr, val, 32) == 0 );	
+		ok1( tok_itr_val(&itr, val, 32) == strlen(arr[i]) );	
 		//printf("%d: '%s'\t(%s) %d\n", i, val, str, strlen(arr[i]) );
 		ok1( strcmp(val, arr[i++]) == 0 );
 	}	
@@ -100,11 +100,11 @@ void test3() {
 #define TOKALL "::" TOK1 "::" TOK2 "::::" TOK3 "::" TOK4 ":::"
 	strncpy(str, TOKALL, 128);
 	//printf("str: %s\n", str);
-	diag("test token iterator with leading an trailing empty tokens");
+	diag("test token iterator with leading and trailing empty tokens");
 
 	i = 0;
 	for(tok_itr_init(&itr, str, ':'); !tok_itr_end(&itr); tok_itr_next(&itr) ) {
-		ok1( tok_itr_val(&itr, val, 32) == 0 );	
+		ok1( tok_itr_val(&itr, val, 32) == strlen(arr[i]) );	
 		//printf("%d: '%s'\t(%s) %d\n", i, val, str, strlen(arr[i]) );
 		ok1( strcmp(val, arr[i++]) == 0 );
 	}	
@@ -169,11 +169,10 @@ void test4() {
 		cmplen = len;
 		if(len > 31) {
 			diag("tok4 and tok5 should be too big (size > 31)");
-			ok1(status != 0);	
 			cmplen = 31;
 		}
-		else
-			ok1(status == 0);
+
+		ok1(status == len);
 
 		//printf("%d: '%s'\t(%s) %d\n", i, val, str, strlen(arr[i]) );
 		ok1( strncmp(val, arr[i++], cmplen) == 0 );
@@ -234,7 +233,7 @@ void test5() {
 	
 	i = 0;
 	for(tok_itr_init(&itr, str, delim); !tok_itr_end(&itr); tok_itr_next(&itr) ) {
-		ok1( tok_itr_val(&itr, val, 1024) == 0 );
+		ok1( tok_itr_val(&itr, val, 1024) == strlen(arr[i]) );
 		ok1( strcmp(val, arr[i++]) == 0 );
 		//printf("val: %s\n", val);
 	}	
@@ -278,6 +277,47 @@ void test6() {
 #	undef TOK4
 }
 
+void test7() {
+	const char *arr[] = {"/bin", "/usr/bin", "/sbin", "/usr/local/bin" };
+	char val[32];
+	int i;
+	struct aug_tok_itr itr;
+
+	diag("++++test7++++");
+	diag("test token iterator use case/example");
+
+	i = 0;
+	TOK_ITR_FOREACH(val, 32, "/bin:/usr/bin:/sbin:/usr/local/bin", ':', &itr) {
+		diag("token = %s", val);
+		ok1( strcmp(val, arr[i++]) == 0 );
+	}
+	
+#define TEST7AMT 4
+	diag("----test7----\n#");
+
+}
+
+void test8() {
+	const char *arr[] = {"/bi", "/us", "/sb", "/us" };
+	char val[4];
+	int i;
+	struct aug_tok_itr itr;
+
+	diag("++++test8++++");
+	diag("test token truncation due to small output buffer");
+
+	i = 0;
+	TOK_ITR_FOREACH(val, 4, "/bin:/usr/bin:/sbin:/usr/local/bin", ':', &itr) {
+		diag("token = %s", val);
+		ok1( strcmp(val, arr[i++]) == 0 );
+	}
+
+	
+#define TEST8AMT 4
+	diag("----test8----\n#");
+
+}
+
 int main()
 {
 	int i, len, total_tests;
@@ -288,7 +328,9 @@ int main()
 		TESTN(3),
 		TESTN(4),
 		TESTN(5),
-		TESTN(6)
+		TESTN(6),
+		TESTN(7),
+		TESTN(8),
 	};
 
 	len = AUG_ARRAY_SIZE(tests);
