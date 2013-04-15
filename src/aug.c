@@ -40,6 +40,7 @@
 
 #include <ccan/objset/objset.h>
 #include <ccan/build_assert/build_assert.h>
+#include <ccan/array_size/array_size.h>
 
 #include "util.h"
 #include "screen.h"
@@ -143,11 +144,20 @@ struct aug_term_child {
 static int api_log(struct aug_plugin *plugin, const char *format, ...) {
 	va_list args;
 	int result;
+	char s[24];
+	time_t t;
+	const struct tm *tm;
 
-	fprintf(stderr, "%s: ", plugin->name);
+	s[0] = '\0';
+	t = time(NULL);
+	if( (tm = localtime(&t)) != NULL)
+	strftime(s, ARRAY_SIZE(s), "(%m.%d %H:%M:%S)", tm);
+
+	fprintf(stderr, "%s%s: ", plugin->name, s);
 	va_start(args, format);
 	result = vfprintf(stderr, format, args);
 	va_end(args);
+	fflush(stderr);
 
 	return result;
 }
