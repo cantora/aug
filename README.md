@@ -37,18 +37,18 @@ of the source tree:
 				for April 1st shenanigans :D
 
 These plugins are of course pointless, they are only meant as small examples. For
-a more complex example, please see the code at `github.com/cantora/aug-db`.
+a more complex example, please see the code at [aug-db](https://github.com/cantora/aug-db).
 
 ##installation
 
 ###requirements 
- * __libvterm__ (https://code.launchpad.net/~leonerd/libvterm).  
+ * __libvterm__ [link](https://code.launchpad.net/~leonerd/libvterm)  
 		__aug__ uses libvterm for all its terminal emulation needs. The make file
 		will use the `bzr` (bazaar) utility to checkout a copy of libvterm from
 		launchpad, so if you don't have `bzr` installed you either have to install
 		it or download libvterm into a `libvterm` directory in the root directory
 		of the __aug__ source tree.
- * __ncursesw__ (with developer headers).
+ * __ncursesw__ (with developer headers)  
 		__aug__ uses ncurses for screen manipulation and requires the 'wide
 		character' version in order to support UTF character sets. In a Debian 
 		based Linux distribution, you can install ncursesw with development headers
@@ -72,3 +72,7 @@ Contributions are of course welcome and greatly appreciated. If you have trouble
 building the software and find that you have to do something special in order to compile
 correctly, please submit information about what you did so I can incorporate it into
 the makefile.
+
+##license
+
+License: [GPLv3](http://www.gnu.org/licenses/gpl-3.0.html)
