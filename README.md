@@ -42,7 +42,7 @@ a more complex example, please see the code at [aug-db](https://github.com/canto
 ##installation
 
 ###requirements 
- * __libvterm__ [link](https://code.launchpad.net/~leonerd/libvterm)  
+ * [__libvterm__](https://code.launchpad.net/~leonerd/libvterm)  
 		__aug__ uses libvterm for all its terminal emulation needs. The make file
 		will use the `bzr` (bazaar) utility to checkout a copy of libvterm from
 		launchpad, so if you don't have `bzr` installed you either have to install
@@ -75,4 +75,5 @@ the makefile.
 
 ##license
 
-License: [GPLv3](http://www.gnu.org/licenses/gpl-3.0.html)
+[GPLv3](http://www.gnu.org/licenses/gpl-3.0.html). See LICENSE or the given url for
+details.
