@@ -1,3 +1,5 @@
+/* example taken from http://tldp.org/HOWTO/NCURSES-Programming-HOWTO/panels.html */
+
 #include <panel.h>
 #include <string.h>
 
