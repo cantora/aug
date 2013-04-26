@@ -38,7 +38,7 @@ $(CCAN_CP):
 
 .PHONY: clean
 clean:
-	rm -f *.o *.so config.h
+	rm -f *.o *.so config.h *.d
 	rm -rf $(CCAN_CP)
 
 -include $(wildcard *.d )
