@@ -13,3 +13,4 @@ libvterm
 script
 sandbox/plugin/*
 core
+configurator.out.dSYM/
