@@ -41,7 +41,6 @@ static int init_term_win();
 
 static const VTermScreenCallbacks CB_SCREEN = {
 	.damage = screen_damage,
-	.prescroll = NULL,
 	.moverect = NULL,
 	.movecursor = screen_movecursor,
 	.bell = screen_bell,

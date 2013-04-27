@@ -57,7 +57,7 @@ $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm $(LIBVTERM_DBG)
 
 ./libvterm:
-	bzr checkout lp:libvterm -r 568
+	bzr checkout -r 589 lp:libvterm
 
 CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
 $(CCAN_DIR):
