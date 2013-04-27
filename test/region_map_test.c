@@ -1073,6 +1073,7 @@ int main()
 		TESTN(13)
 	};
 
+	total_tests = 0;
 	len = AUG_ARRAY_SIZE(tests);
 	for(i = 0; i < len; i++) {
 		total_tests += tests[i].amt;

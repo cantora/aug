@@ -841,7 +841,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(127);
+	plan_tests(127); 
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -1027,13 +1027,13 @@ void aug_plugin_free() {
 
 	diag("dealloc windows");
 
-	(*g_api->screen_win_alloc_top)(g_plugin, 3, status_bar_cb, NULL);
-	(*g_api->screen_win_alloc_bot)(g_plugin, 4, bottom_bar1_cb, NULL);
-	(*g_api->screen_win_alloc_left)(g_plugin, 1, left_bar0_cb, NULL);
-	(*g_api->screen_win_alloc_left)(g_plugin, 3, left_bar2_cb, NULL);
-	(*g_api->screen_win_alloc_right)(g_plugin, 5, right_bar0_cb, NULL);
-	(*g_api->screen_win_alloc_right)(g_plugin, 2, right_bar2_cb, NULL);
-	(*g_api->screen_win_alloc_right)(g_plugin, 1, right_bar3_cb, NULL);
+	(*g_api->screen_win_dealloc)(g_plugin, status_bar_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, bottom_bar1_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, left_bar0_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, left_bar2_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, right_bar0_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, right_bar2_cb);
+	(*g_api->screen_win_dealloc)(g_plugin, right_bar3_cb);
 	(*g_api->screen_win_dealloc)(g_plugin, top_terminal_cb_new);
 
 	diag("dealloc panels");
