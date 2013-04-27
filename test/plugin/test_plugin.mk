@@ -1,3 +1,5 @@
+OS_NAME			:= $(shell uname)
+
 AUG_DIR			= ../../..
 CCAN_DIR		= $(AUG_DIR)/libccan
 CCAN_CP			= ./ccan
@@ -8,13 +10,19 @@ SRCS			= $(wildcard ./*.c)
 OBJECTS			= $(patsubst %.c, %.o, $(SRCS) ) 
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 
+ifeq ($(OS_NAME), Darwin)
+	SO_FLAGS	= -dynamiclib -Wl,-undefined,dynamic_lookup 
+else
+	SO_FLAGS	= -shared 
+endif
+
 default: all
 
 .PHONY: all 
 all: $(OUTPUT).so
 
 $(OUTPUT).so: $(OBJECTS) tap.o
-	$(CXX_CMD) -shared $+ -o $@ 
+	$(CXX_CMD) $(SO_FLAGS) $+ -o $@
 
 define cc-template
 $(CXX_CMD) $(DEP_FLAGS) -fPIC -c $< -o $@

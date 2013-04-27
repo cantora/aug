@@ -15,6 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
+#if defined(__APPLE__)
+/* needed for SIGWINCH definition */
+#	define _DARWIN_C_SOURCE 
+#endif
 #include <errno.h>
 #include <poll.h>
 #include <stddef.h>

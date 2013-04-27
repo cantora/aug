@@ -18,6 +18,10 @@
 #ifndef AUG_TIMER_H
 #define AUG_TIMER_H
 
+#if defined(__APPLE__)
+/* for timercmp, timersub */
+#	define _DARWIN_C_SOURCE
+#endif
 #include <time.h>
 #include <sys/time.h>
 

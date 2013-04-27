@@ -21,8 +21,10 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <strings.h>
 
 #include <ccan/objset/objset.h>
+#include <ccan/build_assert/build_assert.h>
 
 #include "ncurses.h"
 #include "util.h"
@@ -181,8 +183,10 @@ void screen_dims(int *rows, int *cols) {
 }
 
 int screen_getch(uint32_t *ch) {
-
-	if(get_wch(ch) == ERR)
+	
+	/* make sure its ok to do this cast */
+	BUILD_ASSERT(sizeof(*ch) == sizeof(wint_t));
+	if(get_wch( (wint_t *) ch) == ERR)
 		return -1;
 	
 	/* resize will be handled by signal
@@ -190,7 +194,7 @@ int screen_getch(uint32_t *ch) {
 	 */
 	if(*ch == KEY_RESIZE) 
 		while(*ch == KEY_RESIZE) {
-			if(get_wch(ch) == ERR)
+			if(get_wch( (wint_t *) ch) == ERR)
 				return -1;
 		}
 
