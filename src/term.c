@@ -39,7 +39,7 @@ void term_init(struct aug_term *term, int rows, int cols) {
 	term->vt = vterm_new(rows, cols);
 	state = vterm_obtain_state(term->vt);
 	/* have to cast default_color because the api isnt const correct */
-	vterm_state_set_default_colors(state, (VTermColor *) &VTERM_DEFAULT_COLOR, (VTermColor *) &VTERM_DEFAULT_COLOR);	
+	vterm_state_set_default_colors(state, &VTERM_DEFAULT_COLOR, &VTERM_DEFAULT_COLOR);	
 	vterm_parser_set_utf8(term->vt, 1);
 
 	vts = vterm_obtain_screen(term->vt);

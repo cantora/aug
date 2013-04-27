@@ -20,6 +20,20 @@
 #include "vterm_util.h"
 #include "vterm_ansi_colors.h"
 
+/* this is a hack. libvterm doesnt tell us
+ * if a cell is using the default color or if 
+ * it is using a color that happens to be 
+ * the same as the default color (in ncurses
+ * there is a difference), it only tells us
+ * the rgb values of the cell. combine this
+ * with the fact that i dont know how to query
+ * for the actual default colors from ncurses and
+ * it becomes a problem. thus we set the 
+ * default color to something obscure here so
+ * that we can detect it based on the rgb value
+ * alone. term.c:term_init sets the default fg/bg
+ * colors to this value while initializing the 
+ * libvterm structures. */
 const VTermColor VTERM_DEFAULT_COLOR = {
 	.red = 1,
 	.green = 1,
