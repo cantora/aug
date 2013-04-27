@@ -21,9 +21,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ccan/str/str.h>
+#include <ccan/array_size/array_size.h>
 #include "err.h"
 
-#define AUG_ARRAY_SIZE(_arr) ( sizeof(_arr)/sizeof(_arr[0]) )
+#define AUG_ARRAY_SIZE(arr) ARRAY_SIZE(arr)
 
 #define AUG_STATUS_EQUAL(_func_call, _status) \
 	do { \
