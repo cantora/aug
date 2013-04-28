@@ -1,0 +1,15 @@
+{
+   forkpty_leaks_some_memory
+   Memcheck:Leak
+   fun:malloc
+   fun:nss_parse_service_list
+   fun:__nss_database_lookup
+   obj:*
+   fun:getgrnam_r@@GLIBC_2.2.5
+   fun:grantpt
+   fun:openpty
+   fun:forkpty
+   fun:child_init
+   fun:aug_main
+   fun:main
+}

@@ -13,3 +13,5 @@ libvterm
 script
 sandbox/plugin/*
 core
+aug.log
+grind.log

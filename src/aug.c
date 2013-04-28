@@ -773,6 +773,7 @@ int aug_cell_update(int rows, int cols, int *row, int *col,
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cell_update == NULL)
 			continue;
 
+		action = AUG_ACT_OK;
 		(*(i->plugin.callbacks->cell_update))(
 			rows, cols, row, col, 
 			wch, attr, color_pair,
@@ -948,6 +949,7 @@ static void push_key(struct aug_term *term, uint32_t ch) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
 			continue;
 		
+		action = AUG_ACT_OK;
 		(*(i->plugin.callbacks->input_char))(&ch, &action, i->plugin.callbacks->user);
 
 		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this character */

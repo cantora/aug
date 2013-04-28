@@ -50,6 +50,9 @@ default: all
 .PHONY: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
+grind-aug: all
+	valgrind --log-file=./grind.log --leak-check=yes --suppressions=./.aug.supp $(CURDIR)/aug -d ./aug.log
+
 .PHONY: .FORCE
 .FORCE:
 
@@ -167,6 +170,7 @@ clean:
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
 	rm -rvf ./sandbox/plugin/*
+	rm -f aug.log grind.log
 
 .PHONY: libclean
 libclean: clean
