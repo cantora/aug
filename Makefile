@@ -20,7 +20,13 @@ LIBVTERM		= ./libvterm/.libs/libvterm.a
 LIBVTERM_DBG	= 
 CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
-LIB 			= -pthread -lutil -lpanel -lncursesw $(LIBVTERM) $(LIBCCAN)
+
+ifeq ($(OS_NAME), Darwin)
+	LIBNCURSES	= -lncurses 
+else
+	LIBNCURSES	= -lncursesw 
+endif
+LIB 			= -pthread -lutil -lpanel $(LIBNCURSES) $(LIBVTERM) $(LIBCCAN)
 
 INCLUDES		= -iquote"./libvterm/include" -I$(CCAN_DIR)
 INCLUDES		+= -iquote"./src" -iquote"./include"
