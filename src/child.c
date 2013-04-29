@@ -34,6 +34,7 @@ void child_init(struct aug_child *child, struct aug_term *term,
 	struct winsize size;
 	int master;
 
+	memset(&size, 0, sizeof(size)); /* to make valgrind happy */
 	child->pid = forkpty(&master, NULL, child_termios, &size);
 	if(child->pid == 0) {
 		(*exec_cb)();

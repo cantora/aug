@@ -14,3 +14,5 @@ script
 sandbox/plugin/*
 core
 configurator.out.dSYM/
+aug.log
+grind.log
