@@ -164,14 +164,18 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 			int lines, int *rows_left, int cols_left, int reverse) {
 	struct edgewin *i;
 	struct aug_region *region;
-	int y;
+	int y, allocd;
 
 	y = lines;
-
 	list_for_each(edgewins, i, node) {
-		region = malloc( sizeof( struct aug_region ) );
-		if(region == NULL)
-			err_exit(0, "out of memory");
+		allocd = 0;
+		if( (region = avl_lookup(key_regs, i->key)) == NULL) {
+			region = malloc( sizeof( struct aug_region ) );
+			if(region == NULL)
+				err_exit(0, "out of memory");
+
+			allocd = 1;
+		}
 	
 		if(reverse == 0)
 			y = lines - *rows_left;
@@ -182,7 +186,9 @@ static void apply_horizontal_edgewins(struct list_head *edgewins, AVL *key_regs,
 		if(init_region(*rows_left-(i->size), cols_left, 
 				y, 0, i->size, cols_left, region) == 0)
 			*rows_left -= i->size;
-		avl_insert(key_regs, i->key, region);
+
+		if(allocd != 0)
+			avl_insert(key_regs, i->key, region);
 	}
 }
 
