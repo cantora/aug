@@ -146,9 +146,9 @@ AVL *region_map_key_regs_alloc() {
 	return avl_new( (AvlCompare) void_compare );
 }
 
-void region_map_key_regs_clear(AVL *key_regs) {
-	region_map_key_regs_free(key_regs);
-	key_regs = region_map_key_regs_alloc();
+void region_map_key_regs_clear(AVL **key_regs) {
+	region_map_key_regs_free(*key_regs);
+	*key_regs = region_map_key_regs_alloc();
 }
 
 void region_map_key_regs_free(AVL *key_regs) {

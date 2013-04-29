@@ -96,7 +96,7 @@ void test2() {
 	ok1(primary.y == 0);
 	ok1(primary.x == 0);
 
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	ok1(region_map_apply(3, 1, key_regs, &primary) == 0);
 	ok1(avl_count(key_regs) == 2);
@@ -117,7 +117,7 @@ void test2() {
 
 	ok1(primary.rows == 0);
 	ok1(primary.cols == 0);
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	ok1(region_map_apply(17, 10, key_regs, &primary) == 0);
 	ok1(avl_count(key_regs) == 2);
@@ -136,7 +136,7 @@ void test2() {
 
 	ok1(primary.rows == 0);
 	ok1(primary.cols == 0);
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	ok1(region_map_apply(18, 10, key_regs, &primary) == 0);
 	ok1(avl_count(key_regs) == 2);
@@ -158,8 +158,6 @@ void test2() {
 	ok1(primary.y == 17);
 	ok1(primary.x == 0);
 	
-	region_map_key_regs_clear(key_regs);
-
 	region_map_key_regs_free(key_regs);
 
 #define TEST2AMT 1 + 2+4+4 + 4+6 + 12 + 14
@@ -208,7 +206,7 @@ void test3() {
 	ok1(primary.y == 17);
 	ok1(primary.x == 0);
 	
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	region_map_push_top(k3, 9);
 
@@ -238,7 +236,7 @@ void test3() {
 	ok1(primary.y == 26);
 	ok1(primary.x == 0);
 	
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	ok1(region_map_delete((void *)5) == -1);
 	ok1(region_map_top_size() == 3);
@@ -266,7 +264,7 @@ void test3() {
 	ok1(primary.y == 12);
 	ok1(primary.x == 0);
 	
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 
 	region_map_push_top(k2, 8);
 	ok1(region_map_top_size() == 3);
@@ -297,7 +295,7 @@ void test3() {
 	ok1(primary.y == 20);
 	ok1(primary.x == 0);
 	
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 	
 	region_map_key_regs_free(key_regs);
 #define TEST3AMT 1 + 2+4*3 + 2+4*4 + 5 + 2+4*3 + 1+2+4*4
@@ -985,7 +983,7 @@ void test13() {
 	ok1(region_map_left_size() == 3);
 	ok1(region_map_right_size() == 4);
 
-	region_map_key_regs_clear(key_regs);
+	region_map_key_regs_clear(&key_regs);
 	
 	region_map_delete(k2);
 	region_map_delete(k5);

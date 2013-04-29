@@ -41,7 +41,7 @@ int region_map_right_size();
 int region_map_delete(const void *key);
 AVL *region_map_key_regs_alloc();
 void region_map_key_regs_free(AVL *key_regs);
-void region_map_key_regs_clear(AVL *key_regs);
+void region_map_key_regs_clear(AVL **key_regs);
 int region_map_apply(int lines, int columns, AVL *key_regs, struct aug_region *primary);
 
 #endif /* AUG_REGION_MAP_H */
