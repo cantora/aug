@@ -56,7 +56,10 @@ void keymap_free(struct aug_keymap *map) {
 void keymap_bind(struct aug_keymap *map, uint32_t ch, aug_on_key_fn on_key,
 					void *user) {
 	struct aug_keymap_desc *desc;
-	
+
+	/* unbind this key if it already is bound */
+	keymap_unbind(map, ch);
+
 	desc = malloc( sizeof(struct aug_keymap_desc) );
 	if(desc == NULL)
 		err_exit(0, "memory error!");

@@ -85,10 +85,10 @@ void test2_cb2(uint32_t chr, void *user) {
 
 void test2() {
 	struct aug_keymap map;
-	keymap_init(&map);
 	aug_on_key_fn on_key;
 	void *user;
 
+	keymap_init(&map);
 	diag("++++test2++++");	
 	diag("binding an already bound key: should overwrite.");
 	diag("bind key to first function...");
