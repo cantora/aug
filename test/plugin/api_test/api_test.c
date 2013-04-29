@@ -58,6 +58,7 @@ static WINDOW *g_pan2_dwin, *g_pan3_dwin;
 static pthread_t g_thread1, g_thread2, g_thread3, g_thread4;
 
 static void *g_pan_term;
+static int g_pan_term_freed;
 static char g_vi_test_file[] = "/tmp/api_test_file";
 static char *g_pan_term_argv[] = {"vi", g_vi_test_file, NULL};
 static const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
@@ -738,8 +739,9 @@ static void *thread3(void *user) {
 	pass("finished panel terminal io loop");
 
 	diag("free terminal");
+	g_pan_term_freed = 1;
 	(*g_api->terminal_delete)(g_plugin, g_pan_term);
-
+	
 	diag("cleanup window and panel");
 	(*g_api->lock_screen)(g_plugin);
 	ok(delwin(g_pan3_dwin) != ERR, "delete derived window (panel 3)");
@@ -947,6 +949,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
 
+	g_pan_term_freed = 0;
 	g_pan_twin.win = g_pan3_dwin;
 	(*g_api->terminal_new)(
 		g_plugin, 
@@ -1003,7 +1006,8 @@ void aug_plugin_free() {
 
 	check_screen_lock();
 
-	if( (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
+	if( g_pan_term_freed == 0 
+			&& (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
 		fail("terminal is still running, kill child.");
 		pid = (*g_api->terminal_pid)(g_plugin, g_pan_term);
 		(*g_api->log)(g_plugin, "kill pid %d\n", pid);

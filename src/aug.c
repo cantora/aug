@@ -798,7 +798,8 @@ int aug_cursor_move(int rows, int cols, int old_row, int old_col,
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->cursor_move == NULL)
 			continue;
-	
+
+		action = AUG_ACT_OK;	
 		(*(i->plugin.callbacks->cursor_move))(
 			rows, cols, old_row, 
 			old_col, new_row, new_col,

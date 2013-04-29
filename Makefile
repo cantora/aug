@@ -142,7 +142,7 @@ tests: $(TESTS)
 $(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
 api_test: $(BUILD)/api_test
-	$<
+	$(VALGRIND) --log-file=$(BUILD)/api_test.grind ./$(BUILD)/api_test
 
 $(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
