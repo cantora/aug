@@ -38,14 +38,14 @@ static void *thread1(void *user) {
 
 	diag("++++thread1++++");
 	pass("thread1 running");
-	ok1((*g_api->unload)(g_plugin) == 0);
+	(*g_api->unload)(g_plugin);
 	diag("----thread1----\n#");
 	return NULL;
 }
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	plan_tests(4);
-	diag("++++plugin_init++++");
+	diag("++++plugin_init (unload)++++");
 	g_plugin = plugin;	
 	g_api = api;
 
@@ -58,16 +58,23 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	}
 	pass("created thread");
 
-	diag("----plugin_init----\n#");
+	diag("----plugin_init (unload)----\n#");
 
 	return 0;
 }
 
 void aug_plugin_free() {
+	int status;
 
-	diag("++++plugin_free++++");
+	diag("++++plugin_free (unload)++++");
 	(*g_api->log)(g_plugin, "free\n");
 
-	ok1(pthread_self() == g_tid1);
-	diag("----plugin_free----\n#");
+	ok1(pthread_self() != g_tid1);
+	status = pthread_join(g_tid1, NULL);
+	if(status != 0)
+		fail("pthread join failed: %s", strerror(status));
+	else 
+		pass("pthread_join(...) == 0");
+
+	diag("----plugin_free (unload)----\n#");
 }

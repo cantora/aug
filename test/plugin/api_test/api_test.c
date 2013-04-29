@@ -843,7 +843,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(127); 
+	plan_tests(131); 
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -1015,10 +1015,10 @@ void aug_plugin_free() {
 	}
 
 	diag("join threads");
-	pthread_join(g_thread4, NULL);	
-	pthread_join(g_thread3, NULL);
-	pthread_join(g_thread2, NULL);
-	pthread_join(g_thread1, NULL);
+	ok1(pthread_join(g_thread4, NULL) == 0);	
+	ok1(pthread_join(g_thread3, NULL) == 0);
+	ok1(pthread_join(g_thread2, NULL) == 0);
+	ok1(pthread_join(g_thread1, NULL) == 0);
 	diag("all threads finished");
 
 	ok( (g_got_callback == true) , "check to see if the key extension callback happened" );

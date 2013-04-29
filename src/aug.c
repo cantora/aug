@@ -174,9 +174,12 @@ static int api_keyname_to_key(const struct aug_plugin *plugin,
 	return result;
 }
 
-static int api_unload(struct aug_plugin *plugin) {
+static void *do_unload(void *user) {
+	struct aug_plugin *plugin;
 	struct aug_plugin_item *i;
 	int found;
+
+	plugin = (struct aug_plugin *) user;
 
 	/* this lock is to prevent a plugin from being
 	 * freed by this call as well as the terminating
@@ -201,10 +204,29 @@ static int api_unload(struct aug_plugin *plugin) {
 	AUG_UNLOCK(&g_plugin_list);
 
 	AUG_UNLOCK(&g_free_plugin_lock);
-	return 0;
+	return NULL;
 unlock:
 	AUG_UNLOCK(&g_free_plugin_lock);
-	return -1;
+	return NULL;
+}
+
+static void api_unload(struct aug_plugin *plugin) {
+	pthread_attr_t attr;
+	pthread_t tid;
+	int status;
+
+	if( (status = pthread_attr_init(&attr)) != 0)
+		err_exit(status, "failed to initialize pthread attr");
+
+	status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if(status != 0)
+		err_exit(status, "failed to set detached thread attribute");
+
+	if( (status = pthread_create(&tid, &attr, do_unload, plugin)) != 0)
+		err_exit(status, "failed to create unload thread");
+
+	if( (status = pthread_attr_destroy(&attr)) != 0)
+		err_warn(status, "failed to destroy pthread attr");
 }
 
 /* for the time being, g_ini is not modified after initialization,

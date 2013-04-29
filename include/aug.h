@@ -176,8 +176,18 @@ struct aug_api {
 
 	/* unload the calling plugin. do not call this
 	 * during aug_plugin_init or aug_plugin_free.
+	 * this function can be called by a plugin created
+	 * thread in order to unload itself from aug. this
+	 * api call will first call the plugin's free function
+	 * from a new spawned thread (in this way the plugin
+	 * can fully cleanup all its resources, including its
+	 * joinable threads, even the one that made the call
+	 * to unload). after this it will delete the plugin
+	 * from its list of active plugins. since this api call
+	 * does everything from a detached thread, this function
+	 * will return immediately.
 	 */
-	int (*unload)(struct aug_plugin *plugin);
+	void (*unload)(struct aug_plugin *plugin);
 
 	/* call this function to query for a
 	 * user specified configuration value

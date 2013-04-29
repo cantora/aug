@@ -10,6 +10,4 @@
    fun:openpty
    fun:forkpty
    fun:child_init
-   fun:aug_main
-   fun:main
 }
