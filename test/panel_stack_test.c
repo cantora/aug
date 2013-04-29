@@ -228,7 +228,12 @@ int test4() {
 
 	panel_stack_size(&size);
 	ok1(size == 0);
-		
+
+	for(i = 0; i < amt; i++) {
+		free(dummy[i]);
+	}
+	free(dummy);
+
 #define TEST4AMT 3
 	diag("----test4----\n#");
 	return 0;
