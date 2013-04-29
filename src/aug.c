@@ -414,7 +414,7 @@ static int api_screen_win_dealloc(struct aug_plugin *plugin, \
 	if(pair != NULL) {
 		/* delete it from the region map. the next time
 		 * the screen is re-assessed all window regions will be
-		 * freed (with provided _free callbacks begin called) 
+		 * freed (with provided _free callbacks being called) 
 		 * and then reallocated. since this particular region
 		 * will have been deleted from the region map it will
 		 * not be reallocated space and thus will have been freed
@@ -425,6 +425,7 @@ static int api_screen_win_dealloc(struct aug_plugin *plugin, \
 		objset_del(&g_edgewin_set, pair);
 		/* re-assess what the screen should look like */
 		resize_and_redraw_screen();
+		free(pair);
 		status = 0;
 	}
 
