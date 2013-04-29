@@ -42,8 +42,8 @@ SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
 SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
-
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
+VALGRIND		= valgrind --leak-check=yes --suppressions=./.aug.supp
 
 default: all
 
@@ -51,7 +51,7 @@ default: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
 grind-aug: all
-	valgrind --log-file=./grind.log --leak-check=yes --suppressions=./.aug.supp $(CURDIR)/aug -d ./aug.log
+	$(VALGRIND) --log-file=aug.grind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
 .PHONY: .FORCE
 .FORCE:
@@ -124,6 +124,14 @@ $(1): $$(BUILD)/$(1)
 	$(BUILD)/$(1) 
 endef
 
+define test-program-template
+$$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
+	$(CXX_CMD) $$+ $$(LIB) -o $$@
+
+$(1): $$(BUILD)/$(1) 
+	$(VALGRIND) --log-file=$(BUILD)/$(1).grind $(BUILD)/$(1) 
+endef
+
 .PHONY: run-tests
 run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
 
@@ -131,7 +139,7 @@ run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
 tests: $(TESTS)
 
 .PHONY: $(TESTS) 
-$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-template,$(test)) ) )
+$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
 api_test: $(BUILD)/api_test
 	$<
@@ -170,7 +178,7 @@ clean:
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
 	rm -rvf ./sandbox/plugin/*
-	rm -f aug.log grind.log
+	rm -f aug.log aug.grind
 
 .PHONY: libclean
 libclean: clean

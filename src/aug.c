@@ -1015,10 +1015,10 @@ static int init_conf(int argc, char *argv[]) {
 		switch(errno) {
 		case OPT_ERR_HELP:
 			opt_print_help(stderr, argc, (const char *const *) argv);
-			break;
+			return 1;
 			
 		case OPT_ERR_USAGE:
-			opt_print_usage(stderr, argc, (const char *const *) argv);
+			opt_print_usage(stderr, argc, (const char *const *) argv);	
 			break;
 		
 		default:
@@ -1027,7 +1027,7 @@ static int init_conf(int argc, char *argv[]) {
 			fputc('\n', stderr);
 		}	
 		
-		return 1;
+		return -1;
 	}
 
 	if( (exp_status = wordexp(g_conf.conf_file, &exp, WRDE_NOCMD)) != 0 ) {
@@ -1046,7 +1046,7 @@ static int init_conf(int argc, char *argv[]) {
 		}
 		opt_print_usage(stderr, argc, (const char *const *) argv);
 		fputc('\n', stderr);
-		return 1;
+		return -1;
 	}
 
 	if(exp.we_wordc != 1) {
@@ -1058,7 +1058,7 @@ static int init_conf(int argc, char *argv[]) {
 		opt_print_usage(stderr, argc, (const char *const *) argv);
 		fputc('\n', stderr);
 		wordfree(&exp);
-		return 1;
+		return -1;
 	}
 
 	if(access(exp.we_wordv[0], R_OK) == 0) {
@@ -1089,7 +1089,7 @@ static int init_conf(int argc, char *argv[]) {
 
 	if(conf_set_derived_vars(&g_conf, &errmsg) != 0) {
 		fprintf(stderr, "%s\n", errmsg);
-		return 1;
+		return -1;
 	}
 
 	return 0;
@@ -1339,8 +1339,17 @@ int aug_main(int argc, char *argv[]) {
 	if(sigaddset(&g_sigset, SIGCHLD) != 0) 
 		err_exit(errno, "sigaddset failed");
 
-	if(init_conf(argc, argv) != 0) /* 1 */
+	switch(init_conf(argc, argv)) { /* 1 */
+	case 0:
+		/* everything is good. keep going */
+		break;
+	case 1:
+		/* -h -> print help. this isnt an error */
+		return 0;
+	default:
+		/* error. return 1 */
 		return 1;
+	}
 
 	if(tcgetattr(STDIN_FILENO, &child_termios) != 0) {
 		err_exit(errno, "tcgetattr failed");
@@ -1478,7 +1487,7 @@ screen_cleanup:
 	
 	if(g_ini != NULL) 
 		ciniparser_freedict(g_ini); /* 1 */
-
+	conf_free(&g_conf);
 	
 	return 0;
 }
