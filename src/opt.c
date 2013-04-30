@@ -246,8 +246,13 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 			errno = OPT_ERR_MISSING_ARG;
 			goto fail;
 		}
-			
-#define OPT_SET(_var, _value) conf_opt_set(conf, &_var); _var = _value
+
+#define OPT_SET(var, value) \
+	do { \
+		conf_opt_set(conf, &var); \
+		var = value; \
+	} while(0)
+
 		switch (c) {
 		case 'd': /* debug file */
 			OPT_SET(conf->debug_file, optarg);

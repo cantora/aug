@@ -52,14 +52,14 @@ void conf_init(struct aug_conf *conf) {
 }
 
 void conf_opt_set(struct aug_conf *conf, void *addr) {
-	assert(addr > (void *)conf);
+	assert(addr >= (void *)conf);
 	assert(addr < (void *) (conf + sizeof(struct aug_conf) ) );
 	
 	objset_add(&conf->opt_set, addr);
 }
 
 int conf_opt_isset(const struct aug_conf *conf, void *addr) {
-	assert(addr > (void *)conf);
+	assert(addr >= (void *)conf);
 	assert(addr < (void *) (conf + sizeof(struct aug_conf) ) );
 	
 	return (objset_get(&conf->opt_set, addr) != NULL);
