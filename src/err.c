@@ -40,13 +40,13 @@ void err_log(const char *file, int lineno,
 	va_end(args);
 
 	if(result >= 0) {
-		fprintf(stdout, "(%s:%d) ", file, lineno);
-		fwrite(buf, sizeof(char), result, stdout);
+		fprintf(stderr, "(%s:%d) ", file, lineno);
+		fwrite(buf, sizeof(char), result, stderr);
 		if(error != 0) 
-			fprintf(stdout, ": %s (%d)", strerror(error), error );
+			fprintf(stderr, ": %s (%d)", strerror(error), error );
 		
-		fputc('\n', stdout);
-		fflush(stdout);
+		fputc('\n', stderr);
+		fflush(stderr);
 	}
 }
 
