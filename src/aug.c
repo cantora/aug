@@ -1378,7 +1378,9 @@ int aug_main(int argc, char *argv[]) {
 		/* error. return 1 */
 		return 1;
 	}
-
+	fprintf(stderr, "configuration:\n");
+	conf_fprint(&g_conf, stderr);
+	
 	if(tcgetattr(STDIN_FILENO, &child_termios) != 0) {
 		err_exit(errno, "tcgetattr failed");
 	}
@@ -1418,7 +1420,7 @@ int aug_main(int argc, char *argv[]) {
 	err_exit_cleanup_fn(err_exit_cleanup);
 	if(g_conf.nocolor == false)
 		if(screen_color_start() != 0) {
-			printf("failed to start color\n");
+			err_warn(0, "failed to start color\n");
 			goto screen_cleanup;
 		}
 
@@ -1452,9 +1454,6 @@ int aug_main(int argc, char *argv[]) {
 	init_plugins(&api); /* 7 */
 	g_plugins_initialized = true;
 	AUG_UNLOCK(&g_free_plugin_lock);
-
-	fprintf(stderr, "configuration:\n");
-	conf_fprint(&g_conf, stderr);
 
 	fprintf(stderr, "lock screen\n");
 	/* this calls main_to_lock_for_io. resources will be 
