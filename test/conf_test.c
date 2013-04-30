@@ -202,6 +202,22 @@ void test4() {
 	unlink(path);
 }
 
+void test5() {
+	struct aug_conf c;
+	char *argv[] = {g_argv[0], "--no-color", NULL};
+	int argc = AUG_ARRAY_SIZE(argv) - 1;
+
+	diag("does the no color flag work?");
+	conf_init(&c);
+	ok1(opt_parse(argc, argv, &c) == 0);
+	ok1(c.nocolor != false);
+	//ok1(opt_set_amt(&c) == 1);
+	//ok1(compare_conf_vals(&c, &g_default_conf) != 0);
+	
+#define TEST5AMT 2
+	conf_free(&c);
+}
+
 int main(int argc, char *argv[])
 {
 	int i, len, total_tests;
@@ -210,7 +226,8 @@ int main(int argc, char *argv[])
 		TESTN(1),
 		TESTN(2),
 		TESTN(3),
-		TESTN(4)
+		TESTN(4),
+		TESTN(5)
 	};
 
 	g_argc = argc;
