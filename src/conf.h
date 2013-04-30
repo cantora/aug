@@ -112,6 +112,10 @@ extern const char *CONF_DEFAULT_ARGV[];
 extern const int CONF_DEFAULT_ARGC;
 
 void conf_init(struct aug_conf *conf);
+static inline void conf_free(struct aug_conf *conf) {
+	objset_clear(&conf->opt_set);
+}
+
 void conf_opt_set(struct aug_conf *conf, void *addr);
 int conf_opt_isset(const struct aug_conf *conf, void *addr);
 void conf_merge_ini(struct aug_conf *conf, dictionary *ini);

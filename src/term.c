@@ -97,8 +97,8 @@ static int term_resize_master(const struct aug_term *term) {
 	if(term->master == 0)
 		return -1;
 
-	term_dims(term, (int *) &size.ws_row, (int *) &size.ws_col);
 	memset(&size, 0, sizeof(size)); /* to make valgrind happy */
+	term_dims(term, (int *) &size.ws_row, (int *) &size.ws_col);
 	if(ioctl(term->master, TIOCSWINSZ, &size) != 0)
 		return -1; 
 

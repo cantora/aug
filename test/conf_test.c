@@ -83,6 +83,8 @@ void test1() {
 	ok1(opt_parse(argc, argv, &c) == 0);
 	ok1(opt_set_amt(&c) == 0);
 	ok1( compare_conf_vals(&c, &g_default_conf) == 0);
+
+	conf_free(&c);
 #define TEST1AMT 3
 }
 
@@ -106,6 +108,8 @@ void test2() {
 	ok1(opt_set_amt(&c) == 0);
 	conf_merge_ini(&c, ini);	
 	ok1( compare_conf_vals(&c, &g_default_conf) == 0);
+
+	conf_free(&c);
 #define TEST2AMT 4
 	
 	ciniparser_freedict(ini);
@@ -149,6 +153,7 @@ void test3() {
 	c.ncterm = CONF_NCTERM_DEFAULT;
 	ok1( compare_conf_vals(&c, &g_default_conf) == 0);
 	
+	conf_free(&c);
 #define TEST3AMT 9
 
 	ciniparser_freedict(ini);
@@ -192,7 +197,7 @@ void test4() {
 	ok1( compare_conf_vals(&c, &g_default_conf) == 0);
 	
 #define TEST4AMT 8
-
+	conf_free(&c);
 	ciniparser_freedict(ini);
 	unlink(path);
 }

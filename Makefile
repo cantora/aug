@@ -8,7 +8,8 @@ DEFAULT_TERM	= \"screen\"
 DEFINES			= -D_XOPEN_SOURCE=700 -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE
 DEFINES			+= -DAUG_DEFAULT_TERM=$(DEFAULT_TERM)
 DEFINES			+= -DAUG_DEFAULT_ARGV=$(DEFAULT_CMD)
-DEFINES			+= -DAUG_DEBUG -DAUG_LOCK_DEBUG
+DEFINES			+= -DAUG_DEBUG 
+#DEFINES			+= -DAUG_LOCK_DEBUG
 #DEFINES			+= -DAUG_ERR_COREDUMP
 #DEFINES			+= -DAUG_LOCK_DEBUG_PRINT
 
@@ -50,8 +51,8 @@ SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
 SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
-
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
+VALGRIND		= valgrind --leak-check=yes --suppressions=./.aug.supp
 
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
@@ -63,7 +64,7 @@ default: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
 grind-aug: all
-	valgrind --log-file=./grind.log --leak-check=yes --suppressions=./.aug.supp $(CURDIR)/aug -d ./aug.log
+	$(VALGRIND) --log-file=aug.grind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
 .PHONY: .FORCE
 .FORCE:
@@ -147,6 +148,14 @@ $(1): $$(BUILD)/$(1)
 	$(BUILD)/$(1) 
 endef
 
+define test-program-template
+$$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
+	$(CXX_CMD) $$+ $$(LIB) -o $$@
+
+$(1): $$(BUILD)/$(1) 
+	$(VALGRIND) --log-file=$(BUILD)/$(1).grind $(BUILD)/$(1) 
+endef
+
 .PHONY: run-tests
 run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
 
@@ -154,10 +163,10 @@ run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
 tests: $(TESTS)
 
 .PHONY: $(TESTS) 
-$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call aux-program-template,$(test)) ) )
+$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
 api_test: $(BUILD)/api_test
-	$<
+	$(VALGRIND) --log-file=$(BUILD)/api_test.grind ./$(BUILD)/api_test
 
 $(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
@@ -193,7 +202,7 @@ clean:
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
 	rm -rvf ./sandbox/plugin/*
-	rm -f aug.log grind.log
+	rm -f aug.log aug.grind
 
 .PHONY: libclean
 libclean: clean

@@ -61,7 +61,7 @@ and `cd` to the root directory of the source tree. Now run the `make` command to
 compile the code. If the compilation is successful, you should find the compiled binary
 `aug` in the current directory. If you want to install it into your system, you can
 simply copy the binary to an appropriate system install path or to your ~/bin
-directory (__aug__ doesnt require any other resource files to be installed into the
+directory ( __aug__ doesnt require any other resource files to be installed into the
 system in order to run).
 
 If compilation fails, please create an 'issue' at the github project page for __aug__

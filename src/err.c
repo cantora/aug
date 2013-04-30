@@ -28,16 +28,12 @@ void err_exit_cleanup_fn(void (*cleanup_fn)(int error) ) {
 	err_exit_cleanup = cleanup_fn;
 }
 
-void err_exit_fn(const char *file, int lineno, 
+void err_log(const char *file, int lineno, 
 					int error, const char *format, ...) {
 	va_list args;
 	size_t buflen = 1024;
 	char buf[buflen];
 	int result;
-
-	if(err_exit_cleanup != NULL) {
-		(*err_exit_cleanup)(error);
-	}
 
 	va_start(args, format);
 	result = vsnprintf(buf, buflen, format, args);
@@ -52,6 +48,11 @@ void err_exit_fn(const char *file, int lineno,
 		fputc('\n', stdout);
 		fflush(stdout);
 	}
+}
+
+void err_exit_fn(int error) {
+	if(err_exit_cleanup != NULL)
+		(*err_exit_cleanup)(error);
 
 #ifdef AUG_ERR_COREDUMP
 	*( (int *) 0) = 1;
