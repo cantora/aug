@@ -234,7 +234,9 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 	int index, c;
 	char optstring[64];
 	struct option long_options[AUG_OPTLEN+1];
-		
+
+	optind = 1;
+	optreset = 1;
 	/* dont print error message */
 	opterr = 0;
 	init_long_options(long_options, optstring);

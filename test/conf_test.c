@@ -211,10 +211,9 @@ void test5() {
 	conf_init(&c);
 	ok1(opt_parse(argc, argv, &c) == 0);
 	ok1(c.nocolor != false);
-	//ok1(opt_set_amt(&c) == 1);
-	//ok1(compare_conf_vals(&c, &g_default_conf) != 0);
+	ok1(opt_set_amt(&c) == 1);
 	
-#define TEST5AMT 2
+#define TEST5AMT 3
 	conf_free(&c);
 }
 
