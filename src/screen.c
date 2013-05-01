@@ -201,22 +201,6 @@ int screen_getch(uint32_t *ch) {
 	return 0;
 }
 
-/*void screen_err_msg(int error, char **msg) {
-	switch(error) {
-	case SCN_ERR_NONE:
-		*msg = "no error";
-		break;
-	case SCN_ERR_INIT:
-		*msg = "failed to initialize ncurses";
-		break;
-	case SCN_ERR_PAIRS:
-		*msg = "terminal with more than SCN_REQ_PAIRS required";
-		break;
-	default:
-		*msg = "unknown error";	
-	}
-} */
-
 int screen_color_start() {
 	int colors[] = { COLOR_DEFAULT, COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
 						 COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE };
@@ -510,4 +494,43 @@ void screen_doupdate() {
 void screen_clear() {
 	if(clear() == ERR) 
 		err_exit(0, "failed to clear screen");
+}
+
+const char *screen_err_msg(int err) {
+	const char *result;
+
+	switch(err) {
+	case SCN_ERR_NONE:
+		result = "no error";
+		break;
+
+	case SCN_ERR_INIT:
+		result = "failed to initialize ncurses";
+		break;
+
+	case SCN_ERR_COLOR_NOT_SUPPORTED:
+		result = "the terminal does not support color";
+		break;
+
+	case SCN_ERR_COLOR_NO_DEFAULT:
+		result = "the terminal does not support default colors";
+		break;
+
+	case SCN_ERR_COLOR_COLORS:
+		result = "the terminal does not support enough colors";
+		break;
+
+	case SCN_ERR_COLOR_PAIR_INIT:
+		result = "failed to initialize ncurses color pair";
+		break;
+
+	case SCN_ERR_COLOR_PAIRS:
+		result = "the terminal doesn't support enough color pairs";
+		break;
+
+	default:
+		result = "unknown error";
+	}
+
+	return result;
 }

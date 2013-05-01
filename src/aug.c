@@ -1420,7 +1420,7 @@ int aug_main(int argc, char *argv[]) {
 	err_exit_cleanup_fn(err_exit_cleanup);
 	if(g_conf.nocolor == false)
 		if(screen_color_start() != 0) {
-			err_warn(0, "failed to start color\n");
+			err_warn(0, "failed to start color: %s", screen_err_msg(errno));
 			goto screen_cleanup;
 		}
 
