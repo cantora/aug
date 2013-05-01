@@ -218,20 +218,25 @@ int screen_color_start() {
 	}
 	
 	if(use_default_colors() == ERR) {
-		errno = SCN_ERR_COLOR_NO_DEFAULT;
-		goto fail;		
+		/*errno = SCN_ERR_COLOR_NO_DEFAULT;
+		goto fail;*/
+		err_warn(0, "the terminal does not support default colors.");
 	}
 	
 	if(COLORS < AUG_REQ_COLORS-1) {
-		errno = SCN_ERR_COLOR_COLORS;
-		goto fail;
+		/*errno = SCN_ERR_COLOR_COLORS;
+		goto fail;*/
+		err_warn(0, "the terminal does not support %d colors; the color "
+						"output may look weird.", AUG_REQ_COLORS-1);
 	}
 
 	/* for some reason we can just use pairs above 63 and its fine... */
 	if(COLOR_PAIRS < AUG_REQ_PAIRS) {
 		/*errno = AUG_ERR_COLOR_PAIRS;
 		goto fail;*/
-		fprintf(stderr, "warning: your terminal may not support 81 color pairs. if problems arise, try setting TERM to 'xterm-256color'\n");
+		err_warn(0, "your terminal does not support %d color pairs. "
+						"if problems arise, try setting TERM to "
+						"'xterm-256color'", AUG_REQ_PAIRS);
 	}
 
 	for(i = 0; i < AUG_ARRAY_SIZE(colors); i++) {
@@ -243,11 +248,11 @@ int screen_color_start() {
 			if(pair == 0) { 
 				continue;
 			}
-						
-			if(init_pair(pair, fg, bg) == ERR) {
-				errno = SCN_ERR_COLOR_PAIR_INIT;
-				goto fail;
-			}
+
+			/* if this fails this color pair should
+			 * just end up being the default fg on
+			 * the default bg. */
+			init_pair(pair, fg, bg);
 		}
 	}
 
