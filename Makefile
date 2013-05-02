@@ -56,6 +56,7 @@ VALGRIND		= valgrind --leak-check=yes --suppressions=./.aug.supp
 
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
+	LIB						+= -liconv
 endif
 
 default: all
@@ -83,14 +84,14 @@ CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
 $(CCAN_DIR)/.patched_warning:
 	sed 's/return hashfn(keyof((const type \*)elem));/(void)(priv); return hashfn(keyof((const type *)elem));/' \
 		$(CCAN_WARNING_PATCH) > $(CCAN_WARNING_PATCH).tmp \
-		&& mv $(CCAN_WARNING_PATCH).tmp $(CCAN_WARNING_PATCH) \
-		&& touch $@
+		&& mv $(CCAN_WARNING_PATCH).tmp $(CCAN_WARNING_PATCH)
+	touch $@
 
 $(CCAN_DIR)/.patched_rt:
 	[ -n "$(CCAN_COMMENT_LIBRT)" ] \
 		&& sed 's/\(LDLIBS = -lrt\)/#\1/' $(CCAN_COMMENT_LIBRT) > $(CCAN_COMMENT_LIBRT).tmp \
-		&& mv $(CCAN_COMMENT_LIBRT).tmp $(CCAN_COMMENT_LIBRT) \
-		&& touch $@
+		&& mv $(CCAN_COMMENT_LIBRT).tmp $(CCAN_COMMENT_LIBRT)
+	touch $@
 
 $(LIBCCAN): $(CCAN_DIR) $(CCAN_PATCH_TARGETS)
 	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) -f ./tools/Makefile tools/configurator/configurator
