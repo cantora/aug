@@ -153,21 +153,26 @@ define test-program-template
 $$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
 	$(CXX_CMD) $$+ $$(LIB) -o $$@
 
-$(1): $$(BUILD)/$(1) 
-	$(VALGRIND) --log-file=$(BUILD)/$(1).grind $(BUILD)/$(1) 
-endef
+.PHONY: $(1)
+$(1): $$(BUILD)/$(1)
+	$(BUILD)/$(1) 
 
-.PHONY: run-tests
-run-tests: tests $(foreach test, $(TEST_OUTPUTS), $(notdir $(test) ) )
+.PHONY: grind-$(1)
+grind-$(1): $$(BUILD)/$(1) 
+	$(VALGRIND) --log-file=$(BUILD)/$(1).grind $(BUILD)/$(1)
+
+endef
 
 .PHONY: tests
 tests: $(TESTS)
 
-.PHONY: $(TESTS) 
 $(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
+grind-api_test: $(BUILD)/api_test
+	$(VALGRIND) --log-file=$(BUILD)/api_test.grind $(BUILD)/api_test
+
 api_test: $(BUILD)/api_test
-	$(VALGRIND) --log-file=$(BUILD)/api_test.grind ./$(BUILD)/api_test
+	$(BUILD)/api_test
 
 $(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
