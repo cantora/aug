@@ -1058,6 +1058,7 @@ static int init_conf(int argc, char *argv[]) {
 		return -1;
 	}
 
+	memset(&exp, 0, sizeof(exp) );
 	if( (exp_status = wordexp(g_conf.conf_file, &exp, WRDE_NOCMD)) != 0 ) {
 		switch(exp_status) {
 		case WRDE_BADCHAR:
