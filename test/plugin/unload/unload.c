@@ -69,7 +69,7 @@ void aug_plugin_free() {
 	diag("++++plugin_free (unload)++++");
 	(*g_api->log)(g_plugin, "free\n");
 
-	ok1(pthread_self() != g_tid1);
+	ok1(pthread_equal(pthread_self(), g_tid1) == 0);
 	status = pthread_join(g_tid1, NULL);
 	if(status != 0)
 		fail("pthread join failed: %s", strerror(status));
