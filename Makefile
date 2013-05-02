@@ -44,7 +44,7 @@ SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
-VALGRIND		= valgrind --leak-check=yes --suppressions=./.aug.supp
+VALGRIND		= valgrind  --leak-check=full --suppressions=./.aug.supp
 
 default: all
 
