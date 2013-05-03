@@ -44,7 +44,6 @@ static void *thread1(void *user) {
 }
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	plan_tests(4);
 	diag("++++plugin_init (unload)++++");
 	g_plugin = plugin;	
 	g_api = api;

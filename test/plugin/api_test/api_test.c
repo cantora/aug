@@ -843,7 +843,6 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(131); 
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;

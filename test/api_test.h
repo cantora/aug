@@ -22,13 +22,10 @@
 #include "aug.c"
 
 #include "ncurses_test.h"
-#ifndef NCT_USE_SCREEN
-#	include <ccan/tap/tap.h>
-#else
-#	include "stderr_tap.h"
-#endif
+#include <ccan/tap/tap.h>
 #include <ccan/array_size/array_size.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 #ifdef initscr
 #	undef initscr
@@ -59,13 +56,14 @@
 #	define API_TEST_IO_PAUSE 1
 #endif
 
-static int api_test_main(int argc, char *argv[]) {
+static int api_test_main(FILE *output, int argc, char *argv[]) {
 	(void)(ncurses_test_init);
 	(void)(ncurses_test_end);
 
 	ncurses_test_init_pipe();
 
 	if(fork() == 0) {
+		fclose(output);
 		diag("child: start");
 		sleep(API_TEST_IO_PAUSE);
 		kill(getppid(), SIGWINCH);
@@ -83,9 +81,13 @@ static int api_test_main(int argc, char *argv[]) {
 		exit(0);
 	}
 	else {
-		//plan_no_plan();
+		/* api_test + unload */
+		tap_set_output_file(output);
+		tap_set_err_output_file(output);
+		plan_tests(131 + 4); 
 		diag("test the plugin api");
 		diag("parent: start");
+		fflush(output);
 		aug_main(argc, argv);
 		diag("parent: end");
 		return 0;
