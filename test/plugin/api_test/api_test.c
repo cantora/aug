@@ -96,14 +96,14 @@ static int test_sigs() {
 		return -1;
 	}
 	
-	ok( (winch_is_blocked == 1), "confirm that SIGWINCH is blocked" );
+	ok( (winch_is_blocked != 0), "confirm that SIGWINCH is blocked" );
 
 	if( (chld_is_blocked = sigismember(&sigset, SIGCHLD) ) == -1 ) {
 		fail("expected to be able test current sigset.");
 		return -1;
 	}
 	
-	ok( (chld_is_blocked == 1), "confirm that SIGCHLD is blocked" );
+	ok( (chld_is_blocked != 0), "confirm that SIGCHLD is blocked" );
 
 	return 0;
 }
