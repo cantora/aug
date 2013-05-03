@@ -850,9 +850,13 @@ static void resize_and_redraw_screen() {
 }
 
 static void change_sigs(int how) {
+	int s;
 
 	if(sigprocmask(how, &g_sigset, NULL) != 0)
 		err_exit(errno, "sigprocmask failed");
+
+	if( (s = pthread_sigmask(how, &g_sigset, NULL)) != 0)
+		err_exit(s, "pthread_sigmask failed");
 }
 
 static inline void block_sigs() {
@@ -865,6 +869,7 @@ static inline void unblock_sigs() {
 
 static void change_sig(int how, int signum) {
 	sigset_t set;
+	int s;
 
 	if(sigemptyset(&set) != 0) 
 		err_exit(errno, "sigemptyset failed"); 
@@ -874,6 +879,9 @@ static void change_sig(int how, int signum) {
 
 	if(sigprocmask(how, &set, NULL) != 0)
 		err_exit(errno, "sigprocmask failed");
+
+	if( (s = pthread_sigmask(how, &set, NULL)) != 0)
+		err_exit(s, "pthread_sigmask failed");
 }
 
 /* handler for SIGWINCH. */
