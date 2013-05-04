@@ -145,20 +145,21 @@ tests: $(TESTS)
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
-$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) $(PLUGIN_OBJECTS) $(BUILD)/libtap.so
-	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -L$(BUILD) -ltap -o $@
+$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) $(PLUGIN_OBJECTS) $(BUILD)/tap.so
+	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(BUILD)/tap.so $(LIB) -o $@
 
 $(BUILD)/tap.o: $(CCAN_DIR)/ccan/tap/tap.c
 	$(CXX_CMD) $(DEP_FLAGS) -I$(CCAN_DIR) -fPIC -c $< -o $@
 
-$(BUILD)/libtap.so: $(BUILD)/tap.o $(LIBCCAN)
+$(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
 	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@
 
 .PHONY: screen_api_test
 screen_api_test: $(BUILD)/screen_api_test
-	LD_LIBRARY_PATH=$(BUILD) $< $(BUILD)/screen_api_test.log; \
+	rm -f $(BUILD)/log && rm -f $(BUILD)/screen_api_test.log && \
+		$< $(BUILD)/screen_api_test.log; \
 		RESULT=$$?; \
-		stty sane; clear; \
+		stty sane; echo; \
 		if [ $$RESULT -ne 0 ]; then \
 			echo "log:"; cat $(BUILD)/log; echo; \
 		fi; \

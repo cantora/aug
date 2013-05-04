@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 		printf("failed to open file at %s: %s\n", argv[1], strerror(errno));
 		exit(1);
 	}
-	
+	setvbuf(fp, NULL, _IONBF, 0);
+
 	return api_test_main(fp, ARRAY_SIZE(args)-1, args);
 }

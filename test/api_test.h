@@ -63,8 +63,9 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 	ncurses_test_init_pipe();
 
 	if(fork() == 0) {
-		fclose(output);
-		diag("child: start");
+		tap_set_output_file(output);
+		tap_set_err_output_file(output);
+		diag("child(%d): start", getpid());
 		sleep(API_TEST_IO_PAUSE);
 		kill(getppid(), SIGWINCH);
 		nct_printf(api_test_user_input);
@@ -77,7 +78,7 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		nct_printf("echo 'asdfasdfasdf'\n");
 		nct_printf("echo 'wertwertwert'\n");
 		nct_printf("exit\n");
-		/*diag("child: end");*/
+		diag("child: end");
 		exit(0);
 	}
 	else {
