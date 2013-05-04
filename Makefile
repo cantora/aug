@@ -66,7 +66,7 @@ $(LIBVTERM): ./libvterm
 CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
 $(CCAN_DIR):
 	git clone 'https://github.com/cantora/ccan.git' $(CCAN_DIR)
-	cd $(CCAN_DIR) && git checkout tap_alt_output
+	cd $(CCAN_DIR) && git checkout cantora
 	sed 's/return hashfn(keyof((const type \*)elem));/(void)(priv); return hashfn(keyof((const type *)elem));/' \
 		$(CCAN_WARNING_PATCH) > $(CCAN_WARNING_PATCH).tmp && mv $(CCAN_WARNING_PATCH).tmp $(CCAN_WARNING_PATCH)
 
@@ -140,8 +140,11 @@ grind-$(1): $$(BUILD)/$(1)
 
 endef
 
+#we dont include screen api tests in "all tests" target
+#because it takes more time and its kind of jarring when
+#it takes over the screen
 .PHONY: tests
-tests: $(TESTS)
+tests: $(filter-out screen_api_test, $(TESTS))
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
@@ -154,17 +157,23 @@ $(BUILD)/tap.o: $(CCAN_DIR)/ccan/tap/tap.c
 $(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
 	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@
 
-.PHONY: screen_api_test
-screen_api_test: $(BUILD)/screen_api_test
-	rm -f $(BUILD)/log && rm -f $(BUILD)/screen_api_test.log && \
-		$< $(BUILD)/screen_api_test.log; \
-		RESULT=$$?; \
+define screen-api-test-template
+.PHONY: $(1)screen_api_test
+$(1)screen_api_test: $$(BUILD)/screen_api_test
+	rm -f $$(BUILD)/log && rm -f $$(BUILD)/screen_api_test.log && \
+		$(2) $$< $$(BUILD)/screen_api_test.log; \
+		RESULT=$$$$?; \
 		stty sane; echo; \
-		if [ $$RESULT -ne 0 ]; then \
-			echo "log:"; cat $(BUILD)/log; echo; \
+		if [ $$$$RESULT -ne 0 ]; then \
+			echo "log:"; cat $$(BUILD)/log; echo; \
 		fi; \
 		echo "test results:"; \
-		cat $(BUILD)/screen_api_test.log
+		cat $$(BUILD)/screen_api_test.log
+
+endef
+
+$(eval $(call screen-api-test-template,$(empty),$(empty)))
+$(eval $(call screen-api-test-template,grind-,$(VALGRIND) --log-file=$(BUILD)/screen_api_test.grind))
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
