@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define NCT_USE_SCREEN
 #include "api_test.h"
 
 int main(int argc, char *argv[]) {

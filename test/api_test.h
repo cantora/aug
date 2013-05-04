@@ -25,7 +25,6 @@
 #include <ccan/tap/tap.h>
 #include <ccan/array_size/array_size.h>
 #include <unistd.h>
-#include <dlfcn.h>
 
 #ifdef initscr
 #	undef initscr
