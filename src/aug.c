@@ -872,7 +872,11 @@ static void change_sig(int how, int signum) {
 		err_exit(errno, "sigprocmask failed");
 }
 
-/* handler for SIGWINCH. */
+/* handler for SIGWINCH. at the start of aug_main both SIGWINCH
+ * and SIGCHLD will be blocked (using block_sigs()) such that 
+ * i believe we are not at risk of this function being invoked
+ * before we have properly initialized the screen, plugins, etc...
+ */
 static void handler_winch() {
 	int rows, cols;
 	struct aug_plugin_item *i;
@@ -898,13 +902,11 @@ static void handler_winch() {
 	screen_resize();
 	screen_dims(&rows, &cols);	
 	/* plugin callbacks */
-	if(g_plugins_initialized == true) {
-		PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
-			if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
-				continue;
-			
-			(*(i->plugin.callbacks->screen_dims_change))(rows, cols, i->plugin.callbacks->user);
-		}
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->screen_dims_change))(rows, cols, i->plugin.callbacks->user);
 	}
 
 	unlock_all();
@@ -1324,7 +1326,7 @@ static void free_plugins() {
  * have locked the screen via an API call, then gets interrupted by a WINCH
  * signal which will attempt to lock the screen again. of course
  * this isnt a problem for this main thread here because it only
- * handles WINCH signals while in the following select call. so...
+ * handles WINCH signals while in the I/O select call. so...
  * this means we have to block WINCH and (maybe other signals?) during
  * periods where the main thread may call a plugin function, such that
  * when the plugin creates a thread it will inherit a signal mask
@@ -1374,7 +1376,8 @@ int aug_main(int argc, char *argv[]) {
 		/* error. return 1 */
 		return 1;
 	}
-
+	fprintf(stderr, "done initializing configuration\n");
+	
 	if(tcgetattr(STDIN_FILENO, &child_termios) != 0) {
 		err_exit(errno, "tcgetattr failed");
 	}
@@ -1406,9 +1409,11 @@ int aug_main(int argc, char *argv[]) {
 		err_exit(errno, "sigaddset failed");
 	g_chld_act.sa_flags = 0;
 
+	fprintf(stderr, "initialize primary terminal\n");
 	/* screen will resize term to the right size,
 	 * so just initialize to 1x1. */
 	term_init(&g_term, 1, 1); /* 2 */
+	fprintf(stderr, "initialize screen\n");
 	if(screen_init(&g_term) != 0) /* 3 */
 		err_exit(0, "screen_init failure");
 	err_exit_cleanup_fn(err_exit_cleanup);
@@ -1418,6 +1423,7 @@ int aug_main(int argc, char *argv[]) {
 			goto screen_cleanup;
 		}
 
+	fprintf(stderr, "initialize child process\n");
 	child_init(
 		&g_child, 
 		&g_term, 
@@ -1442,12 +1448,16 @@ int aug_main(int argc, char *argv[]) {
 	g_tchild_table.tree = avl_new( (AvlCompare) void_compare );
 	AUG_LOCK_INIT(&g_tchild_table);
 		
-	/* this is first point where api functions will be called
+	/* this is first point where api functions can be called
 	 * and locks will be utilized */
 	AUG_LOCK(&g_free_plugin_lock);
 	init_plugins(&api); /* 7 */
-	g_plugins_initialized = true;
 	AUG_UNLOCK(&g_free_plugin_lock);
+	child_lock(&g_child); 
+	g_plugins_initialized = true;
+	child_unlock(&g_child);
+	/* now that plugins have been initialized, callbacks can
+	 * start happening. */
 
 	fprintf(stderr, "configuration:\n");
 	conf_fprint(&g_conf, stderr);
@@ -1459,6 +1469,7 @@ int aug_main(int argc, char *argv[]) {
 	 * be a problem. */
 	child_lock(&g_child); 
 
+	/* set signal handlers */
 	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
 	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0)

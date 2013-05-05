@@ -4,14 +4,14 @@ callbacks:
 	cursor_move
 	screen_dims_change
 
-all resources locked, so no api calls
-aside from screen_doupdate and screen_panel_update
+all resources locked, so no api calls aside from screen_doupdate,
+screen_panel_update, log and conf_val. do not call unlock_screen.
 
 init, free:
-	nothing locked
+	'free_plugin_lock' is locked. do not call unload in these functions.
 
 api calls:
-	log: 
+	log:
 		none
 	conf_val:
 		none
