@@ -39,6 +39,17 @@ void screen_dims_change(int rows, int cols, void *user);
 static const struct aug_api *g_api;
 static struct aug_plugin *g_plugin;
 
+#define API_TEST_LOCK(mtx_ptr) \
+	do { \
+		if(pthread_mutex_lock(mtx_ptr) != 0) \
+			(*g_api->log)(g_plugin, "failed to lock mutex at line %d\n", __LINE__); \
+	} while(0)
+#define API_TEST_UNLOCK(mtx_ptr) \
+	do { \
+		if(pthread_mutex_unlock(mtx_ptr) != 0) \
+			(*g_api->log)(g_plugin, "failed to unlock mutex at line %d\n", __LINE__); \
+	} while(0)
+
 static char *g_user_data = "on_r secret stuff...";
 static struct aug_plugin_cb g_callbacks = {
 	.input_char = input_char,
@@ -52,6 +63,7 @@ static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
+pthread_mutex_t g_on_r_interaction_mtx = PTHREAD_MUTEX_INITIALIZER;
 static PANEL *g_pan1, *g_pan2, *g_pan3;
 static struct aug_terminal_win g_pan_twin, g_top_twin;
 static WINDOW *g_pan2_dwin, *g_pan3_dwin;
@@ -136,6 +148,7 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 		diag("----input_char----\n#");
 	}
 
+	API_TEST_LOCK(&g_on_r_interaction_mtx);
 	if(g_on_r_interaction == true) {
 
 		/*diag("========> '%c' (0x%02x)", (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
@@ -164,6 +177,7 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 
 		*action = AUG_ACT_CANCEL;
 	}
+	API_TEST_UNLOCK(&g_on_r_interaction_mtx);
 
 #undef CUTOFF	
 }
@@ -679,7 +693,7 @@ static void *thread1(void *user) {
 
 static void *thread2(void *user) {
 	(void)(user);
-	int stack_size;
+	int stack_size, brk;
 	int rows, cols;
 	WINDOW *pan2_win;
 
@@ -720,10 +734,21 @@ static void *thread2(void *user) {
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
 
+	API_TEST_LOCK(&g_on_r_interaction_mtx);
 	g_on_r_interaction = true;
-	
-	while(g_on_r_interaction == true)
+	API_TEST_UNLOCK(&g_on_r_interaction_mtx);
+
+	brk = 0;
+	while(1) {
 		usleep(10000);
+		API_TEST_LOCK(&g_on_r_interaction_mtx);
+		if(g_on_r_interaction != true)
+			brk = 1;
+		API_TEST_UNLOCK(&g_on_r_interaction_mtx);
+
+		if(brk != 0)
+			break;
+	}
 
 	diag("----thread2----\n#");
 	return NULL;
