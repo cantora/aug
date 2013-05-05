@@ -50,10 +50,17 @@ static WINDOW *ncurses_test_init(const char *path) {
 	if(nct_fds_initialized == 0)
 		ncurses_test_init_pipe();
 
+	if(path == NULL) {
+		nct_out = stdin;
+	}
+	else {
+		AUG_PTR_NON_NULL( (nct_out = fopen(path , "w")) );
+	}
+
 	if(dup2(nct_pipe_fds[0], 0) == -1) 
 		err_exit(errno, "error duping to stdin");
 
-	AUG_PTR_NON_NULL( (scr = newterm(getenv("TERM"), stdout, stdin) ) );
+	AUG_PTR_NON_NULL( (scr = newterm(getenv("TERM"), nct_out, stdin) ) );
 
 	return stdscr;
 }
