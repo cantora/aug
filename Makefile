@@ -137,11 +137,17 @@ $$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
 
 .PHONY: $(1)
 $(1): $$(BUILD)/$(1)
+	@echo TEST $(1)
 	$(BUILD)/$(1) 
+	@echo $(1) tests passed!
 
-.PHONY: grind-$(1)
+.PHONY: memgrind-$(1)
 memgrind-$(1): $$(BUILD)/$(1) 
+	@echo check memory usage of $(1)
 	$(MEMGRIND) --log-file=$(BUILD)/$(1).memgrind $(BUILD)/$(1)
+	@RESULT=$$$$(cat build/keymap_test.memgrind | grep -E 'ERROR SUMMARY: ([0-9]+) errors' -o) \
+		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
+		&& echo $(1) is memcheck clean!
 
 endef
 
@@ -150,6 +156,11 @@ endef
 #it takes over the screen
 .PHONY: tests
 tests: $(filter-out screen_api_test, $(TESTS))
+	@echo all tests passed
+
+.PHONY: memgrind-tests
+memgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), memgrind-$(test))
+	@echo all tests are memcheck clean
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
