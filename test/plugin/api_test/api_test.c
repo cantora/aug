@@ -76,7 +76,7 @@ static char *g_pan_term_argv[] = {"vi", g_vi_test_file, NULL};
 static const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
 
 static void *g_top_term;
-static char *g_top_term_argv[] = {"/bin/sh", NULL};
+static char *g_top_term_argv[] = {"./build/toysh", NULL};
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -578,9 +578,9 @@ static void *thread1(void *user) {
 	FILE *fp;
 	const char closevi[] = "\x03:wq\n";
 	char buf[64];
-	const char sh_cmd1[] = "echo 'i am an edge window terminal created by a plugin ^_^'\n";
-	const char sh_cmd2[] = "echo 'some test text. blah blah blah qwer' > /tmp/api_test_sh_test\n";
-	const char sh_cmd3[] = "for i in 3 2 1; do echo $i; sleep 1; done; exit\n";
+	const char sh_cmd1[] = "echo 'i am an edge window terminal created by a plugin ^_^'\r";
+	const char sh_cmd2[] = "echo 'some test text. blah blah blah qwer' > /tmp/api_test_sh_test\r";
+	const char sh_cmd3[] = "exit\r";
 	(void)(user);
 
 	diag("++++thread1++++");
@@ -662,20 +662,23 @@ static void *thread1(void *user) {
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb) == 0);
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
+	usleep(500000);
 	diag("also write some stuff into the primary terminal");
-	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\necho 'utf-8 doesnt work with primary_input_chars: \xE2\x97\xB0'\n";
+	const char primary_echo[] = "echo 'hooray im a plugin!'\recho 'utf-8 doesnt work with primary_input_chars: \xE2\x97\xB0'\r";
 	size_t echoed = 0;
 
 	while(echoed < ARRAY_SIZE(primary_echo)) {
-		echoed += (*g_api->primary_input_chars)(g_plugin, primary_echo+echoed, ARRAY_SIZE(primary_echo)-echoed);
+		echoed += (*g_api->primary_input_chars)(g_plugin, primary_echo+echoed, 1);
+		usleep(20000);
 	}
 
 	diag("now write some utf-32 into the primary terminal");
-	const wchar_t primary_echo32[] = L"\n\necho 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\n";
+	const wchar_t primary_echo32[] = L"echo 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\r";
 	echoed = 0;
-
+	usleep(100000);
 	while(echoed < ARRAY_SIZE(primary_echo32)) {
-		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, ARRAY_SIZE(primary_echo32)-echoed);
+		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, 1);
+		usleep(20000);
 	}
 	
 	diag("sleep for a while and then hide bottom panel");

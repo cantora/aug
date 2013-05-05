@@ -36,7 +36,7 @@ OBJECTS			= $(patsubst %.c, $(BUILD)/%.o, $(SRCS) )
 PLUGIN_DIRS		= $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) $(shell find ./test/plugin -maxdepth 1 -mindepth 1 -type d) 
 PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), $(dir)/$(notdir $(dir) ).so )
 
-TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*.c) ) )
+TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*_test.c) ) )
 TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
 
 SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
@@ -153,6 +153,18 @@ tests: $(filter-out screen_api_test, $(TESTS))
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
+$(BUILD)/linenoise/.touched:
+	cd $(BUILD) && git clone 'git://github.com/antirez/linenoise.git' 
+	touch $@
+
+$(BUILD)/linenoise/linenoise.c: $(BUILD)/linenoise/.touched
+
+$(BUILD)/linenoise/linenoise.o: $(BUILD)/linenoise/linenoise.c 
+	$(cc-template) -iquote"$(BUILD)/linenoise"
+
+$(BUILD)/toysh: ./test/toysh.c $(BUILD)/linenoise/linenoise.o
+	$(CXX_CMD) -iquote"$(BUILD)/linenoise" -o $@ $+
+
 $(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) $(PLUGIN_OBJECTS) $(BUILD)/tap.so
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(BUILD)/tap.so $(LIB) -o $@
 
@@ -164,7 +176,7 @@ $(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
 
 define screen-api-test-template
 .PHONY: $(1)screen_api_test
-$(1)screen_api_test: $$(BUILD)/screen_api_test
+$(1)screen_api_test: $$(BUILD)/screen_api_test $(BUILD)/toysh
 	rm -f $$(BUILD)/log && rm -f $$(BUILD)/screen_api_test.log && \
 		$(2) $$< $$(BUILD)/screen_api_test.log; \
 		RESULT=$$$$?; \

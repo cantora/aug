@@ -70,20 +70,20 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		kill(getppid(), SIGWINCH);
 		nct_printf(api_test_user_input);
 		nct_printf("\x01\x12");
+		sleep(8);
 		sleep(API_TEST_IO_PAUSE); //usleep(100000);
 		nct_printf(api_test_on_r_response);
 		sleep(API_TEST_IO_PAUSE);
-		sleep(8);
 
-		nct_printf("echo 'blah'\n");
-		nct_printf("echo 'asdfasdfasdf'\n");
-		nct_printf("echo 'wertwertwert'\n");
-		for(i = 0; i < 12; i++) {
-			nct_printf("echo valgrind is sloooow...\n");
+		nct_printf("echo 'blah'\r");
+		nct_printf("echo 'asdfasdfasdf'\r");
+		nct_printf("echo 'wertwertwert'\r");
+		for(i = 0; i < 5; i++) {
+			nct_printf("echo valgrind is sloooow...\r");
 			sleep(1);
 		}
 
-		nct_printf("exit\n");
+		nct_printf("exit\r");
 		diag("child: end");
 		exit(0);
 	}
