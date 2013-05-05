@@ -56,6 +56,7 @@
 #endif
 
 static int api_test_main(FILE *output, int argc, char *argv[]) {
+	int i;
 	(void)(ncurses_test_init);
 	(void)(ncurses_test_end);
 
@@ -73,9 +74,15 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		nct_printf(api_test_on_r_response);
 		sleep(API_TEST_IO_PAUSE);
 		sleep(8);
+
 		nct_printf("echo 'blah'\n");
 		nct_printf("echo 'asdfasdfasdf'\n");
 		nct_printf("echo 'wertwertwert'\n");
+		for(i = 0; i < 12; i++) {
+			nct_printf("echo valgrind is sloooow...\n");
+			sleep(1);
+		}
+
 		nct_printf("exit\n");
 		diag("child: end");
 		exit(0);

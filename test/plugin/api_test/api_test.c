@@ -663,7 +663,7 @@ static void *thread1(void *user) {
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
 	diag("also write some stuff into the primary terminal");
-	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\necho 'utf-8 doesnt work with input chars: \xE2\x97\xB0'\n";
+	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\necho 'utf-8 doesnt work with primary_input_chars: \xE2\x97\xB0'\n";
 	size_t echoed = 0;
 
 	while(echoed < ARRAY_SIZE(primary_echo)) {
@@ -1033,6 +1033,9 @@ void aug_plugin_free() {
 
 	check_screen_lock();
 
+	diag("join thread1 first");
+	ok1(pthread_join(g_thread1, NULL) == 0);
+
 	if( g_pan_term_freed == 0 
 			&& (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
 		fail("terminal is still running, kill child.");
@@ -1041,11 +1044,11 @@ void aug_plugin_free() {
 		kill(pid , SIGKILL);
 	}
 
-	diag("join threads");
+	diag("join other threads");
 	ok1(pthread_join(g_thread4, NULL) == 0);	
 	ok1(pthread_join(g_thread3, NULL) == 0);
 	ok1(pthread_join(g_thread2, NULL) == 0);
-	ok1(pthread_join(g_thread1, NULL) == 0);
+	
 	diag("all threads finished");
 
 	ok( (g_got_callback == true) , "check to see if the key extension callback happened" );
