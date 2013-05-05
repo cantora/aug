@@ -47,7 +47,7 @@ DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
 HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
 DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp 
-SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
+#SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
 
 
 default: all
@@ -155,13 +155,13 @@ memgrind-$(1): $$(BUILD)/$(1)
 		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
 		&& echo $(1) is memcheck clean!
 
-.PHONY: sgcgrind-$(1)
-sgcgrind-$(1): $$(BUILD)/$(1) 
-	@echo check access bounds of $(1)
-	$(SGCGRIND) --log-file=$(BUILD)/$(1).sgcgrind $(BUILD)/$(1)
-	@RESULT=$$$$(cat build/$(1).sgcgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
-		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
-		&& echo $(1) is sgcheck clean!
+#.PHONY: sgcgrind-$(1)
+#sgcgrind-$(1): $$(BUILD)/$(1) 
+#	@echo check access bounds of $(1)
+#	$(SGCGRIND) --log-file=$(BUILD)/$(1).sgcgrind $(BUILD)/$(1)
+#	@RESULT=$$$$(cat build/$(1).sgcgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
+#		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
+#		&& echo $(1) is sgcheck clean!
 
 endef
 
@@ -176,9 +176,9 @@ tests: $(filter-out screen_api_test, $(TESTS))
 memgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), memgrind-$(test))
 	@echo all tests are memcheck clean
 
-.PHONY: sgcgrind-tests
-sgcgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), sgcgrind-$(test))
-	@echo all tests are sgcheck clean
+#.PHONY: sgcgrind-tests
+#sgcgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), sgcgrind-$(test))
+#	@echo all tests are sgcheck clean
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
@@ -222,6 +222,7 @@ $(eval $(call screen-api-test-template,$(empty),$(empty)))
 $(eval $(call screen-api-test-template,memgrind-,$(MEMGRIND) --log-file=$(BUILD)/screen_api_test.memgrind))
 $(eval $(call screen-api-test-template,helgrind-,$(HELGRIND) --log-file=$(BUILD)/screen_api_test.helgrind))
 $(eval $(call screen-api-test-template,drdgrind-,$(DRDGRIND) --log-file=$(BUILD)/screen_api_test.drdgrind))
+#$(eval $(call screen-api-test-template,sgcgrind-,$(SGCGRIND) --log-file=$(BUILD)/screen_api_test.sgcgrind))
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )

@@ -144,16 +144,16 @@ struct aug_term_child {
 static int api_log(struct aug_plugin *plugin, const char *format, ...) {
 	va_list args;
 	int result;
-	char s[24];
+	char s[64];
 	time_t t;
 	const struct tm *tm;
 
 	s[0] = '\0';
 	t = time(NULL);
 	if( (tm = localtime(&t)) != NULL)
-	strftime(s, ARRAY_SIZE(s), "(%m.%d %H:%M:%S)", tm);
+	strftime(s, ARRAY_SIZE(s), "%m.%d %H:%M:%S", tm);
 
-	fprintf(stderr, "%s%s: ", plugin->name, s);
+	fprintf(stderr, "%s(%s): ", plugin->name, s);
 	va_start(args, format);
 	result = vfprintf(stderr, format, args);
 	va_end(args);
