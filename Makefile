@@ -47,6 +47,8 @@ DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
 HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
 DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp 
+SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
+
 
 default: all
 
@@ -149,9 +151,17 @@ $(1): $$(BUILD)/$(1)
 memgrind-$(1): $$(BUILD)/$(1) 
 	@echo check memory usage of $(1)
 	$(MEMGRIND) --log-file=$(BUILD)/$(1).memgrind $(BUILD)/$(1)
-	@RESULT=$$$$(cat build/keymap_test.memgrind | grep -E 'ERROR SUMMARY: ([0-9]+) errors' -o) \
+	@RESULT=$$$$(cat build/$(1).memgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
 		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
 		&& echo $(1) is memcheck clean!
+
+.PHONY: sgcgrind-$(1)
+sgcgrind-$(1): $$(BUILD)/$(1) 
+	@echo check access bounds of $(1)
+	$(SGCGRIND) --log-file=$(BUILD)/$(1).sgcgrind $(BUILD)/$(1)
+	@RESULT=$$$$(cat build/$(1).sgcgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
+		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
+		&& echo $(1) is sgcheck clean!
 
 endef
 
@@ -165,6 +175,10 @@ tests: $(filter-out screen_api_test, $(TESTS))
 .PHONY: memgrind-tests
 memgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), memgrind-$(test))
 	@echo all tests are memcheck clean
+
+.PHONY: sgcgrind-tests
+sgcgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), sgcgrind-$(test))
+	@echo all tests are sgcheck clean
 
 $(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 

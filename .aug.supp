@@ -11,3 +11,11 @@
    fun:forkpty
    fun:child_init
 }
+{
+   ciniparser_sprintf
+   exp-sgcheck:SorG
+   fun:vfprintf 
+   fun:vsnprintf
+   fun:snprintf 
+   fun:ciniparser_load
+}
