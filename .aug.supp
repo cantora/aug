@@ -19,3 +19,9 @@
    fun:snprintf 
    fun:ciniparser_load
 }
+{
+   tok_itr_test ??
+   exp-sgcheck:SorG
+   fun:test4
+   fun:main
+}
