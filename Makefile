@@ -45,7 +45,8 @@ SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
-HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp 
+HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
+DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp 
 
 default: all
 
@@ -58,6 +59,9 @@ memgrind-aug: all
 
 helgrind-aug: all
 	$(HELGRIND) --log-file=aug.helgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
+
+drdgrind-aug: all
+	$(DRDGRIND) --log-file=aug.drdgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
 .PHONY: .FORCE
 .FORCE:
@@ -203,6 +207,7 @@ endef
 $(eval $(call screen-api-test-template,$(empty),$(empty)))
 $(eval $(call screen-api-test-template,memgrind-,$(MEMGRIND) --log-file=$(BUILD)/screen_api_test.memgrind))
 $(eval $(call screen-api-test-template,helgrind-,$(HELGRIND) --log-file=$(BUILD)/screen_api_test.helgrind))
+$(eval $(call screen-api-test-template,drdgrind-,$(DRDGRIND) --log-file=$(BUILD)/screen_api_test.drdgrind))
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
