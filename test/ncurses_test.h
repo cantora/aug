@@ -51,7 +51,7 @@ static WINDOW *ncurses_test_init(const char *path) {
 		ncurses_test_init_pipe();
 
 	if(path == NULL) {
-		nct_out = stdin;
+		nct_out = stdout;
 	}
 	else {
 		AUG_PTR_NON_NULL( (nct_out = fopen(path , "w")) );
