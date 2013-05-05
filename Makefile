@@ -157,7 +157,7 @@ $(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) $(PLUGIN_OBJECTS
 	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(BUILD)/tap.so $(LIB) -o $@
 
 $(BUILD)/tap.o: $(CCAN_DIR)/ccan/tap/tap.c
-	$(CXX_CMD) $(DEP_FLAGS) -I$(CCAN_DIR) -fPIC -c $< -o $@
+	$(CXX_CMD) $(DEP_FLAGS) -DWANT_PTHREAD -I$(CCAN_DIR) -fPIC -c $< -o $@
 
 $(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
 	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@

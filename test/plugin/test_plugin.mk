@@ -3,7 +3,6 @@ CCAN_DIR		= $(AUG_DIR)/libccan
 INCLUDES		= -iquote"$(AUG_DIR)/include" -I. -iquote"$(AUG_DIR)/test"
 INCLUDES		+= -I$(CCAN_DIR)
 CXX_FLAGS		= -ggdb -Wall -Wextra $(INCLUDES)
-CXX_FLAGS		+= -DWANT_PTHREAD #for tap locking
 CXX_CMD			= gcc $(CXX_FLAGS)
 SRCS			= $(wildcard ./*.c)
 OBJECTS			= $(patsubst %.c, %.o, $(SRCS) ) 
