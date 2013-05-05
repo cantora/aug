@@ -140,8 +140,11 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 
 		/*diag("========> '%c' (0x%02x)", (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
 		if(*ch == '\n') {
-			ok( strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) == 0, 
-							"check the on_r interactive input data");
+			if(strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) != 0) 
+				fail("check the on_r interactive input data: %s", intern);
+			else
+				pass("check the on_r interactive input data");
+
 			g_on_r_interaction = false;
 
 			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
