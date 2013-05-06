@@ -36,10 +36,10 @@ static pthread_t g_tid1;
 static void *thread1(void *user) {
 	(void)(user);
 
-	diag("++++thread1++++");
-	pass("thread1 running");
+	diag("++++thread1 (unload)++++");
+	pass("thread1(unload) running");
 	(*g_api->unload)(g_plugin);
-	diag("----thread1----\n#");
+	diag("----thread1 (unload)----\n#");
 	return NULL;
 }
 
@@ -52,10 +52,10 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 
 	diag("create thread for unloading");
 	if(pthread_create(&g_tid1, NULL, thread1, NULL) != 0) {
-		diag("expected to be able to create a thread. abort...");
+		diag("expected to be able to create unload thread. abort...");
 		return -1;
 	}
-	pass("created thread");
+	pass("created unload thread");
 
 	diag("----plugin_init (unload)----\n#");
 
@@ -71,9 +71,9 @@ void aug_plugin_free() {
 	ok1(pthread_equal(pthread_self(), g_tid1) == 0);
 	status = pthread_join(g_tid1, NULL);
 	if(status != 0)
-		fail("pthread join failed: %s", strerror(status));
+		fail("pthread join of unload thread failed: %s", strerror(status));
 	else 
-		pass("pthread_join(...) == 0");
+		pass("pthread_join(...) == 0 (unload)");
 
 	diag("----plugin_free (unload)----\n#");
 }

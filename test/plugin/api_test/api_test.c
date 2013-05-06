@@ -143,7 +143,7 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 		if(strcmp(firstn, api_test_user_input) == 0)
 			g_got_expected_input = true;
 
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(input char) check that user ptr is correct");
 		test_sigs();
 		diag("----input_char----\n#");
 	}
@@ -199,7 +199,7 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cell_update++++");
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(cell_update) check that user ptr is correct");
 		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
@@ -222,7 +222,7 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cursor_move++++");
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(cursor_move) check that user ptr is correct");
 		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cursor_move----\n#");
@@ -230,10 +230,13 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 }
 
 void screen_dims_change(int rows, int cols, void *user) {
-
+	/* this function will not be invoked under valgrind 
+	 * for some reason, so expect the summary to state
+	 * three tests were missing.
+	 */
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
-	ok(user == g_user_data, "check that user ptr is correct");
+	ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
 	test_sigs();
 	diag("----screen_dims_change----\n#");
 }
