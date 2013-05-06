@@ -204,10 +204,11 @@ $(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
 	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@
 
 define screen-api-test-template
+
 .PHONY: $(1)screen_api_test
 $(1)screen_api_test: $$(BUILD)/screen_api_test $(BUILD)/toysh
-	rm -f $$(BUILD)/log && rm -f $$(BUILD)/screen_api_test.log && \
-		$(2) $$< $$(BUILD)/screen_api_test.log; \
+	rm -f $$(BUILD)/log && rm -f $$(BUILD)/screen_api_test.log
+	$(2) $$< $$(BUILD)/screen_api_test.log; \
 		RESULT=$$$$?; \
 		stty sane; echo; \
 		if [ $$$$RESULT -ne 0 ]; then \
@@ -215,6 +216,14 @@ $(1)screen_api_test: $$(BUILD)/screen_api_test $(BUILD)/toysh
 		fi; \
 		echo "test results:"; \
 		cat $$(BUILD)/screen_api_test.log
+
+	@if [ -n "$(1)" ]; then \
+		if [ -n "$$$$(grep -E 'ERROR SUMMARY: [1-9][0-9]* errors' -o build/screen_api_test.$(patsubst %-,%,$(1)) )" ]; then \
+			echo $$@ has errors; \
+		else \
+			echo $$@ was error free; \
+		fi; \
+	fi
 
 endef
 
