@@ -46,7 +46,8 @@ API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
 HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
-DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp 
+DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp \
+					--free-is-write=yes --segment-merging=no
 #SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
 
 
