@@ -21,7 +21,7 @@ default: all
 .PHONY: all 
 all: $(OUTPUT).so
 
-$(OUTPUT).so: $(OBJECTS) tap.o
+$(OUTPUT).so: $(OBJECTS)
 	$(CXX_CMD) $(SO_FLAGS) $+ -o $@
 
 define cc-template

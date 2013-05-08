@@ -62,6 +62,9 @@ DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp \
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
 	LIB						+= -liconv
+	SO_FLAGS				= -dynamiclib -Wl,-undefined,dynamic_lookup 
+else
+	SO_FLAGS				= -shared
 endif
 
 default: all
@@ -88,9 +91,10 @@ $(LIBVTERM): ./libvterm
 ./libvterm:
 	bzr checkout -r 589 lp:libvterm
 
-$(CCAN_DIR):
-	git clone 'https://github.com/rustyrussell/ccan.git' $(CCAN_DIR)
-	cd $(CCAN_DIR) && git checkout cantora
+$(CCAN_DIR)/.touched:
+	git clone 'https://github.com/cantora/ccan.git' $(CCAN_DIR)
+	cd $(CCAN_DIR) && git fetch && git checkout cantora
+	touch $@
 
 CCAN_PATCH_TARGETS		= $(CCAN_DIR)/.patched_warning $(CCAN_DIR)/.patched_rt
 CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
@@ -106,10 +110,10 @@ $(CCAN_DIR)/.patched_rt:
 		&& mv $(CCAN_COMMENT_LIBRT).tmp $(CCAN_COMMENT_LIBRT)
 	touch $@
 
-$(LIBCCAN): $(CCAN_DIR) $(CCAN_PATCH_TARGETS)
+$(LIBCCAN): $(CCAN_DIR)/.touched $(CCAN_PATCH_TARGETS)
 	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) -f ./tools/Makefile tools/configurator/configurator
 	$(CCAN_DIR)/tools/configurator/configurator > $(CCAN_DIR)/config.h
-	cd $(CCAN_DIR) && $(MAKE) $(MFLAGS) 
+	cd $(CCAN_DIR) && CFLAGS=" -DWANT_PTHREAD " $(MAKE) $(MFLAGS) 
 
 $(BUILD)/vterm_ansi_colors.c: $(LIBVTERM)
 	{ \
@@ -272,5 +276,6 @@ clean:
 libclean: clean
 	rm -rf ./libvterm
 	rm -rf $(CCAN_DIR)
+	rm -rf ./configurator.out.dSYM/
 
 -include $(wildcard $(BUILD)/*.d )
