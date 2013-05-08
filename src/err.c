@@ -28,7 +28,7 @@ void err_exit_cleanup_fn(void (*cleanup_fn)(int error) ) {
 	err_exit_cleanup = cleanup_fn;
 }
 
-void err_log(const char *file, int lineno, 
+void err_log(FILE *fp, const char *file, int lineno, 
 					int error, const char *format, ...) {
 	va_list args;
 	size_t buflen = 1024;
@@ -40,13 +40,13 @@ void err_log(const char *file, int lineno,
 	va_end(args);
 
 	if(result >= 0) {
-		fprintf(stderr, "(%s:%d) ", file, lineno);
-		fwrite(buf, sizeof(char), result, stderr);
+		fprintf(fp, "(%s:%d) ", file, lineno);
+		fwrite(buf, sizeof(char), result, fp);
 		if(error != 0) 
-			fprintf(stderr, ": %s (%d)", strerror(error), error );
+			fprintf(fp, ": %s (%d)", strerror(error), error );
 		
-		fputc('\n', stderr);
-		fflush(stderr);
+		fputc('\n', fp);
+		fflush(fp);
 	}
 }
 

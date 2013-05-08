@@ -44,7 +44,7 @@ OBJECTS			= $(patsubst %.c, $(BUILD)/%.o, $(SRCS) )
 PLUGIN_DIRS		= $(shell find ./plugin -maxdepth 1 -mindepth 1 -type d) $(shell find ./test/plugin -maxdepth 1 -mindepth 1 -type d) 
 PLUGIN_OBJECTS	= $(foreach dir, $(PLUGIN_DIRS), $(dir)/$(notdir $(dir) ).so )
 
-TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*.c) ) )
+TESTS 			= $(notdir $(patsubst %.c, %, $(wildcard ./test/*_test.c) ) )
 TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/$(test))
 
 SANDBOX_PGMS	= $(notdir $(patsubst %.c, %, $(wildcard ./sandbox/*.c) ) )
@@ -52,7 +52,12 @@ SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
-VALGRIND		= valgrind  --leak-check=full --suppressions=./.aug.supp
+MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
+HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
+DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp \
+					--free-is-write=yes --segment-merging=no
+#SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
+
 
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
@@ -64,8 +69,15 @@ default: all
 .PHONY: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
-grind-aug: all
-	$(VALGRIND) --log-file=aug.grind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
+#set GRIND_AUG_ARGS externally if extra options are needed when running these
+memgrind-aug: all
+	$(MEMGRIND) --log-file=aug.memgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
+
+helgrind-aug: all
+	$(HELGRIND) --log-file=aug.helgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
+
+drdgrind-aug: all
+	$(DRDGRIND) --log-file=aug.drdgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
 .PHONY: .FORCE
 .FORCE:
@@ -78,6 +90,7 @@ $(LIBVTERM): ./libvterm
 
 $(CCAN_DIR):
 	git clone 'https://github.com/rustyrussell/ccan.git' $(CCAN_DIR)
+	cd $(CCAN_DIR) && git checkout cantora
 
 CCAN_PATCH_TARGETS		= $(CCAN_DIR)/.patched_warning $(CCAN_DIR)/.patched_rt
 CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
@@ -155,59 +168,104 @@ $$(BUILD)/$(1): $$(BUILD)/$(1).o $$(OBJECTS)
 
 .PHONY: $(1)
 $(1): $$(BUILD)/$(1)
+	@echo TEST $(1)
 	$(BUILD)/$(1) 
+	@echo $(1) tests passed!
 
-.PHONY: grind-$(1)
-grind-$(1): $$(BUILD)/$(1) 
-	$(VALGRIND) --log-file=$(BUILD)/$(1).grind $(BUILD)/$(1)
+.PHONY: memgrind-$(1)
+memgrind-$(1): $$(BUILD)/$(1) 
+	@echo check memory usage of $(1)
+	$(MEMGRIND) --log-file=$(BUILD)/$(1).memgrind $(BUILD)/$(1)
+	@RESULT=$$$$(cat build/$(1).memgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
+		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
+		&& echo $(1) is memcheck clean!
+
+#.PHONY: sgcgrind-$(1)
+#sgcgrind-$(1): $$(BUILD)/$(1) 
+#	@echo check access bounds of $(1)
+#	$(SGCGRIND) --log-file=$(BUILD)/$(1).sgcgrind $(BUILD)/$(1)
+#	@RESULT=$$$$(cat build/$(1).sgcgrind | grep -E 'ERROR SUMMARY: [0-9]+ errors' -o) \
+#		&& [ "$$$$RESULT" = "ERROR SUMMARY: 0 errors" ] \
+#		&& echo $(1) is sgcheck clean!
 
 endef
 
+#we dont include screen api tests in "all tests" target
+#because it takes more time and its kind of jarring when
+#it takes over the screen
 .PHONY: tests
-tests: $(TESTS)
+tests: $(filter-out screen_api_test, $(TESTS))
+	@echo all tests passed
 
-$(foreach test, $(filter-out api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
+.PHONY: memgrind-tests
+memgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), memgrind-$(test))
+	@echo all tests are memcheck clean
 
-grind-api_test: $(BUILD)/api_test
-	$(VALGRIND) --log-file=$(BUILD)/api_test.grind $(BUILD)/api_test
+#.PHONY: sgcgrind-tests
+#sgcgrind-tests: $(foreach test, $(filter-out screen_api_test timer_test, $(TESTS)), sgcgrind-$(test))
+#	@echo all tests are sgcheck clean
 
-api_test: $(BUILD)/api_test
-	$(BUILD)/api_test
+$(foreach test, $(filter-out screen_api_test, $(TESTS)), $(eval $(call test-program-template,$(test)) ) )
 
-$(BUILD)/api_test: $(BUILD)/api_test.o $(OBJECTS) $(PLUGIN_OBJECTS)
-	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/api_test.o $(LIB) -o $@
+$(BUILD)/linenoise/.touched:
+	cd $(BUILD) && git clone 'git://github.com/antirez/linenoise.git' 
+	touch $@
+
+$(BUILD)/linenoise/linenoise.c: $(BUILD)/linenoise/.touched
+
+$(BUILD)/linenoise/linenoise.o: $(BUILD)/linenoise/linenoise.c 
+	$(cc-template) -iquote"$(BUILD)/linenoise"
+
+$(BUILD)/toysh: ./test/toysh.c $(BUILD)/linenoise/linenoise.o
+	$(CXX_CMD) -iquote"$(BUILD)/linenoise" -o $@ $+
+
+$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) $(PLUGIN_OBJECTS) $(BUILD)/tap.so
+	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(BUILD)/tap.so $(LIB) -o $@
+
+$(BUILD)/tap.o: $(CCAN_DIR)/ccan/tap/tap.c
+	$(CXX_CMD) $(DEP_FLAGS) -DWANT_PTHREAD -I$(CCAN_DIR) -fPIC -c $< -o $@
+
+$(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
+	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@
+
+define screen-api-test-template
+
+.PHONY: $(1)screen_api_test
+$(1)screen_api_test: $$(BUILD)/screen_api_test $(BUILD)/toysh
+	rm -f $$(BUILD)/log && rm -f $$(BUILD)/screen_api_test.log
+	$(2) $$< $$(BUILD)/screen_api_test.log; \
+		RESULT=$$$$?; \
+		stty sane; echo; \
+		if [ $$$$RESULT -ne 0 ]; then \
+			echo "log:"; cat $$(BUILD)/log; echo; \
+		fi; \
+		echo "test results:"; \
+		cat $$(BUILD)/screen_api_test.log
+
+	@if [ -n "$(1)" ]; then \
+		if [ -n "$$$$(grep -E 'ERROR SUMMARY: [1-9][0-9]* errors' -o build/screen_api_test.$(patsubst %-,%,$(1)) )" ]; then \
+			echo $$@ has errors; \
+		else \
+			echo $$@ was error free; \
+		fi; \
+	fi
+
+endef
+
+$(eval $(call screen-api-test-template,$(empty),$(empty)))
+$(eval $(call screen-api-test-template,memgrind-,$(MEMGRIND) --log-file=$(BUILD)/screen_api_test.memgrind))
+$(eval $(call screen-api-test-template,helgrind-,$(HELGRIND) --log-file=$(BUILD)/screen_api_test.helgrind))
+$(eval $(call screen-api-test-template,drdgrind-,$(DRDGRIND) --log-file=$(BUILD)/screen_api_test.drdgrind))
+#$(eval $(call screen-api-test-template,sgcgrind-,$(SGCGRIND) --log-file=$(BUILD)/screen_api_test.sgcgrind))
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
-
-$(BUILD)/screen_api_test: $(BUILD)/screen_api_test.o $(OBJECTS) \
-		$(PLUGIN_OBJECTS) sandbox/plugin/api_test/api_test.so sandbox/plugin/unload/unload.so
-	$(CXX_CMD) $(filter-out $(BUILD)/screen.o $(BUILD)/aug.o, $(OBJECTS) ) $(BUILD)/screen_api_test.o $(LIB) -o $@
-
-screen_api_test: $(BUILD)/screen_api_test
-	$<
-
-define screen-test-plugin-template
-./sandbox/plugin/$(1)/$(1).so: .FORCE
-	cp ./test/plugin/test_plugin.mk ./sandbox/plugin/
-	mkdir -p ./sandbox/plugin/$(1)
-	cp ./test/plugin/$(1)/Makefile ./sandbox/plugin/$(1)/
-	echo 'INCLUDES += -iquote"$$$$(AUG_DIR)/sandbox"' >> ./sandbox/plugin/$(1)/Makefile
-	cat ./test/plugin/$(1)/$(1).c \
-		| sed 's/#include <ccan\/tap\/tap.h>/#include "stderr_tap.h"/' \
-		> ./sandbox/plugin/$(1)/$(1).c
-	$(MAKE) $(MFLAGS) -C $$(dir $$@) 
-
-endef
-
-$(foreach x, api_test unload, $(eval $(call screen-test-plugin-template,$(x)) ) )
 
 .PHONY: clean 
 clean: 
 	rm -rf $(BUILD)
 	rm -f $(OUTPUT)
 	for i in $(PLUGIN_DIRS); do dir=$$i; echo "clean $$dir"; $(MAKE) $(MFLAGS) -C $$dir clean; done
-	rm -rvf ./sandbox/plugin/*
 	rm -f aug.log aug.grind
 
 .PHONY: libclean

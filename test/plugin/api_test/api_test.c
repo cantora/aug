@@ -39,6 +39,17 @@ void screen_dims_change(int rows, int cols, void *user);
 static const struct aug_api *g_api;
 static struct aug_plugin *g_plugin;
 
+#define API_TEST_LOCK(mtx_ptr) \
+	do { \
+		if(pthread_mutex_lock(mtx_ptr) != 0) \
+			(*g_api->log)(g_plugin, "failed to lock mutex at line %d\n", __LINE__); \
+	} while(0)
+#define API_TEST_UNLOCK(mtx_ptr) \
+	do { \
+		if(pthread_mutex_unlock(mtx_ptr) != 0) \
+			(*g_api->log)(g_plugin, "failed to unlock mutex at line %d\n", __LINE__); \
+	} while(0)
+
 static char *g_user_data = "on_r secret stuff...";
 static struct aug_plugin_cb g_callbacks = {
 	.input_char = input_char,
@@ -52,6 +63,7 @@ static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
+pthread_mutex_t g_on_r_interaction_mtx = PTHREAD_MUTEX_INITIALIZER;
 static PANEL *g_pan1, *g_pan2, *g_pan3;
 static struct aug_terminal_win g_pan_twin, g_top_twin;
 static WINDOW *g_pan2_dwin, *g_pan3_dwin;
@@ -64,7 +76,7 @@ static char *g_pan_term_argv[] = {"vi", g_vi_test_file, NULL};
 static const char g_vi_msg[] = "zoidberg is a crafty consumer! (\\/)(,;;,)(\\/)";
 
 static void *g_top_term;
-static char *g_top_term_argv[] = {"/bin/sh", NULL};
+static char *g_top_term_argv[] = {"./build/toysh", NULL};
 
 /* if called from the main thread (a callback from aug
  * or the init and free functions), this will deadlock
@@ -131,17 +143,21 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 		if(strcmp(firstn, api_test_user_input) == 0)
 			g_got_expected_input = true;
 
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(input char) check that user ptr is correct");
 		test_sigs();
 		diag("----input_char----\n#");
 	}
 
+	API_TEST_LOCK(&g_on_r_interaction_mtx);
 	if(g_on_r_interaction == true) {
 
 		/*diag("========> '%c' (0x%02x)", (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
 		if(*ch == '\n') {
-			ok( strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) == 0, 
-							"check the on_r interactive input data");
+			if(strncmp(intern, api_test_on_r_response, CUTOFF_INTERN) != 0) 
+				fail("check the on_r interactive input data: %s", intern);
+			else
+				pass("check the on_r interactive input data");
+
 			g_on_r_interaction = false;
 
 			ok( hide_panel(g_pan2) != ERR, "hide on_r panel");
@@ -161,6 +177,7 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 
 		*action = AUG_ACT_CANCEL;
 	}
+	API_TEST_UNLOCK(&g_on_r_interaction_mtx);
 
 #undef CUTOFF	
 }
@@ -182,7 +199,7 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cell_update++++");
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(cell_update) check that user ptr is correct");
 		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
@@ -205,7 +222,7 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cursor_move++++");
-		ok(user == g_user_data, "check that user ptr is correct");
+		ok(user == g_user_data, "(cursor_move) check that user ptr is correct");
 		test_sigs();
 		checked_winch_and_screen_lock = true;
 		diag("----cursor_move----\n#");
@@ -213,10 +230,13 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 }
 
 void screen_dims_change(int rows, int cols, void *user) {
-
+	/* this function will not be invoked under valgrind 
+	 * for some reason, so expect the summary to state
+	 * three tests were missing.
+	 */
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
-	ok(user == g_user_data, "check that user ptr is correct");
+	ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
 	test_sigs();
 	diag("----screen_dims_change----\n#");
 }
@@ -561,9 +581,9 @@ static void *thread1(void *user) {
 	FILE *fp;
 	const char closevi[] = "\x03:wq\n";
 	char buf[64];
-	const char sh_cmd1[] = "echo 'i am an edge window terminal created by a plugin ^_^'\n";
-	const char sh_cmd2[] = "echo 'some test text. blah blah blah qwer' > /tmp/api_test_sh_test\n";
-	const char sh_cmd3[] = "for i in 3 2 1; do echo $i; sleep 1; done; exit\n";
+	const char sh_cmd1[] = "echo 'i am an edge window terminal created by a plugin ^_^'\r";
+	const char sh_cmd2[] = "echo 'some test text. blah blah blah qwer' > /tmp/api_test_sh_test\r";
+	const char sh_cmd3[] = "exit\r";
 	(void)(user);
 
 	diag("++++thread1++++");
@@ -645,20 +665,23 @@ static void *thread1(void *user) {
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, left_bar1_cb) == 0);
 	ok1( (*g_api->screen_win_dealloc)(g_plugin, right_bar1_cb) == 0);
 
+	usleep(500000);
 	diag("also write some stuff into the primary terminal");
-	const char primary_echo[] = "\n\necho 'hooray im a plugin!'\necho 'utf-8 doesnt work with input chars: \xE2\x97\xB0'\n";
+	const char primary_echo[] = "echo 'hooray im a plugin!'\recho 'utf-8 doesnt work with primary_input_chars: \xE2\x97\xB0'\r";
 	size_t echoed = 0;
 
 	while(echoed < ARRAY_SIZE(primary_echo)) {
-		echoed += (*g_api->primary_input_chars)(g_plugin, primary_echo+echoed, ARRAY_SIZE(primary_echo)-echoed);
+		echoed += (*g_api->primary_input_chars)(g_plugin, primary_echo+echoed, 1);
+		usleep(20000);
 	}
 
 	diag("now write some utf-32 into the primary terminal");
-	const wchar_t primary_echo32[] = L"\n\necho 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\n";
+	const wchar_t primary_echo32[] = L"echo 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\r";
 	echoed = 0;
-
+	usleep(100000);
 	while(echoed < ARRAY_SIZE(primary_echo32)) {
-		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, ARRAY_SIZE(primary_echo32)-echoed);
+		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, 1);
+		usleep(20000);
 	}
 	
 	diag("sleep for a while and then hide bottom panel");
@@ -676,7 +699,7 @@ static void *thread1(void *user) {
 
 static void *thread2(void *user) {
 	(void)(user);
-	int stack_size;
+	int stack_size, brk;
 	int rows, cols;
 	WINDOW *pan2_win;
 
@@ -717,10 +740,21 @@ static void *thread2(void *user) {
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
 
+	API_TEST_LOCK(&g_on_r_interaction_mtx);
 	g_on_r_interaction = true;
-	
-	while(g_on_r_interaction == true)
+	API_TEST_UNLOCK(&g_on_r_interaction_mtx);
+
+	brk = 0;
+	while(1) {
 		usleep(10000);
+		API_TEST_LOCK(&g_on_r_interaction_mtx);
+		if(g_on_r_interaction != true)
+			brk = 1;
+		API_TEST_UNLOCK(&g_on_r_interaction_mtx);
+
+		if(brk != 0)
+			break;
+	}
 
 	diag("----thread2----\n#");
 	return NULL;
@@ -843,7 +877,6 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	WINDOW *pan1_win, *pan3_win;
 	int rows, cols, drows, dcols;
 
-	plan_tests(131); 
 	diag("++++plugin_init++++");
 	g_plugin = plugin;	
 	g_api = api;
@@ -1006,6 +1039,9 @@ void aug_plugin_free() {
 
 	check_screen_lock();
 
+	diag("join thread1 first");
+	ok1(pthread_join(g_thread1, NULL) == 0);
+
 	if( g_pan_term_freed == 0 
 			&& (*g_api->terminal_terminated)(g_plugin, g_pan_term) == 0) {
 		fail("terminal is still running, kill child.");
@@ -1014,11 +1050,11 @@ void aug_plugin_free() {
 		kill(pid , SIGKILL);
 	}
 
-	diag("join threads");
+	diag("join other threads");
 	ok1(pthread_join(g_thread4, NULL) == 0);	
 	ok1(pthread_join(g_thread3, NULL) == 0);
 	ok1(pthread_join(g_thread2, NULL) == 0);
-	ok1(pthread_join(g_thread1, NULL) == 0);
+	
 	diag("all threads finished");
 
 	ok( (g_got_callback == true) , "check to see if the key extension callback happened" );

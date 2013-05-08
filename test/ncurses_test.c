@@ -21,7 +21,6 @@
 #include <string.h>
 #include <time.h>
 
-//#define NCT_USE_SCREEN
 #include "ncurses_test.h"
 #include <ccan/tap/tap.h>
 

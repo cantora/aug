@@ -15,17 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define NCT_USE_SCREEN
 #include "api_test.h"
 
 int main(int argc, char *argv[]) {
+	FILE *fp;
 	char *args[] = {
 		argv[0], "-c", "./test/api_test_augrc", 
 		"--plugin-path", 
-		"./sandbox/plugin/api_test:./test/plugin/fail_init:./sandbox/plugin/unload:./plugin/hello", 
-		"-d", "./build/log", NULL 
+		"./test/plugin/api_test:./test/plugin/fail_init:./test/plugin/unload:./plugin/hello", 
+		"-d", "./build/log", 
+		"./build/toysh", NULL 
 	};
-	(void)(argc);
+
+	if(argc < 2) {
+		printf("usage: %s FPATH\n", argv[0]);
+		exit(1);
+	}
 	
-	return api_test_main(ARRAY_SIZE(args)-1, args);
+	if( (fp = fopen(argv[1], "w")) == NULL) {
+		printf("failed to open file at %s: %s\n", argv[1], strerror(errno));
+		exit(1);
+	}
+	setvbuf(fp, NULL, _IONBF, 0);
+
+	return api_test_main(fp, ARRAY_SIZE(args)-1, args);
 }

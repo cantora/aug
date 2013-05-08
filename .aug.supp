@@ -11,3 +11,25 @@
    fun:forkpty
    fun:child_init
 }
+{
+   this one comes up from child processes (forkpty)
+   drd:ConflictingAccess
+   fun:__reclaim_stacks
+   fun:fork
+   fun:forkpty
+   fun:child_init
+}
+{
+   ciniparser_sprintf
+   exp-sgcheck:SorG
+   fun:vfprintf 
+   fun:vsnprintf
+   fun:snprintf 
+   fun:ciniparser_load
+}
+{
+   tok_itr_test ??
+   exp-sgcheck:SorG
+   fun:test4
+   fun:main
+}

@@ -2,9 +2,9 @@ OS_NAME			:= $(shell uname)
 
 AUG_DIR			= ../../..
 CCAN_DIR		= $(AUG_DIR)/libccan
-CCAN_CP			= ./ccan
 INCLUDES		= -iquote"$(AUG_DIR)/include" -I. -iquote"$(AUG_DIR)/test"
-CXX_FLAGS		= -ggdb -Wall -Wextra $(INCLUDES) -DWANT_PTHREAD
+INCLUDES		+= -I$(CCAN_DIR)
+CXX_FLAGS		= -ggdb -Wall -Wextra $(INCLUDES)
 CXX_CMD			= gcc $(CXX_FLAGS)
 SRCS			= $(wildcard ./*.c)
 OBJECTS			= $(patsubst %.c, %.o, $(SRCS) ) 
@@ -28,25 +28,11 @@ define cc-template
 $(CXX_CMD) $(DEP_FLAGS) -fPIC -c $< -o $@
 endef
 
-%.o: %.c $(CCAN_CP)
+%.o: %.c
 	$(cc-template)
-
-tap.o: $(CCAN_CP)/tap/tap.c
-	$(cc-template)
-
-$(OUTPUT).c: $(CCAN_CP)
-
-$(CCAN_CP):
-	mkdir -p $(CCAN_CP)
-	cp -R $(CCAN_DIR)/ccan/tap $(CCAN_CP)
-	cp -R $(CCAN_DIR)/ccan/compiler $(CCAN_CP)
-	cp -R $(CCAN_DIR)/ccan/array_size $(CCAN_CP)
-	cp -R $(CCAN_DIR)/ccan/build_assert $(CCAN_CP)
-	cp $(CCAN_DIR)/config.h ./
 
 .PHONY: clean
 clean:
 	rm -f *.o *.so config.h *.d
-	rm -rf $(CCAN_CP)
 
 -include $(wildcard *.d )

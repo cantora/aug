@@ -19,20 +19,23 @@
 #ifndef AUG_ERR_H
 #define AUG_ERR_H
 
+#include <stdio.h>
+
 #define err_exit_call(error, ...) \
 	err_exit_fn(error);
 
 #define err_exit(...) \
 	do { \
-		err_log(__FILE__, __LINE__, __VA_ARGS__); \
+		err_log(stderr, __FILE__, __LINE__, __VA_ARGS__); \
+		err_log(stdout, __FILE__, __LINE__, __VA_ARGS__); \
 		err_exit_call(__VA_ARGS__); \
 	} while(0)
 
 #define err_warn(...) \
-	err_log(__FILE__, __LINE__, __VA_ARGS__)
+	err_log(stderr, __FILE__, __LINE__, __VA_ARGS__)
 
 void err_exit_cleanup_fn(void (*cleanup_fn)(int error) );
-void err_log(const char *file, int lineno, 
+void err_log(FILE *fp, const char *file, int lineno, 
 					int error, const char *format, ...);
 void err_exit_fn(int error);
 

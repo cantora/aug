@@ -50,13 +50,13 @@ static WINDOW *ncurses_test_init(const char *path) {
 	if(nct_fds_initialized == 0)
 		ncurses_test_init_pipe();
 
-#ifdef NCT_USE_SCREEN
-	(void)(path);
-	nct_out = stdout;
-#else
-	AUG_PTR_NON_NULL( (nct_out = fopen( ( (path == NULL)? "/dev/null" : path ) , "w")) );
-#endif
-	
+	if(path == NULL) {
+		nct_out = stdout;
+	}
+	else {
+		AUG_PTR_NON_NULL( (nct_out = fopen(path , "w")) );
+	}
+
 	if(dup2(nct_pipe_fds[0], 0) == -1) 
 		err_exit(errno, "error duping to stdin");
 

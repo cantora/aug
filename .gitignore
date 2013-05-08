@@ -14,5 +14,5 @@ script
 core
 configurator.out.dSYM/
 aug.log
-*.grind
+*.*grind
 
