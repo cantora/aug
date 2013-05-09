@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <ccan/str/str.h>
 #include <ccan/array_size/array_size.h>
+#include <pthread.h>
 #include "err.h"
 
 #define AUG_ARRAY_SIZE(arr) ARRAY_SIZE(arr)

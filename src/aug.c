@@ -956,13 +956,10 @@ static void handler_chld() {
 
 static void *sig_thread(void *user) {
 	struct sigthread_desc *desc;
-	struct timespec ts;
-	int signum, brk;
+	int s, signum, brk;
 	sigset_t set;
 
 	desc = (struct sigthread_desc *) user;
-	ts.tv_sec = 0;
-	ts.tv_nsec = 250*1000000;
 	if(sigemptyset(&set) != 0)
 		err_exit(errno, "sigemptyset failed");
 	if(sigaddset(&set, desc->signum) != 0)
@@ -970,6 +967,7 @@ static void *sig_thread(void *user) {
 
 	brk = 0;
 	while(1) {
+		pthread_testcancel();
 		AUG_LOCK(desc);
 		if(desc->shutdown != 0)
 			brk = 1;
@@ -977,11 +975,11 @@ static void *sig_thread(void *user) {
 		if(brk != 0)
 			break;
 
-		signum = sigtimedwait(&set, NULL, &ts);
+		s = sigwait(&set, &signum);
 
-		if(signum < 1) {
-			if(errno != EAGAIN)
-				err_exit(errno, "sigtimedwait on "
+		if(s != 0) {
+			if(s != EAGAIN)
+				err_exit(s, "sigwait on "
 						"signal %d failed", desc->signum);
 		}
 		else
@@ -1017,6 +1015,8 @@ static void start_sig_threads() {
 		AUG_LOCK(desc_ptr); \
 		(desc_ptr)->shutdown = 1; \
 		AUG_UNLOCK(desc_ptr); \
+		if((s = pthread_cancel((desc_ptr)->tid)) != 0) \
+			err_exit(s, "failed to cancel signal thread"); \
 		if((s = pthread_join((desc_ptr)->tid, NULL)) != 0) \
 			err_warn(s, "failed to join signal thread"); \
 	} while(0)
