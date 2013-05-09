@@ -673,7 +673,7 @@ static void *thread1(void *user) {
 	}
 
 	diag("now write some utf-32 into the primary terminal");
-	const wchar_t primary_echo32[] = L"echo 'hooray for unicode: ◰◱◲◳◴◵◶◷◸◹◺◻◼◽◾◿'\r";
+	const wchar_t primary_echo32[] = L"echo 'hooray for unicode: ∃∑∞≘≥⊠⊙⋙ ⋃⋏⨌  ⪤'\r";
 	echoed = 0;
 	usleep(100000);
 	while(echoed < ARRAY_SIZE(primary_echo32)) {
