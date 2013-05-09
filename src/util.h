@@ -56,5 +56,6 @@ int set_nonblocking(int fd);
 void write_n_or_exit(int fd, const void *buf, size_t n);
 void *aug_malloc(size_t size);
 int void_compare(const void *a, const void *b);
+void aug_detached_thread(void *(*fn)(void *), void *user, pthread_t *tid);
 
 #endif
