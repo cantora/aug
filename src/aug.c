@@ -1234,6 +1234,7 @@ static void load_plugins() {
 			int exp_status, found;
 			size_t j;
 
+			memset(&exp, 0, sizeof(exp));
 			if( (exp_status = wordexp(path, &exp, WRDE_NOCMD)) != 0 ) {
 				switch(exp_status) {
 				case WRDE_BADCHAR:
