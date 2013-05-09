@@ -12,7 +12,7 @@ libvterm
 *.d
 script
 core
-configurator.out.dSYM/
+*.dSYM/
 aug.log
 *.*grind
 
