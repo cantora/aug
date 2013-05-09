@@ -1,0 +1,37 @@
+{
+   i dont think this has anything to do with whats being passed to forkpty
+   Memcheck:Param
+   ioctl(arg)
+   fun:ioctl
+   fun:openpty
+   fun:forkpty
+   fun:child_init
+}
+{
+   im pretty sure im using wordexp correctly...
+   Memcheck:Leak
+   fun:malloc
+   fun:realloc
+   fun:reallocf
+   fun:wordexp
+   fun:load_plugins
+}
+{
+   wordexp again, this doesnt show up on linux so maybe its an osx implementation issue
+   Memcheck:Leak
+   fun:malloc
+   fun:realloc
+   fun:reallocf
+   fun:wordexp
+   fun:init_conf
+}
+{
+   more wordexp leaks
+   Memcheck:Leak
+   fun:malloc
+   fun:regcomp$UNIX2003
+   fun:re_init
+   fun:pthread_once
+   fun:wordexp
+   fun:init_conf
+}

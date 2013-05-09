@@ -33,21 +33,3 @@
    fun:test4
    fun:main
 }
-{
-   i have no idea why pthread_create conflicts with waitpid
-   drd:ConflictingAccess
-   fun:waitpid
-   fun:handler_chld
-   fun:sig_thread
-   obj:/usr/lib/valgrind/vgpreload_drd-amd64-linux.so
-   fun:start_thread
-}
-{
-   i dont think this has anything to do with whats being passed to forkpty
-   Memcheck:Param
-   ioctl(arg)
-   fun:ioctl
-   fun:openpty
-   fun:forkpty
-   fun:child_init
-}
