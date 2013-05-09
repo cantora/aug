@@ -230,7 +230,7 @@ $(BUILD)/tap.o: $(CCAN_DIR)/ccan/tap/tap.c
 	$(CXX_CMD) $(DEP_FLAGS) -DWANT_PTHREAD -I$(CCAN_DIR) -fPIC -c $< -o $@
 
 $(BUILD)/tap.so: $(BUILD)/tap.o $(LIBCCAN)
-	$(CXX_CMD) -shared $(BUILD)/tap.o -o $@
+	$(CXX_CMD) $(SO_FLAGS) $(BUILD)/tap.o -o $@
 
 define screen-api-test-template
 
