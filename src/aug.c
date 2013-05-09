@@ -974,8 +974,16 @@ static void *sig_thread(void *user) {
 		AUG_UNLOCK(desc);
 		if(brk != 0)
 			break;
-
+	
+		/* we use sigwait instead of sigtimedwait here because
+		 * it is not available on some versions of OSX and 
+		 * some versions of openbsd. if we had sigtimedwait
+		 * we wouldnt need to cancel this thread when exiting. */
 		s = sigwait(&set, &signum);
+		/* we need to comment out sigwait to run valgrind on OSX 10.5.
+		 * s = EAGAIN;
+		 * sleep(1);
+		 */
 
 		if(s != 0) {
 			if(s != EAGAIN)
@@ -1234,7 +1242,9 @@ static void load_plugins() {
 			int exp_status, found;
 			size_t j;
 
+			found = 0;
 			memset(&exp, 0, sizeof(exp));
+
 			if( (exp_status = wordexp(path, &exp, WRDE_NOCMD)) != 0 ) {
 				switch(exp_status) {
 				case WRDE_BADCHAR:
@@ -1250,14 +1260,15 @@ static void load_plugins() {
 					err_exit(0, "unknown error during configuration file path expansion");
 				}
 
+				/* assuming here that we dont need to wordfree(exp) if
+				 * wordexp failed */
 				continue;
 			}
 			if(exp.we_wordc < 1) {
 				fprintf(stderr, "search path did not expand to any words: %s\n", path);
-				continue;
+				goto next;
 			}
 			
-			found = 0;
 			for(j = 0; j < exp.we_wordc; j++) {
 				size_t len;
 
@@ -1287,10 +1298,12 @@ static void load_plugins() {
 						fprintf(stderr, "\tloaded %s.so\n", secname);
 
 					found = 1;	
-					break;
+					/* escapes this for loop, continues to wordfree */
+					break; 
 				}
 			} /* for each expanded path */
 
+		next:
 			wordfree(&exp);
 			if(found != 0)
 				break;
