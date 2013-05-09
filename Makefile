@@ -52,19 +52,26 @@ SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
-MEMGRIND		= valgrind --leak-check=full --suppressions=./.aug.supp
-HELGRIND		= valgrind --tool=helgrind --suppressions=./.aug.supp
-DRDGRIND		= valgrind --tool=drd --suppressions=./.aug.supp \
+VALGRIND		= valgrind #--gen-suppressions=all 
+MEMGRIND		= $(VALGRIND) --leak-check=full --suppressions=./.aug.supp
+HELGRIND		= $(VALGRIND) --tool=helgrind --suppressions=./.aug.supp
+DRDGRIND		= $(VALGRIND) --tool=drd --suppressions=./.aug.supp \
 					--free-is-write=yes --segment-merging=no
-#SGCGRIND		= valgrind --tool=exp-sgcheck --suppressions=./.aug.supp
+#SGCGRIND		= $(VALGRIND) --tool=exp-sgcheck --suppressions=./.aug.supp
 
 
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
 	LIB						+= -liconv
+	VALGRIND				+= --dsymutil=yes --suppressions=./.aug.osx.supp
 	SO_FLAGS				= -dynamiclib -Wl,-undefined,dynamic_lookup 
-else
+	OSX_MINOR_VERS			= $(shell sw_vers -productVersion | cut -d . -f 2)
+	ifeq ($(OSX_MINOR_VERS), 5)
+		VALGRIND_UNSTABLE	= true
+	endif
+else #linux
 	SO_FLAGS				= -shared
+	VALGRIND				+= --suppressions=./.aug.linux.supp
 endif
 
 default: all
@@ -73,14 +80,19 @@ default: all
 all: $(OUTPUT) $(PLUGIN_OBJECTS)
 
 #set GRIND_AUG_ARGS externally if extra options are needed when running these
+ifndef VALGRIND_UNSTABLE
+.PHONY: memgrind-aug
 memgrind-aug: all
 	$(MEMGRIND) --log-file=aug.memgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
+.PHONY: helgrind-aug
 helgrind-aug: all
 	$(HELGRIND) --log-file=aug.helgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
 
+.PHONY: drdgrind-aug
 drdgrind-aug: all
 	$(DRDGRIND) --log-file=aug.drdgrind $(CURDIR)/aug -d ./aug.log $(GRIND_AUG_ARGS)
+endif
 
 .PHONY: .FORCE
 .FORCE:
@@ -257,10 +269,13 @@ $(1)screen_api_test: $$(BUILD)/screen_api_test $(BUILD)/toysh
 endef
 
 $(eval $(call screen-api-test-template,$(empty),$(empty)))
+
+ifndef VALGRIND_UNSTABLE
 $(eval $(call screen-api-test-template,memgrind-,$(MEMGRIND) --log-file=$(BUILD)/screen_api_test.memgrind))
 $(eval $(call screen-api-test-template,helgrind-,$(HELGRIND) --log-file=$(BUILD)/screen_api_test.helgrind))
 $(eval $(call screen-api-test-template,drdgrind-,$(DRDGRIND) --log-file=$(BUILD)/screen_api_test.drdgrind))
 #$(eval $(call screen-api-test-template,sgcgrind-,$(SGCGRIND) --log-file=$(BUILD)/screen_api_test.sgcgrind))
+endif
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
