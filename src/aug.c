@@ -993,10 +993,12 @@ static void start_sig_threads() {
 	g_chld_thread.signum = SIGCHLD;
 	g_chld_thread.shutdown = 0;
 	g_chld_thread.fn = handler_chld;
+	AUG_LOCK_INIT(&g_chld_thread);
 
 	g_winch_thread.signum = SIGWINCH;
 	g_winch_thread.shutdown = 0;
 	g_winch_thread.fn = handler_winch;
+	AUG_LOCK_INIT(&g_winch_thread);
 
 	s = pthread_create(&g_chld_thread.tid, NULL, sig_thread, &g_chld_thread);
 	if(s != 0)
@@ -1015,6 +1017,7 @@ static void start_sig_threads() {
 		AUG_UNLOCK(desc_ptr); \
 		if((s = pthread_join((desc_ptr)->tid, NULL)) != 0) \
 			err_warn(s, "failed to join signal thread"); \
+		AUG_LOCK_FREE(desc_ptr); \
 	} while(0)
 
 void stop_chld_thread() {
