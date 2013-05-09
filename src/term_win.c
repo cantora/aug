@@ -69,6 +69,7 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 	wchar_t erasech = L' ';
 	int maxx, maxy;
 
+	memset(&cch, 0, sizeof(cch));
 	if(tw->term == NULL || tw->win == NULL)
 		return;
 
