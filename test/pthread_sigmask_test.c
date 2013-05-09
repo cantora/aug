@@ -78,16 +78,26 @@ static void test_sigs_unblocked() {
 	ok( (chld_is_blocked == 0), "confirm that SIGCHLD is unblocked" );
 }
 
+static void change_sigs(int how, const sigset_t *set) {
+	int s;
+
+	/*if(sigprocmask(how, set, NULL) != 0)
+		err_exit("sigprocmask failed");*/
+	if( (s = pthread_sigmask(how, set, NULL)) != 0)
+		err_exit("failed to block signals: %s\n", strerror(s) );
+}
+
 static void *thread_fn(void *arg) {
 	(void)(arg);
 
+	diag("thread_fn: test if sigs are blocked");
 	test_sigs_blocked();
 	return NULL;	
 }
 
 int main(int argc, char *argv[]) {
 	pthread_t tid;
-	sigset_t set, oset;
+	sigset_t set;
 	int s;
 	(void)(argc);
 	(void)(argv);
@@ -99,16 +109,14 @@ int main(int argc, char *argv[]) {
 	sigaddset(&set, SIGWINCH);
 	sigaddset(&set, SIGCHLD);
 
-	if( (s = pthread_sigmask(SIG_BLOCK, &set, &oset)) != 0)
-		err_exit("failed to block signals: %s\n", strerror(s) );
+	change_sigs(SIG_BLOCK, &set);	
 	test_sigs_blocked();
 	
 	if( (s = pthread_create(&tid, NULL, &thread_fn, NULL)) != 0)
 		err_exit("failed to create thread: %s\n", strerror(s));
 
 	test_sigs_blocked();
-	if( (s = pthread_sigmask(SIG_SETMASK, &oset, NULL)) != 0)
-		err_exit("failed to unblock signals: %s\n", strerror(s) );
+	change_sigs(SIG_UNBLOCK, &set);
 	test_sigs_unblocked();
 
 	if( (s = pthread_join(tid, NULL)) != 0)

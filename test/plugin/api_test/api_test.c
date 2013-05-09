@@ -92,7 +92,7 @@ static void check_screen_lock() {
 	pass("screen is unlocked");
 }
 
-static int test_sigs() {
+static int test_sigs(const char *caller) {
 	sigset_t sigset;
 	int winch_is_blocked;
 	int chld_is_blocked;
@@ -108,14 +108,14 @@ static int test_sigs() {
 		return -1;
 	}
 	
-	ok( (winch_is_blocked != 0), "confirm that SIGWINCH is blocked" );
+	ok( (winch_is_blocked != 0), "(%s) confirm that SIGWINCH is blocked", caller);
 
 	if( (chld_is_blocked = sigismember(&sigset, SIGCHLD) ) == -1 ) {
 		fail("expected to be able test current sigset.");
 		return -1;
 	}
 	
-	ok( (chld_is_blocked != 0), "confirm that SIGCHLD is blocked" );
+	ok( (chld_is_blocked != 0), "(%s) confirm that SIGCHLD is blocked", caller);
 
 	return 0;
 }
@@ -144,7 +144,7 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 			g_got_expected_input = true;
 
 		ok(user == g_user_data, "(input char) check that user ptr is correct");
-		test_sigs();
+		test_sigs("input_char");
 		diag("----input_char----\n#");
 	}
 
@@ -200,7 +200,7 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cell_update++++");
 		ok(user == g_user_data, "(cell_update) check that user ptr is correct");
-		test_sigs();
+		test_sigs("cell_update");
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
 	}
@@ -223,7 +223,7 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 	if(checked_winch_and_screen_lock == false) {
 		diag("++++cursor_move++++");
 		ok(user == g_user_data, "(cursor_move) check that user ptr is correct");
-		test_sigs();
+		test_sigs("cursor_move");
 		checked_winch_and_screen_lock = true;
 		diag("----cursor_move----\n#");
 	}
@@ -237,7 +237,7 @@ void screen_dims_change(int rows, int cols, void *user) {
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
 	ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
-	test_sigs();
+	test_sigs("screen_dims_change");
 	diag("----screen_dims_change----\n#");
 }
 
@@ -588,7 +588,7 @@ static void *thread1(void *user) {
 
 	diag("++++thread1++++");
 	check_screen_lock();
-	test_sigs();
+	test_sigs("thread1");
 
 	sleep(1);
 	diag("write into top terminal");
@@ -705,7 +705,7 @@ static void *thread2(void *user) {
 
 	diag("++++thread2++++");
 	check_screen_lock();
-	test_sigs();
+	test_sigs("thread2");
 
 	diag("allocate a panel");
 	rows = 10;
@@ -767,7 +767,7 @@ static void *thread3(void *user) {
 	(void)(user);
 
 	diag("++++thread3++++\n#");
-	test_sigs();
+	test_sigs("thread3");
 	diag("run panel terminal io loop");
 	(*g_api->terminal_run)(g_plugin, g_pan_term);
 	pass("finished panel terminal io loop");
@@ -791,7 +791,7 @@ static void *thread4(void *user) {
 	(void)(user);
 
 	diag("++++thread4++++\n#");
-	test_sigs();
+	test_sigs("thread4");
 
 	diag("run top terminal io loop");
 	(*g_api->terminal_run)(g_plugin, g_top_term);
@@ -853,7 +853,7 @@ void top_terminal_cb_new(WINDOW *win, void *user) {
 
 static void on_r(uint32_t chr, void *user) {
 	diag("++++key callback++++");
-	test_sigs();
+	test_sigs("on_r");
 	ok( (chr == g_callback_key), "callback on key 0x%02x (got 0x%02x)", g_callback_key, chr);
 	ok( (user == g_user_data), "user ptr is correct");
 		
@@ -884,7 +884,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	(*g_api->log)(g_plugin, "init %s\n", aug_plugin_name);
 
 	check_screen_lock();
-	test_sigs();
+	test_sigs("plugin_init");
 
 	g_callbacks.user = g_user_data;
 	api->callbacks(g_plugin, &g_callbacks, NULL);
