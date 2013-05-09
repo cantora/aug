@@ -97,6 +97,7 @@ static int test_sigs(const char *caller) {
 	int winch_is_blocked;
 	int chld_is_blocked;
 
+	sigemptyset(&sigset);
 	diag("pthread_sigmask state test");
 	if(pthread_sigmask(SIG_SETMASK, NULL, &sigset) != 0) {
 		fail("expected to be able to get current sigset.");
