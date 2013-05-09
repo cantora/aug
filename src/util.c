@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <pthread.h>
 
 #include "err.h"
 
@@ -66,4 +67,23 @@ int void_compare(const void *a, const void *b) {
 	else 
 		return 0; 
 }
+
+void aug_detached_thread(void *(*fn)(void *), void *user, pthread_t *tid) {
+	pthread_attr_t attr;
+	int status;
+
+	if( (status = pthread_attr_init(&attr)) != 0)
+		err_exit(status, "failed to initialize pthread attr");
+
+	status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if(status != 0)
+		err_exit(status, "failed to set detached thread attribute");
+
+	if( (status = pthread_create(tid, &attr, fn, user)) != 0)
+		err_exit(status, "failed to create unload thread");
+
+	if( (status = pthread_attr_destroy(&attr)) != 0)
+		err_warn(status, "failed to destroy pthread attr");
+}
+ 
 

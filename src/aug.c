@@ -72,7 +72,6 @@ static struct aug_term g_term;
 static dictionary *g_ini;	
 static struct aug_keymap g_keymap;
 static struct aug_child g_child;
-static sigset_t g_sigset;
 
 static struct {
 	AUG_LOCK_MEMBERS;
@@ -90,6 +89,16 @@ struct plugin_callback_pair {
 	void (*free_fn)(WINDOW *, void *user);
 };
 
+struct sigthread_desc {
+	pthread_t tid;
+	int signum;
+	int shutdown;
+	void (*fn)(void);
+	AUG_LOCK_MEMBERS;
+};
+
+struct sigthread_desc g_chld_thread, g_winch_thread;
+
 static struct {
 	OBJSET_MEMBERS(struct plugin_callback_pair *);
 } g_edgewin_set;
@@ -99,9 +108,7 @@ static struct {
 	AUG_LOCK_MEMBERS;
 } g_tchild_table;
 
-/* static globals */
-static struct sigaction g_winch_act, g_prev_winch_act; /* structs for handling window size change */
-static struct sigaction g_chld_act;
+static struct sigaction g_prev_winch_act;
 
 struct aug_term_child {
 	struct aug_child child;
@@ -215,22 +222,8 @@ unlock:
 }
 
 static void api_unload(struct aug_plugin *plugin) {
-	pthread_attr_t attr;
 	pthread_t tid;
-	int status;
-
-	if( (status = pthread_attr_init(&attr)) != 0)
-		err_exit(status, "failed to initialize pthread attr");
-
-	status = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if(status != 0)
-		err_exit(status, "failed to set detached thread attribute");
-
-	if( (status = pthread_create(&tid, &attr, do_unload, plugin)) != 0)
-		err_exit(status, "failed to create unload thread");
-
-	if( (status = pthread_attr_destroy(&attr)) != 0)
-		err_warn(status, "failed to destroy pthread attr");
+	aug_detached_thread(do_unload, plugin, &tid);
 }
 
 /* for the time being, g_ini is not modified after initialization,
@@ -850,12 +843,23 @@ static void resize_and_redraw_screen() {
 }
 
 static void change_sigs(int how) {
+	sigset_t sigset;
 	int s;
 
-	if(sigprocmask(how, &g_sigset, NULL) != 0)
-		err_exit(errno, "sigprocmask failed");
+	if(sigemptyset(&sigset) != 0) 
+		err_exit(errno, "sigemptyset failed"); 
+	if(sigaddset(&sigset, SIGWINCH) != 0) 
+		err_exit(errno, "sigaddset failed");
+	if(sigaddset(&sigset, SIGCHLD) != 0) 
+		err_exit(errno, "sigaddset failed");
 
-	if( (s = pthread_sigmask(how, &g_sigset, NULL)) != 0)
+	/* im pretty sure we arent supposed to touch
+	 * sigprocmask in multithreaded context.
+	 *if(sigprocmask(how, &sigset, NULL) != 0)
+	 *	err_exit(errno, "sigprocmask failed");
+	 */
+
+	if((s = pthread_sigmask(how, &sigset, NULL)) != 0)
 		err_exit(s, "pthread_sigmask failed");
 }
 
@@ -867,27 +871,13 @@ static inline void unblock_sigs() {
 	change_sigs(SIG_UNBLOCK);
 }
 
-static void change_sig(int how, int signum) {
-	sigset_t set;
-	int s;
-
-	if(sigemptyset(&set) != 0) 
-		err_exit(errno, "sigemptyset failed"); 
-
-	if(sigaddset(&set, signum) != 0) 
-		err_exit(errno, "sigaddset failed");
-
-	if(sigprocmask(how, &set, NULL) != 0)
-		err_exit(errno, "sigprocmask failed");
-
-	if( (s = pthread_sigmask(how, &set, NULL)) != 0)
-		err_exit(s, "pthread_sigmask failed");
-}
-
-/* handler for SIGWINCH. at the start of aug_main both SIGWINCH
- * and SIGCHLD will be blocked (using block_sigs()) such that 
- * i believe we are not at risk of this function being invoked
- * before we have properly initialized the screen, plugins, etc...
+/* signal strategy: as is generally recommended, all threads 
+ * (including the main thread) will block all relevant signals
+ * (in our case just CHLD and WINCH) and the signal handling 
+ * shall be done with a dedicated thread which invokes the
+ * sigwait function. thus plugins should never unblock 
+ * CHLD or WINCH and handling other signals may be a bad idea
+ * too.
  */
 static void handler_winch() {
 	int rows, cols;
@@ -964,17 +954,81 @@ static void handler_chld() {
 	fprintf(stderr, "handler_chld: exit\n");
 }
 
-static void handler(int signo) {
-	switch(signo) {
-	case SIGWINCH:
-		handler_winch();
-		break;
-	case SIGCHLD:
-		handler_chld();
-		break;
-	default:
-		fprintf(stderr, "warning: unexpected handling of signal %d\n", signo);
+static void *sig_thread(void *user) {
+	struct sigthread_desc *desc;
+	struct timespec ts;
+	int signum, brk;
+	sigset_t set;
+
+	desc = (struct sigthread_desc *) user;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 250*1000000;
+	if(sigemptyset(&set) != 0)
+		err_exit(errno, "sigemptyset failed");
+	if(sigaddset(&set, desc->signum) != 0)
+		err_exit(errno, "sigaddset failed");
+
+	brk = 0;
+	while(1) {
+		AUG_LOCK(desc);
+		if(desc->shutdown != 0)
+			brk = 1;
+		AUG_UNLOCK(desc);
+		if(brk != 0)
+			break;
+
+		signum = sigtimedwait(&set, NULL, &ts);
+
+		if(signum < 1) {
+			if(errno != EAGAIN)
+				err_exit(errno, "sigtimedwait on "
+						"signal %d failed", desc->signum);
+		}
+		else
+			(*desc->fn)();
 	}
+
+	return NULL;
+}
+
+static void start_sig_threads() {
+	int s;
+
+	g_chld_thread.signum = SIGCHLD;
+	g_chld_thread.shutdown = 0;
+	g_chld_thread.fn = handler_chld;
+
+	g_winch_thread.signum = SIGWINCH;
+	g_winch_thread.shutdown = 0;
+	g_winch_thread.fn = handler_winch;
+
+	s = pthread_create(&g_chld_thread.tid, NULL, sig_thread, &g_chld_thread);
+	if(s != 0)
+		err_exit(s, "failed to create SIGCHLD thread");
+
+	s = pthread_create(&g_winch_thread.tid, NULL, sig_thread, &g_winch_thread);
+	if(s != 0)
+		err_exit(s, "failed to create SIGWINCH thread");
+
+}
+
+#define AUG_STOP_SIG_THREAD(s, desc_ptr) \
+	do { \
+		AUG_LOCK(desc_ptr); \
+		(desc_ptr)->shutdown = 1; \
+		AUG_UNLOCK(desc_ptr); \
+		if((s = pthread_join((desc_ptr)->tid, NULL)) != 0) \
+			err_warn(s, "failed to join signal thread"); \
+	} while(0)
+
+void stop_chld_thread() {
+	int s;
+	AUG_STOP_SIG_THREAD(s, &g_chld_thread);
+}
+
+void stop_winch_thread() {
+	int s;
+	AUG_STOP_SIG_THREAD(s, &g_winch_thread);
 }
 
 /* all resources should be locked during this function */
@@ -1334,22 +1388,9 @@ static void free_plugins() {
 
 /* ============== MAIN ============================== */
 
-/* if a plugin thread is caused to handle
- * a WINCH signal there could be trouble because the plugin may
- * have locked the screen via an API call, then gets interrupted by a WINCH
- * signal which will attempt to lock the screen again. of course
- * this isnt a problem for this main thread here because it only
- * handles WINCH signals while in the I/O select call. so...
- * this means we have to block WINCH and (maybe other signals?) during
- * periods where the main thread may call a plugin function, such that
- * when the plugin creates a thread it will inherit a signal mask
- * with WINCH blocked. the API will expect plugins not to unblock that
- * signal in their threads.
- */
 static void main_to_lock_for_io(void *user) {
 	(void)(user);
 
-	block_sigs();
 	lock_all();
 }
 
@@ -1357,7 +1398,6 @@ static void main_to_unlock_after_io(void *user) {
 	(void)(user);
 
 	unlock_all();
-	unblock_sigs();
 }
 
 static void to_refresh_after_io(void *user) {
@@ -1370,13 +1410,6 @@ static void to_refresh_after_io(void *user) {
 int aug_main(int argc, char *argv[]) {
 	struct termios child_termios;
 	struct aug_api api;
-
-	if(sigemptyset(&g_sigset) != 0) 
-		err_exit(errno, "sigemptyset failed"); 
-	if(sigaddset(&g_sigset, SIGWINCH) != 0) 
-		err_exit(errno, "sigaddset failed");
-	if(sigaddset(&g_sigset, SIGCHLD) != 0) 
-		err_exit(errno, "sigaddset failed");
 
 	switch(init_conf(argc, argv)) { /* 1 */
 	case 0:
@@ -1405,24 +1438,12 @@ int aug_main(int argc, char *argv[]) {
 		if(setenv("TERM", g_conf.ncterm, 1) != 0)
 			err_exit(errno, "error setting environment variable: %s", g_conf.ncterm);
 
-
 	/* block sigs right off the bat because we want to defer 
-	 * processing of it until curses and vterm are set up. sigs
-	 * will get unblocked in the loop function.
+	 * processing of it until curses and vterm are set up. 
+	 * the signal threads will get setup to process signals
+	 * just before we enter the main I/O loop.
 	 */
 	block_sigs();	
-	g_winch_act.sa_handler = handler;
-	if(sigemptyset(&g_winch_act.sa_mask) != 0)
-		err_exit(errno, "sigemptyset failed");
-	if(sigaddset(&g_winch_act.sa_mask, SIGCHLD) != 0)
-		err_exit(errno, "sigaddset failed");
-	g_winch_act.sa_flags = 0;
-	g_chld_act.sa_handler = handler;
-	if(sigemptyset(&g_chld_act.sa_mask) != 0) 
-		err_exit(errno, "sigemptyset failed");
-	if(sigaddset(&g_chld_act.sa_mask, SIGWINCH) != 0)
-		err_exit(errno, "sigaddset failed");
-	g_chld_act.sa_flags = 0;
 
 	fprintf(stderr, "initialize primary terminal\n");
 	/* screen will resize term to the right size,
@@ -1481,11 +1502,10 @@ int aug_main(int argc, char *argv[]) {
 	 * be a problem. */
 	child_lock(&g_child); 
 
-	/* set signal handlers */
-	if(sigaction(SIGWINCH, &g_winch_act, &g_prev_winch_act) != 0)
+	/* get ncurses SIGWINCH handler */
+	if(sigaction(SIGWINCH, NULL, &g_prev_winch_act) != 0)
 		err_exit(errno, "sigaction failed");
-	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0)
-		err_exit(errno, "sigaction failed");
+	start_sig_threads();
 
 	screen_redraw_term_win();
 	fprintf(stderr, "start main event loop\n");
@@ -1500,20 +1520,9 @@ int aug_main(int argc, char *argv[]) {
 
 	/* cleanup */
 	/* no longer want to explicitly reap children */
-	g_chld_act.sa_handler = SIG_IGN;
-	if(sigaction(SIGCHLD, &g_chld_act, NULL) != 0) 
-		err_exit(errno, "sigaction failed");
-
-	/* dont want to handle another SIGWINCH
-	 * until the plugins have been cleaned up */
-	change_sig(SIG_BLOCK, SIGWINCH); 
-	/* no longer care about maintaining correct 
-	 * screen size characteristics */
-	if(sigaction(SIGWINCH, &g_prev_winch_act, NULL) != 0) 
-		err_exit(errno, "sigaction failed");
-
+	stop_chld_thread();
 	free_plugins(); /* 7 */
-	change_sig(SIG_UNBLOCK, SIGWINCH); 
+	stop_winch_thread();
 
 	/* plugins should have handled cleanup
 	 * of children processes. (maybe put a warning here?) */

@@ -230,10 +230,6 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 }
 
 void screen_dims_change(int rows, int cols, void *user) {
-	/* this function will not be invoked under valgrind 
-	 * for some reason, so expect the summary to state
-	 * three tests were missing.
-	 */
 	diag("++++screen_dims_change++++");
 	diag("change to %d,%d", rows, cols);
 	ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
@@ -653,7 +649,7 @@ static void *thread1(void *user) {
 	diag("move panel a bit");
 	
 	(*g_api->lock_screen)(g_plugin);
-	ok1(move_panel(g_pan1, 10, 30) != ERR);
+	ok1(move_panel(g_pan1, 4, 30) != ERR);
 	(*g_api->screen_panel_update)(g_plugin);
 	(*g_api->screen_doupdate)(g_plugin);
 	(*g_api->unlock_screen)(g_plugin);
