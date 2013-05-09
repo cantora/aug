@@ -67,8 +67,8 @@ int plugin_list_push(struct aug_plugin_list *pl, const char *path, const char *n
 		} while(0)
 
 	
-	dlerror();
-	handle = dlopen(path, RTLD_NOW);
+	if((handle = dlopen(path, RTLD_NOW)) == NULL)
+		err_exit(0, "failed to dlopen handler at %s: %s", path, dlerror());
 	CHECK_DLERR();
 
 	major_version = dlsym(handle, AUG_PLUGIN_MAJOR);
