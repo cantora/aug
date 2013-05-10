@@ -92,7 +92,7 @@ struct plugin_callback_pair {
 struct sigthread_desc {
 	pthread_t tid;
 	int signum;
-	int shutdown;
+	int waiting;
 	void (*fn)(void);
 	AUG_LOCK_MEMBERS;
 };
@@ -956,7 +956,7 @@ static void handler_chld() {
 
 static void *sig_thread(void *user) {
 	struct sigthread_desc *desc;
-	int s, signum, brk;
+	int s, signum;
 	sigset_t set;
 
 	desc = (struct sigthread_desc *) user;
@@ -965,25 +965,23 @@ static void *sig_thread(void *user) {
 	if(sigaddset(&set, desc->signum) != 0)
 		err_exit(errno, "sigaddset failed");
 
-	brk = 0;
 	while(1) {
-		pthread_testcancel();
 		AUG_LOCK(desc);
-		if(desc->shutdown != 0)
-			brk = 1;
+		desc->waiting = 1;
 		AUG_UNLOCK(desc);
-		if(brk != 0)
-			break;
-	
+
 		/* we use sigwait instead of sigtimedwait here because
 		 * it is not available on some versions of OSX and 
 		 * some versions of openbsd. if we had sigtimedwait
 		 * we wouldnt need to cancel this thread when exiting. */
 		s = sigwait(&set, &signum);
-		/* we need to comment out sigwait to run valgrind on OSX 10.5.
-		 * s = EAGAIN;
-		 * sleep(1);
-		 */
+		/* we only cancel when waiting == 1, so we dont have to 
+		 * deal with pthread_cleanup* headaches */
+		pthread_testcancel();
+
+		AUG_LOCK(desc);
+		desc->waiting = 0;
+		AUG_UNLOCK(desc);
 
 		if(s != 0) {
 			if(s != EAGAIN)
@@ -1001,12 +999,12 @@ static void start_sig_threads() {
 	int s;
 
 	g_chld_thread.signum = SIGCHLD;
-	g_chld_thread.shutdown = 0;
+	g_chld_thread.waiting = 0;
 	g_chld_thread.fn = handler_chld;
 	AUG_LOCK_INIT(&g_chld_thread);
 
 	g_winch_thread.signum = SIGWINCH;
-	g_winch_thread.shutdown = 0;
+	g_winch_thread.waiting = 0;
 	g_winch_thread.fn = handler_winch;
 	AUG_LOCK_INIT(&g_winch_thread);
 
@@ -1022,9 +1020,15 @@ static void start_sig_threads() {
 
 #define AUG_STOP_SIG_THREAD(s, desc_ptr) \
 	do { \
-		AUG_LOCK(desc_ptr); \
-		(desc_ptr)->shutdown = 1; \
-		AUG_UNLOCK(desc_ptr); \
+		while(1) { \
+			AUG_LOCK(desc_ptr); \
+			if((desc_ptr)->waiting != 0) { \
+				AUG_UNLOCK(desc_ptr); \
+				break; \
+			} \
+			AUG_UNLOCK(desc_ptr); \
+			usleep(100000); \
+		} \
 		if((s = pthread_cancel((desc_ptr)->tid)) != 0) \
 			err_exit(s, "failed to cancel signal thread"); \
 		if((s = pthread_join((desc_ptr)->tid, NULL)) != 0) \
@@ -1538,8 +1542,8 @@ int aug_main(int argc, char *argv[]) {
 	/* cleanup */
 	/* no longer want to explicitly reap children */
 	stop_chld_thread();
-	free_plugins(); /* 7 */
 	stop_winch_thread();
+	free_plugins(); /* 7 */
 
 	/* plugins should have handled cleanup
 	 * of children processes. (maybe put a warning here?) */
