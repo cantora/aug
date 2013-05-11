@@ -235,8 +235,13 @@ int opt_parse(int argc, char *const argv[], struct aug_conf *conf) {
 	char optstring[64];
 	struct option long_options[AUG_OPTLEN+1];
 
+	/* linux only require optind = 1 to reset the parser */
 	optind = 1;
+#if defined(__APPLE__)
+	/* OSX needs this extra global variable to be set to 1
+	 * in order to reset the parser */
 	optreset = 1;
+#endif
 	/* dont print error message */
 	opterr = 0;
 	init_long_options(long_options, optstring);

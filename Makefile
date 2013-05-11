@@ -52,7 +52,11 @@ SANDBOX_OUTPUTS	= $(foreach sbox_pgm, $(SANDBOX_PGMS), $(BUILD)/$(sbox_pgm))
 
 API_TEST_FILES	= ./test/plugin/api_test/api_test.c $(wildcard ./test/api_test*.c ) $(wildcard ./test/ncurses_test.c )
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
-VALGRIND		= valgrind #--gen-suppressions=all 
+
+CCAN_WARNING_PATCH	= $(CCAN_DIR)/ccan/htable/htable_type.h
+CCAN_PATCH_TARGETS	= $(CCAN_DIR)/.patched_warning
+
+VALGRIND		= valgrind --gen-suppressions=all 
 MEMGRIND		= $(VALGRIND) --leak-check=full --suppressions=./.aug.supp
 HELGRIND		= $(VALGRIND) --tool=helgrind --suppressions=./.aug.supp
 DRDGRIND		= $(VALGRIND) --tool=drd --suppressions=./.aug.supp \
@@ -69,6 +73,7 @@ ifeq ($(OS_NAME), Darwin)
 	ifeq ($(OSX_MINOR_VERS), 5)
 		VALGRIND_UNSTABLE	= true
 	endif
+	CCAN_PATCH_TARGETS		= $(CCAN_DIR)/.patched_rt
 else #linux
 	SO_FLAGS				= -shared
 	VALGRIND				+= --suppressions=./.aug.linux.supp
@@ -108,18 +113,15 @@ $(CCAN_DIR)/.touched:
 	cd $(CCAN_DIR) && git fetch && git checkout cantora
 	touch $@
 
-CCAN_PATCH_TARGETS		= $(CCAN_DIR)/.patched_warning $(CCAN_DIR)/.patched_rt
-CCAN_WARNING_PATCH		= $(CCAN_DIR)/ccan/htable/htable_type.h
+$(CCAN_DIR)/.patched_rt:
+	sed 's/\(LDLIBS = -lrt\)/#\1/' $(CCAN_COMMENT_LIBRT) > $(CCAN_COMMENT_LIBRT).tmp \
+		&& mv $(CCAN_COMMENT_LIBRT).tmp $(CCAN_COMMENT_LIBRT)
+	touch $@
+
 $(CCAN_DIR)/.patched_warning:
 	sed 's/return hashfn(keyof((const type \*)elem));/(void)(priv); return hashfn(keyof((const type *)elem));/' \
 		$(CCAN_WARNING_PATCH) > $(CCAN_WARNING_PATCH).tmp \
 		&& mv $(CCAN_WARNING_PATCH).tmp $(CCAN_WARNING_PATCH)
-	touch $@
-
-$(CCAN_DIR)/.patched_rt:
-	[ -n "$(CCAN_COMMENT_LIBRT)" ] \
-		&& sed 's/\(LDLIBS = -lrt\)/#\1/' $(CCAN_COMMENT_LIBRT) > $(CCAN_COMMENT_LIBRT).tmp \
-		&& mv $(CCAN_COMMENT_LIBRT).tmp $(CCAN_COMMENT_LIBRT)
 	touch $@
 
 $(LIBCCAN): $(CCAN_DIR)/.touched $(CCAN_PATCH_TARGETS)
