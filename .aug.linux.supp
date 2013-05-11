@@ -4,6 +4,14 @@
    fun:waitpid
    fun:handler_chld
    fun:sig_thread
-   obj:/usr/lib/valgrind/vgpreload_drd-amd64-linux.so
+   obj:*
+   fun:start_thread
+}
+{
+   for some reason sigwait conflicts with pthread_create. i dont think its my issue.
+   drd:ConflictingAccess
+   fun:sigwait
+   fun:sig_thread
+   obj:*
    fun:start_thread
 }
