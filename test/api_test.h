@@ -97,6 +97,7 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		fflush(output);
 		aug_main(argc, argv);
 		diag("parent: end");
+		close(nct_pipe_fds[1]);
 		return 0;
 	}
 }

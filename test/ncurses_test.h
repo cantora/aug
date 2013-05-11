@@ -67,7 +67,6 @@ static WINDOW *ncurses_test_init(const char *path) {
 
 
 static int ncurses_test_end() {
-	close(nct_pipe_fds[1]);
 	endwin();
 	return OK;
 }
