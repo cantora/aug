@@ -28,7 +28,9 @@ static const VTermScreenCallbacks CB_SCREEN_NULL = {
 	.settermprop = NULL,
 	.setmousefunc = NULL,
 	.bell = NULL,
-	.resize = NULL		
+	.resize = NULL,
+	.sb_pushline = NULL,
+	.sb_popline = NULL	
 };
 
 void term_init(struct aug_term *term, int rows, int cols) {

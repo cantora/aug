@@ -48,7 +48,9 @@ static const VTermScreenCallbacks CB_SCREEN = {
 	.bell = screen_bell,
 	.settermprop = screen_settermprop,
 	.setmousefunc = NULL,
-	.resize = NULL
+	.resize = NULL,
+	.sb_pushline = NULL,
+	.sb_popline = NULL
 };
 
 static const struct aug_term_io_callbacks CB_TERM_IO = {
