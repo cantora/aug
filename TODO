@@ -1,5 +1,15 @@
+features:
+  -improve color setup: in most terminals it seems we will be limited to 64
+   color pairs which is really a shame because we would like at least 81
+   so we can combine the 8 ansi colors and the default bg/fg color in any
+   way. one way to solve this is to use a "palette" where we keep track of
+   which color pairs are being used on the screen and if we are not using
+   more than the color pair limit (usually 64) we can allocate the needed
+   pairs. in the event that more than 64 are being used it seems reasonable
+   to default to default foreground on default background.
+
+build system:
+  -switch to a build system that is better for cross platform compatibility
+   (maybe autotools?)
 
 
-OSX port:
-  -panel stack test is failing
-  -api test is failing
