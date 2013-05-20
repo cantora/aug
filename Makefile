@@ -109,8 +109,10 @@ $(LIBVTERM): ./libvterm
 	bzr checkout -r 589 lp:libvterm
 
 $(CCAN_DIR)/.touched:
-	git clone 'https://github.com/cantora/ccan.git' $(CCAN_DIR)
-	cd $(CCAN_DIR) && git fetch && git checkout cantora
+	if [ ! -d $(CCAN_DIR) ]; then \
+		git clone 'https://github.com/cantora/ccan.git' $(CCAN_DIR) \
+		&& cd $(CCAN_DIR) && git fetch && git checkout cantora; \
+	fi
 	touch $@
 
 $(CCAN_DIR)/.patched_rt:
