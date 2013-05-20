@@ -40,7 +40,7 @@ These plugins are of course pointless, they are only meant as small examples. Fo
 a more complex example, please see the code at [aug-db](https://github.com/cantora/aug-db).
 
 ##how does it work?
-When `./aug` is invoked from the terminal, it opens a new pseudo-terminal (pty) 
+When `aug` is invoked from the terminal, it opens a new pseudo-terminal (pty) 
 connected to a child process (usually a shell such as `bash`). Any keyboard
 input from the original terminal is passed along to the child's pty and any
 terminal output from the child is interpreted by libvterm and used to control
@@ -51,7 +51,7 @@ to modify/enhance/automate the keyboard input and/or the terminal output.
 ##documentation
 See the [wiki](https://github.com/cantora/aug/wiki/_pages) for documentation on aug.
 If you don't want to view the wiki documentation in your browswer, you can checkout
-a copy of the pages by running `git://github.com/cantora/aug.wiki.git`.  
+a copy of the pages by running `git clone git://github.com/cantora/aug.wiki.git`.  
 
 In addition to the wiki, you can find detailed instructions on using the plugin API
 in the comments of `./include/aug.h`.
