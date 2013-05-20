@@ -42,7 +42,8 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  * callback. 
  * the plugin should not make any api calls from within
  * a callback, as this will result in thread lock. the only
- * exceptions are screen_doupdate and screen_panel_update.
+ * exceptions are screen_doupdate, screen_panel_update, log,
+ * conf_val, terminal_pid and terminal_terminated.
  * warning: also do not wait on any locks which another
  * thread may have locked when that other thread may be making
  * api calls; this will cause a circular dependency and most
@@ -65,7 +66,7 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  *       the api is locked.
  */
 struct aug_plugin_cb {
-	/* called when a unit of input
+	/* called when a character of input
 	 * is received from stdin. the plugin can
 	 * update the ch variable and set action
 	 * to AUG_ACT_OK in order to change the
@@ -132,8 +133,9 @@ struct aug_plugin {
 	const char *const name;
 	
 	/* init and free symbols.
-	 * return non-zero to signal error and result in 
-	 * plugin getting unloaded from the plugin stack.
+	 * if non-zero is returned the plugin will not
+     * be loaded into the plugin stack (the free
+	 * function will not be called).
 	 */
 #define AUG_API_INIT_ARG_PROTO struct aug_plugin *plugin, const struct aug_api *api
 	int (*const init)( AUG_API_INIT_ARG_PROTO );
@@ -228,9 +230,9 @@ struct aug_api {
 	int (*key_unbind)(const struct aug_plugin *plugin, uint32_t ch);
 
 	/* ======== screen windows/panels ======================== 
-	 * there are two types of screen real estate
-	 * a plugin can request the aug core to allocate: panels and 
-	 * windows. panels correspond to the ncurses panels library
+	 * there are two types of screen real estate a plugin can 
+	 * request the aug core to allocate: panels and windows. 
+	 * panels correspond to the ncurses panels library
 	 * and will stack on top of the main terminal window in the 
 	 * order they are allocated (like a popup window for some
 	 * sort of transient interaction with the user). windows
@@ -319,7 +321,6 @@ struct aug_api {
 	 * are allocated. 
 	 */
 	void (*screen_panel_size)(struct aug_plugin *plugin, int *size);
-	
 
 	/* neither of the following two api calls engage any locks
 	 * so lock_screen and unlock_screen should be used
@@ -334,6 +335,11 @@ struct aug_api {
 	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
+	/* fork a child process according to @argv and allocate 
+	 * a terminal attached to the child. @twin must point to
+	 * the window associated with the terminal. @terminal will
+	 * be assigned to the result and must be passed to other
+	 * terminal_* api calls. */
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal);
 
