@@ -39,33 +39,29 @@ of the source tree:
 These plugins are of course pointless, they are only meant as small examples. For
 a more complex example, please see the code at [aug-db](https://github.com/cantora/aug-db).
 
+##how does it work?
+When `./aug` is invoked from the terminal, it opens a new pseudo-terminal (pty) 
+connected to a child process (usually a shell such as `bash`). Any keyboard
+input from the original terminal is passed along to the child's pty and any
+terminal output from the child is interpreted by libvterm and used to control
+the original terminal (using the ncurses library). Since aug acts as an 
+intermediary for these I/O processes, it is able to provide hooks for plugins
+to modify/enhance/automate the keyboard input and/or the terminal output.
+
+##documentation
+See the [wiki](https://github.com/cantora/aug/wiki/_pages) for documentation on aug.
+If you don't want to view the wiki documentation in your browswer, you can checkout
+a copy of the pages by running `git://github.com/cantora/aug.wiki.git`.  
+
+In addition to the wiki, you can find detailed instructions on using the plugin API
+in the comments of `./include/aug.h`.
+
 ##installation
-
-###requirements 
- * [__libvterm__](https://code.launchpad.net/~leonerd/libvterm)  
-		aug uses libvterm for all its terminal emulation needs. The make file
-		will use the `bzr` (bazaar) utility to checkout a copy of libvterm from
-		launchpad, so if you don't have `bzr` installed you either have to install
-		it or download libvterm into a `libvterm` directory in the root directory
-		of the aug source tree.
- * __ncursesw__ (with developer headers)  
-		aug uses ncurses for screen manipulation and requires the 'wide
-		character' version in order to support UTF character sets. In a Debian 
-		based Linux distribution, you can install ncursesw with development headers
-		using the following command `sudo apt-get install libncursesw5-dev`.
-
-###compilation
-
-First checkout the source tree using `git` (or alternatively, download the zip archive)
-and `cd` to the root directory of the source tree. Now run the `make` command to
-compile the code. If the compilation is successful, you should find the compiled binary
-`aug` in the current directory. If you want to install it into your system, you can
-simply copy the binary to an appropriate system install path or to your ~/bin
-directory ( aug doesnt require any other resource files to be installed into the
-system in order to run).
-
-If compilation fails, please create an 'issue' at the github project page for aug
-and I'll do my best to respond quickly and help you resolve it.
+Please see the [installation page](https://github.com/cantora/aug/wiki/Installation)
+in the wiki for detailed instructions. If you have all the required dependencies 
+installed, simply running the `make` command in the root of the source tree should
+do the trick. The compilation process generates a single binary called `aug`, so 
+to install you can simply copy the binary to some location that is in your PATH.
 
 ##contribution
 Contributions are of course welcome and greatly appreciated. If you have trouble
@@ -74,6 +70,5 @@ correctly, please submit information about what you did so I can incorporate it 
 the makefile.
 
 ##license
-
 [GPLv3](http://www.gnu.org/licenses/gpl-3.0.html). See LICENSE or the given url for
 details.
