@@ -4,8 +4,10 @@ callbacks:
 	cursor_move
 	screen_dims_change
 
-all resources locked, so no api calls aside from screen_doupdate,
-screen_panel_update, log and conf_val. do not call unlock_screen.
+all resources except for tchild_table are locked, so no api 
+calls aside from screen_doupdate, screen_panel_update, log,
+conf_val, terminal_pid, terminal_terminated, terminal_input,
+and terminal_input_chars. do not call unlock_screen.
 
 init, free:
 	'free_plugin_lock' is locked. do not call unload in these functions.
@@ -35,7 +37,7 @@ api calls:
 		none
 	screen_doupdate
 		none
-	terminal_{new,delete,
+	terminal_{new,delete}
 		keymap, plugin_list, screen, tchild_table
 	terminal_pid
 		none
@@ -44,4 +46,4 @@ api calls:
 	terminal_run
 		keymap, plugin_list, screen, tchild_table
 	terminal_{input,terminal_input_chars}
-		none
+		tchild_table
