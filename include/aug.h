@@ -343,34 +343,57 @@ struct aug_api {
 	void (*terminal_new)(struct aug_plugin *plugin, struct aug_terminal_win *twin,
 							char *const *argv, void **terminal);
 
-	/* obviously, do not call any other api call with *terminal after
+	/* delete a previously allocated terminal @terminal. this will not clear or
+	 * destroy the window (@twin from above) or actually kill the child
+	 * process, it will simply deallocate memory resources. if the child
+	 * should be killed, use terminal_pid to get the PID of the process and
+	 * send it a signal before calling this function.
+	 * obviously, do not call any other api call with @terminal after
 	 * deleting it (for example, one thread deletes the terminal and
 	 * another is still writing into it). */
 	void (*terminal_delete)(struct aug_plugin *plugin, void *terminal);
+
+	/* return the process id of the child process spawned for @terminal */
 	pid_t (*terminal_pid)(struct aug_plugin *plugin, const void *terminal);
 	
-	/* informs whether or not the process associated with the terminal
-	 * has terminated or not. the status returned by this 
-	 * function will not change during plugin_init, any
-	 * api callbacks or during plugin_free even if the process has 
-	 * since terminated, as SIGCHLD is blocked by aug
-	 * during those times. */
+	/* returns 0 if the process associated with the terminal has not
+	 * terminated. otherwise non-zero is returned. */
 	int (*terminal_terminated)(struct aug_plugin *plugin, const void *terminal);
 
+	/* this is the I/O loop for @terminal, it watches the pty file descriptor
+	 * and writes to/refreshes the ncurses window when appropriate. you will
+	 * likely create a thread specifically for the purpose of calling this 
+	 * function, as this will not return until the child process has exited. 
+	 *
+	 * NOTE: you must ensure this function has exited before calling 
+	 * terminal_delete on @terminal. probably the cleanest way to cleanup
+	 * @terminal is to kill the child process and join the thread that called
+	 * this function (this function will return when the child process exits).
+	 * after joining the thread you can free the memory resources by passing
+	 * @terminal to terminal_delete.
+	 */
 	void (*terminal_run)(struct aug_plugin *plugin, void *terminal);
-	/* input utf-32 (wide characters/wchar_t) to the terminal */
-	int (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
+
+	/* input utf-32 (wide characters/wchar_t) to the terminal. characters
+	 * passed into this function are the input/keystrokes into @terminal. 
+	 * this function returns the number of characters that were written
+	 * to the terminal (there is a limit to number of characters that
+	 * can be written at any given time; call this function repeatedly
+	 * in a loop until it has written everything). */
+	size_t (*terminal_input)(struct aug_plugin *plugin, void *terminal, 
 								const uint32_t *data, int n);
-	/* input ASCII to the terminal */
-	int (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
+
+	/* same as above except the input is ASCII instead of UTF-32 */
+	size_t (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
 								const char *data, int n);
 
 	/* similar to the terminal input api calls, these allow
-	 * a plugin to write input keys/data to the primary 
+	 * a plugin to write input keys/data to the primary terminal. 
+	 * this will be very useful to automate input into the primary
 	 * terminal. */
-	int (*primary_input)(struct aug_plugin *plugin,
+	size_t (*primary_input)(struct aug_plugin *plugin,
 								const uint32_t *data, int n);
-	int (*primary_input_chars)(struct aug_plugin *plugin,
+	size_t (*primary_input_chars)(struct aug_plugin *plugin,
 									const char *data, int n);
 
 };

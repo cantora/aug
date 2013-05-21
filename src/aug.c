@@ -695,7 +695,7 @@ static int terminal_push_data(struct aug_term *term,
 	return i;
 }
 
-static int terminal_push_char_data(struct aug_term *term, 
+static size_t terminal_push_char_data(struct aug_term *term, 
 		const char *data, int amt) {
 	int i;
 
@@ -709,9 +709,9 @@ static int terminal_push_char_data(struct aug_term *term,
 	return i;
 }
 
-static int terminal_input(struct aug_plugin *plugin, void *terminal, 
+static size_t terminal_input(struct aug_plugin *plugin, void *terminal, 
 		const void *data, int is_char_data, int n) {
-	int amt;
+	size_t amt;
 	pid_t pid;
 	struct aug_term_child *tchild;
 	(void)(plugin);
@@ -749,19 +749,19 @@ table_unlock:
 	return amt;
 }
 
-static int api_terminal_input(struct aug_plugin *plugin, void *terminal, 
+static size_t api_terminal_input(struct aug_plugin *plugin, void *terminal, 
 		const uint32_t *data, int n) {
 	return terminal_input(plugin, terminal, data, 0, n);
 }
 
-static int api_terminal_input_chars(struct aug_plugin *plugin, void *terminal, 
+static size_t api_terminal_input_chars(struct aug_plugin *plugin, void *terminal, 
 		const char *data, int n) {
 	return terminal_input(plugin, terminal, data, 1, n);
 }
 
-static int primary_input(struct aug_plugin *plugin, const void *data, 
+static size_t primary_input(struct aug_plugin *plugin, const void *data, 
 			int is_char_data, int n) {
-	int amt;
+	size_t amt;
 	(void)(plugin);
 
 	/* this will invoke the configured lock callback,
@@ -783,12 +783,12 @@ static int primary_input(struct aug_plugin *plugin, const void *data,
 	return amt;
 }
 
-static int api_primary_input(struct aug_plugin *plugin,
+static size_t api_primary_input(struct aug_plugin *plugin,
 		const uint32_t *data, int n) {
 	return primary_input(plugin, data, 0, n);
 }
 
-static int api_primary_input_chars(struct aug_plugin *plugin,
+static size_t api_primary_input_chars(struct aug_plugin *plugin,
 		const char *data, int n) {
 	return primary_input(plugin, data, 1, n);
 }
