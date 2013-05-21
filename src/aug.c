@@ -542,9 +542,9 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	int fd;
 	(void)(plugin);
 
-	lock_all();
 	AUG_LOCK(&g_tchild_table);
-
+	lock_all();
+	
 	tchild = aug_malloc( sizeof(struct aug_term_child) );
 	tchild->twin = twin;
 
@@ -609,16 +609,16 @@ static void api_terminal_new(struct aug_plugin *plugin, struct aug_terminal_win 
 	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
 	avl_insert(g_tchild_table.tree, (void *) tchild->child.pid, tchild);
 
-	AUG_UNLOCK(&g_tchild_table);
 	unlock_all();
+	AUG_UNLOCK(&g_tchild_table);
 }
 
 static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
 	struct aug_term_child *tchild;
 	(void)(plugin);
 	
-	lock_all();
 	AUG_LOCK(&g_tchild_table);
+	lock_all();
 
 	tchild = (struct aug_term_child *) terminal;
 	BUILD_ASSERT( sizeof(void *) >= sizeof(pid_t) );
@@ -642,8 +642,8 @@ static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
 	term_free(&tchild->term);
 	free(tchild);
 
-	AUG_UNLOCK(&g_tchild_table);
 	unlock_all();
+	AUG_UNLOCK(&g_tchild_table);
 }
 
 static pid_t api_terminal_pid(struct aug_plugin *plugin, const void *terminal) {
