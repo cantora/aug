@@ -23,7 +23,7 @@
 #endif
 
 #ifndef AUG_PLUGIN_HANDLE
-#	error "you must define AUG_PLUGIN_HANDLE to a global hanlde to your plugin to use " __FILE__
+#	error "you must define AUG_PLUGIN_HANDLE to a global handle to your plugin to use " __FILE__
 #endif
 
 #define AUG_API_CALL(_fn, ...) \

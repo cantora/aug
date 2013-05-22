@@ -2,6 +2,7 @@
 #include <time.h>
 
 #include "aug_plugin.h"
+#include "aug_api.h"
 
 const char aug_plugin_name[] = "rainbow";
 
@@ -10,8 +11,7 @@ void cell_update(
 	attr_t *attr, int *color_pair, aug_action *action, void *user
 );
 
-const struct aug_api *g_api;
-struct aug_plugin *g_plugin;
+AUG_GLOBAL_API_VARIABLES;
 
 struct aug_plugin_cb g_callbacks = {
 	.input_char = NULL,
@@ -35,13 +35,12 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch,
 }
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	g_plugin = plugin;	
-	g_api = api;
+	AUG_API_INIT(plugin, api);
 
-	(*g_api->log)(g_plugin, "init\n");
+	aug_log("init\n");
 
 	g_callbacks.user = NULL;
-	(*g_api->callbacks)(g_plugin, &g_callbacks, NULL);
+	aug_callbacks(&g_callbacks, NULL);
 
 	srand(time(NULL));
 	return 0;

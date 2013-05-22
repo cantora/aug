@@ -1,19 +1,18 @@
 #include "aug_plugin.h"
+#include "aug_api.h"
 
 const char aug_plugin_name[] = "hello";
 
-static const struct aug_api *g_api;
-static struct aug_plugin *g_plugin;
+AUG_GLOBAL_API_VARIABLES
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	g_plugin = plugin;	
-	g_api = api;
+	AUG_API_INIT(plugin, api);
 
-	(*g_api->log)(g_plugin, "hello world\n");
+	aug_log("hello world\n");
 
 	return 0;
 }
 
 void aug_plugin_free() {
-	(*g_api->log)(g_plugin, "goodbye world\n");
+	aug_log("goodbye world\n");
 }

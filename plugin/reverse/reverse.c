@@ -1,4 +1,7 @@
 #include "aug_plugin.h"
+#include "aug_api.h"
+
+AUG_GLOBAL_API_VARIABLES;
 
 const char aug_plugin_name[] = "reverse";
 
@@ -10,9 +13,6 @@ void cursor_move(
 	int rows, int cols, int old_row, int old_col, int *new_row, 
 	int *new_col, aug_action *action, void *user
 );
-
-const struct aug_api *g_api;
-struct aug_plugin *g_plugin;
 
 struct aug_plugin_cb g_callbacks = {
 	.input_char = NULL,
@@ -51,13 +51,12 @@ void cursor_move(int rows, int cols, int old_row, int old_col,
 }
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	g_plugin = plugin;	
-	g_api = api;
+	AUG_API_INIT(plugin, api);
 
-	(*g_api->log)(g_plugin, "init\n");
+	aug_log("init\n");
 
 	g_callbacks.user = NULL;
-	(*g_api->callbacks)(g_plugin, &g_callbacks, NULL);
+	aug_callbacks(&g_callbacks, NULL);
 
 	return 0;
 }
