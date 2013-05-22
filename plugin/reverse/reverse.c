@@ -1,7 +1,7 @@
 #include "aug_plugin.h"
 #include "aug_api.h"
 
-AUG_GLOBAL_API_VARIABLES;
+AUG_GLOBAL_API_OBJECTS;
 
 const char aug_plugin_name[] = "reverse";
 

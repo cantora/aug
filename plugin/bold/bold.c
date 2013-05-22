@@ -1,14 +1,14 @@
 #include "aug_plugin.h"
 #include "aug_api.h"
 
+AUG_GLOBAL_API_OBJECTS;
+
 const char aug_plugin_name[] = "bold";
 
 void cell_update(
 	int rows, int cols, int *row, int *col, wchar_t *wch, 
 	attr_t *attr, int *color_pair, aug_action *action, void *user
 );
-
-AUG_GLOBAL_API_VARIABLES;
 
 struct aug_plugin_cb g_callbacks = {
 	.input_char = NULL,

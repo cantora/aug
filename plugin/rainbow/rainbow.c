@@ -11,7 +11,7 @@ void cell_update(
 	attr_t *attr, int *color_pair, aug_action *action, void *user
 );
 
-AUG_GLOBAL_API_VARIABLES;
+AUG_GLOBAL_API_OBJECTS;
 
 struct aug_plugin_cb g_callbacks = {
 	.input_char = NULL,

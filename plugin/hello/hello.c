@@ -3,7 +3,7 @@
 
 const char aug_plugin_name[] = "hello";
 
-AUG_GLOBAL_API_VARIABLES
+AUG_GLOBAL_API_OBJECTS
 
 int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	AUG_API_INIT(plugin, api);

@@ -10,7 +10,7 @@ extern struct aug_plugin *aug_plugin;
 #define AUG_PLUGIN_HANDLE aug_plugin_handle
 #include "aug_api_macros.h"
 
-#define AUG_GLOBAL_API_VARIABLES \
+#define AUG_GLOBAL_API_OBJECTS \
 	const struct aug_api *aug_api_handle; \
 	struct aug_plugin *aug_plugin_handle;
 
