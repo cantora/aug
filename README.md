@@ -50,8 +50,9 @@ to modify/enhance/automate the keyboard input and/or the terminal output.
 
 ##documentation
 See the [wiki](https://github.com/cantora/aug/wiki/_pages) for documentation on aug.
-If you don't want to view the wiki documentation in your browswer, you can checkout
-a copy of the pages by running `git clone git://github.com/cantora/aug.wiki.git`.  
+If you don't want to view the wiki documentation in your browser, you can checkout
+a copy of the pages by running `git clone git://github.com/cantora/aug.wiki.git` or
+simply run `make wiki` in the root directory of the aug source tree.
 
 In addition to the wiki, you can find detailed instructions on using the plugin API
 in the comments of `./include/aug.h`.

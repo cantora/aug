@@ -284,6 +284,13 @@ endif
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
 
+.PHONY: wiki
+wiki: doc/wiki
+	@echo 'wiki documentation copied to doc/wiki'
+
+doc/wiki:
+	git clone git://github.com/cantora/aug.wiki.git doc/wiki
+
 .PHONY: clean 
 clean: 
 	rm -rf $(BUILD)

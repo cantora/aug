@@ -15,4 +15,4 @@ core
 *.dSYM/
 aug.log
 *.*grind
-
+doc/wiki
