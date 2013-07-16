@@ -33,3 +33,17 @@
    fun:test4
    fun:main
 }
+{
+   lock debug timer init not locked (chld thread)
+   Helgrind:Race
+   obj:*
+   fun:timer_init
+   fun:stop_chld_thread
+}
+{
+   lock debug timer init not locked (winch thread)
+   Helgrind:Race
+   obj:*
+   fun:timer_init
+   fun:stop_winch_thread
+}
