@@ -24,6 +24,14 @@
 #include "util.h"
 #include "term.h"
 
+#ifdef AUG_DEBUG_IO
+#	define AUG_DEBUG_IO_LOG(...) \
+		fprintf(stderr, __VA_ARGS__)
+#else
+#	define AUG_DEBUG_IO_LOG(...) \
+		(void)
+#endif
+
 static int process_master_output(struct aug_child *);
 
 void child_init(struct aug_child *child, struct aug_term *term, 
@@ -63,16 +71,30 @@ void child_free(struct aug_child *child) {
 
 void child_process_term_output(struct aug_child *child) {
 	size_t buflen;
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_ALLOC();
+	AUG_TIMER_START();
+#endif
 
 	while( (buflen = vterm_output_get_buffer_current(child->term->vt) ) > 0) {
 		buflen = (buflen < AUG_CHILD_BUF_SIZE)? buflen : AUG_CHILD_BUF_SIZE;
 		buflen = vterm_output_bufferread(child->term->vt, child->buf, buflen);
 		write_n_or_exit(child->term->master, child->buf, buflen);
 	}
+
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_IF_EXCEEDED(0, 100000) {
+		AUG_TIMER_DISPLAY(stderr, "writing to child->term->master took %d,%d secs\n");
+	}
+#endif
 }
 
 static int process_master_output(struct aug_child *child) {
 	ssize_t n_read, total_read;
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_ALLOC();
+	AUG_TIMER_START();
+#endif
 
 	total_read = 0;
 	/* as far as i have seen, linux will not generally 
@@ -84,6 +106,12 @@ static int process_master_output(struct aug_child *child) {
 		n_read = read(child->term->master, child->buf + total_read, 512);
 		/*fprintf(stderr, "child: done reading master pty\n");*/
 	} while(n_read > 0 && ( (total_read += n_read) + 512 <= AUG_CHILD_BUF_SIZE) );
+
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_IF_EXCEEDED(0, 100000) {
+		AUG_TIMER_DISPLAY(stderr, "reading from child->term->master took %d,%d secs\n");
+	}
+#endif
 	
 	if(n_read == 0 || (n_read < 0 && errno == EIO) ) { 
 		/* potential issue: if total_read > 0 should we still
@@ -99,8 +127,17 @@ static int process_master_output(struct aug_child *child) {
 	 * output the contents of g_buf if total_read > 0 
 	 */
 	
-	if(total_read > 0)
+	if(total_read > 0) {
+#ifdef AUG_DEBUG_IO
+		AUG_TIMER_START();
+#endif
 		vterm_push_bytes(child->term->vt, child->buf, total_read);
+#ifdef AUG_DEBUG_IO
+		AUG_TIMER_IF_EXCEEDED(0, 100000) {
+			AUG_TIMER_DISPLAY(stderr, "vterm_push_bytes took %d,%d secs\n");
+		}
+#endif
+	}
 	
 	return 0;
 }
@@ -115,6 +152,9 @@ void child_io_loop(struct aug_child *child, int fd_input,
 	int status, high_fd, locked;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_ALLOC();
+#endif
 
 	if(child->term->master < 0) 
 		err_exit(0, "invalid master fd: %d", child->term->master);
@@ -149,22 +189,35 @@ void child_io_loop(struct aug_child *child, int fd_input,
 			locked = 0;
 		}
 	
-		/*fprintf(stderr, "child: select begin\n");*/
+		AUG_DEBUG_IO_LOG("child: select begin\n");
+#ifdef AUG_DEBUG_IO
+		AUG_TIMER_START();
+#endif
 		if(select(high_fd+1, &in_fds, NULL, NULL, tv_select_p) == -1) {
 			if(errno == EINTR) {
-				/*fprintf(stderr, "child: select interupted\n");*/
+				AUG_DEBUG_IO_LOG("child: select interupted\n");
+#ifdef AUG_DEBUG_IO
+				AUG_TIMER_IF_EXCEEDED(0, 100000) {
+					AUG_TIMER_DISPLAY(stderr, "select took %d,%d secs\n");
+				}
+#endif				
 				/* locked == 0 */
 				continue;
 			}
 			else
 				err_exit(errno, "select");
 		}
-		/*fprintf(stderr, "child: select end\n");*/
+		AUG_DEBUG_IO_LOG("child: select end\n");
+#ifdef AUG_DEBUG_IO
+		AUG_TIMER_IF_EXCEEDED(0, 100000) {
+			AUG_TIMER_DISPLAY(stderr, "select took %d,%d secs\n");
+		}
+#endif				
 		child_lock(child);
 		locked = 1;
 
 		if(FD_ISSET(child->term->master, &in_fds) ) {
-			/*fprintf(stderr, "child: process_master_output\n");*/
+			AUG_DEBUG_IO_LOG("child: process_master_output\n");
 			if(process_master_output(child) != 0) {
 				goto done;
 			}
@@ -198,6 +251,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 			child->just_refreshed = 0; /* didnt refresh the screen on this iteration */
 
 		if( fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
+			AUG_DEBUG_IO_LOG("child: process input\n");
 			if( (*to_process_input)(child->term, fd_input, child->user) != 0 ) {
 				/* fd_input is closed or bad in some way */
 				goto done;
