@@ -106,7 +106,7 @@ $(LIBVTERM): ./libvterm
 	$(MAKE) $(MFLAGS) -C ./libvterm $(LIBVTERM_DBG)
 
 ./libvterm:
-	bzr checkout -r 589 lp:libvterm
+	bzr checkout -r 603 lp:libvterm
 
 $(CCAN_DIR)/.touched:
 	if [ ! -d $(CCAN_DIR) ]; then \
