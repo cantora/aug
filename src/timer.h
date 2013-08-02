@@ -29,6 +29,23 @@ struct aug_timer {
 	struct timeval start;
 };
 
+#define AUG_TIMER_ALLOC() \
+	struct aug_timer aug_tmr; \
+	struct timeval aug_tmr_elapsed
+
+#define AUG_TIMER_START() \
+	AUG_STATUS_EQUAL(timer_init(&aug_tmr), 0);
+
+#define AUG_TIMER_IF_EXCEEDED(secs, usecs) \
+	if( \
+		(timer_elapsed(&aug_tmr, &aug_tmr_elapsed) == 0) \
+		&& aug_tmr_elapsed.tv_sec >= secs \
+		&& aug_tmr_elapsed.tv_usec >= usecs \
+	)
+
+#define AUG_TIMER_DISPLAY(fp, fmt) \
+	fprintf(fp, fmt, (int) aug_tmr_elapsed.tv_sec, (int) aug_tmr_elapsed.tv_usec)
+
 int timer_init(struct aug_timer *tmr);
 int timer_thresh(struct aug_timer *tmr, int sec, int usec);
 int timer_elapsed(struct aug_timer *tmr, struct timeval *elapsed);
