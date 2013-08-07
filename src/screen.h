@@ -49,6 +49,8 @@ void screen_refresh();
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user);
 int screen_bell(void *user);
 int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
+int screen_sb_pushline(int cols, const VTermScreenCell *cells, void *user);
+int screen_sb_popline(int cols, VTermScreenCell *cells, void *user);
 
 /* win will be set to an ncurses (WINDOW *), but the idea
  * of this screen module is to encapsulate all the main ncurses

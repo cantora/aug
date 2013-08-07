@@ -49,8 +49,8 @@ static const VTermScreenCallbacks CB_SCREEN = {
 	.settermprop = screen_settermprop,
 	.setmousefunc = NULL,
 	.resize = NULL,
-	.sb_pushline = NULL,
-	.sb_popline = NULL
+	.sb_pushline = NULL, /*screen_pushline,*/
+	.sb_popline = NULL /*screen_popline*/
 };
 
 static const struct aug_term_io_callbacks CB_TERM_IO = {
@@ -74,6 +74,9 @@ int screen_init(struct aug_term *term) {
 	g.windows = init_window_table();
 	
 	initscr();
+	screen_clear();
+	screen_refresh();
+	
 	if(raw() == ERR) 
 		goto fail;
 	if(noecho() == ERR) 
@@ -349,6 +352,24 @@ int screen_settermprop(VTermProp prop, VTermValue *val, void *user) {
 	/* fprintf(stderr, "\n"); */
 
 	return 1;
+}
+
+int screen_sb_pushline(int cols, const VTermScreenCell *cells, void *user) {
+	(void)(user);
+	(void)(cells);
+
+	fprintf(stderr, "screen: pushline cols=%d\n", cols);
+
+	return 0;
+}
+
+int screen_sb_popline(int cols, VTermScreenCell *cells, void *user) {
+	(void)(user);
+	(void)(cells);
+
+	fprintf(stderr, "screen: popline cols=%d\n", cols);
+
+	return 0;
 }
 
 static WINDOW *derwin_from_region(struct aug_region *region) {
