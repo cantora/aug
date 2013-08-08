@@ -18,8 +18,8 @@ OUTPUT			= aug
 BUILD			= ./build
 MKBUILD			:= $(shell mkdir -p $(BUILD) )
 LIBVTERM		= ./libvterm/.libs/libvterm.a
-#LIBVTERM_DBG	= DEBUG=1
-LIBVTERM_DBG	= 
+LIBVTERM_DBG	= DEBUG=1
+#LIBVTERM_DBG	= 
 CCAN_DIR		= ./libccan
 LIBCCAN			= $(CCAN_DIR)/libccan.a
 

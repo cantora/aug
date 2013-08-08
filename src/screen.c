@@ -43,7 +43,7 @@ static int init_term_win();
 
 static const VTermScreenCallbacks CB_SCREEN = {
 	.damage = screen_damage,
-	.moverect = NULL,
+	.moverect = screen_moverect,
 	.movecursor = screen_movecursor,
 	.bell = screen_bell,
 	.settermprop = screen_settermprop,
@@ -102,6 +102,8 @@ int screen_color_on() {
 }
 
 static int free_term_win() {
+	term_win_free(&g.term_win);
+
 	if(g.term_win.win != NULL) {
 		if(delwin(g.term_win.win) == ERR)
 			return -1;
@@ -275,6 +277,7 @@ void screen_refresh() {
 int screen_damage(VTermRect rect, void *user) {
 	(void)(user);
 
+	/*fprintf(stderr, "screen: damage %d->%d,%d->%d\n", rect.start_col, rect.end_col, rect.start_row, rect.end_row);*/
 	return term_win_damage(&g.term_win, rect, g.color_on);
 }
 
@@ -287,9 +290,9 @@ int screen_redraw_term_win() {
 	
 	getmaxyx(g.term_win.win, rows, cols);
 	rect.start_row = 0;
-	rect.end_row = rows-1;
+	rect.end_row = rows;
 	rect.start_col = 0;
-	rect.end_col = cols-1;
+	rect.end_col = cols;
 
 	term_win_damage(&g.term_win, rect, g.color_on);
 	term_win_refresh(&g.term_win);
@@ -297,18 +300,24 @@ int screen_redraw_term_win() {
 	return 0;
 }
 
-/*
+
 int screen_moverect(VTermRect dest, VTermRect src, void *user) {
+	(void)(user);
 	
-	//err_exit(0, "moverect called: dest={%d,%d,%d,%d}, src={%d,%d,%d,%d} (%d,%d)", dest.start_row, dest.start_col, dest.end_row, dest.end_col, src.start_row, src.start_col, src.end_row, src.end_col, maxy, maxx);
-	return 0;
-}*/
+	fprintf(
+		stderr, "screen: moverect dest={%d->%d,%d->%d}, src={%d->%d,%d->%d}\n",
+		dest.start_col, dest.end_col, dest.start_row, dest.end_row, 
+		src.start_col, src.end_col, src.start_row, src.end_row
+	);
+
+	return term_win_moverect(&g.term_win, dest, src, g.color_on);
+}
 
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
 	(void)(visible);
 	(void)(user);
 
-	return term_win_movecursor(&g.term_win, pos, oldpos);
+	return term_win_movecursor(&g.term_win, pos, oldpos, g.color_on);
 }
 
 int screen_bell(void *user) {

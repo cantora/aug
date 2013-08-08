@@ -508,7 +508,7 @@ static int terminal_cb_movecursor(VTermPos pos, VTermPos oldpos, int visible, vo
 
 	tchild = (struct aug_term_child *) user;
 
-	return term_win_movecursor(&tchild->term_win, pos, oldpos);
+	return term_win_movecursor(&tchild->term_win, pos, oldpos, screen_color_on());
 }
 
 static void terminal_cb_refresh(void *user) {
@@ -823,6 +823,55 @@ int aug_cell_update(int rows, int cols, int *row, int *col,
 	return 0;
 }
 
+int aug_pre_scroll(int direction) {
+	struct aug_plugin_item *i;
+	aug_action action;
+
+	if(g_plugins_initialized != true)
+		return 0;
+
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->pre_scroll == NULL)
+			continue;
+
+		action = AUG_ACT_OK;
+		(*(i->plugin.callbacks->pre_scroll))(
+			direction,
+			&action, i->plugin.callbacks->user
+		);
+
+		/* plugin wants to prevent scrolling, and cause a complete redraw of the screen */
+		if(action == AUG_ACT_CANCEL) 
+			return -1;
+	}
+	
+	return 0;
+}
+
+int aug_post_scroll(int direction) {
+	struct aug_plugin_item *i;
+	aug_action action;
+
+	if(g_plugins_initialized != true)
+		return 0;
+
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->post_scroll == NULL)
+			continue;
+
+		action = AUG_ACT_OK;
+		(*(i->plugin.callbacks->post_scroll))(
+			direction,
+			&action, i->plugin.callbacks->user
+		);
+
+		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this post scroll event */
+			return -1;
+	}
+	
+	return 0;
+}
+
 int aug_cursor_move(int rows, int cols, int old_row, int old_col, 
 		int *new_row, int *new_col) {
 	struct aug_plugin_item *i;
@@ -842,7 +891,7 @@ int aug_cursor_move(int rows, int cols, int old_row, int old_col,
 			&action, i->plugin.callbacks->user
 		);
 
-		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cell update */
+		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this cursor move */
 			return -1;
 	}
 

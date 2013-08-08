@@ -26,11 +26,14 @@
 #include "err.h"
 #include "attr.h"
 #include "ncurses_util.h"
+#include "rect_set.h"
 
 extern int aug_cell_update(
 	int rows, int cols, int *row, int *col, 
 	wchar_t *wch, attr_t *attr, int *color_pair
 );
+extern int aug_pre_scroll(int direction);
+extern int aug_post_scroll(int direction);
 extern int aug_cursor_move(
 	int rows, int cols, int old_row, 
 	int old_col, int *new_row, int *new_col
@@ -38,9 +41,31 @@ extern int aug_cursor_move(
 
 static void resize_terminal(struct aug_term_win *);
 
+static void init_deferred_damage(struct aug_term_win *tw) {
+	int cols, rows;
+
+	term_win_dims(tw, &rows, &cols);
+	if(rect_set_init(&tw->deferred_damage, cols, rows) != 0)
+		err_exit(0, "memory error allocating rect set of size %dx%d\n", cols, rows);
+}
+
 void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 	tw->term = NULL;
 	tw->win = win;
+	init_deferred_damage(tw);
+}
+
+void term_win_free(struct aug_term_win *tw) {
+	rect_set_free(&tw->deferred_damage);
+}
+
+void term_win_reset_damage(struct aug_term_win *tw) {
+	rect_set_clear(&tw->deferred_damage);
+}
+
+void term_win_defer_damage(struct aug_term_win *tw, size_t col_start,
+		size_t col_end, size_t row_start, size_t row_end) {
+	rect_set_add(&tw->deferred_damage, col_start, row_start, col_end, row_end);	
 }
 
 void term_win_set_term(struct aug_term_win *tw, struct aug_term *term) {
@@ -121,11 +146,11 @@ void term_win_refresh(struct aug_term_win *tw) {
 
 }
 
-int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
+static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	VTermPos pos;
 
 	if(tw->win == NULL)
-		goto done;
+		return;
 
 	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
 		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
@@ -138,11 +163,70 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	if(wmove(tw->win, pos.row, pos.col) == ERR) 
 		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
 
-done:
+}
+
+void term_win_flush_damage(struct aug_term_win *tw, int color_on) {
+	struct aug_rect_set_rect rect;
+	VTermRect vtrect;
+
+	while(rect_set_pop(&tw->deferred_damage, &rect) == 0) {
+		vtrect.start_row = rect.row_start;
+		vtrect.start_col = rect.col_start;
+		vtrect.end_row = rect.row_end;
+		vtrect.end_col = rect.col_end;
+		flush_damage(tw, vtrect, color_on);
+	}
+}
+
+int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
+	term_win_defer_damage(tw, rect.start_col, rect.end_col, rect.start_row, rect.end_row);
+	term_win_flush_damage(tw, color_on);
 	return 1;
 }
 
-int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) {
+int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, int color_on) {
+	int rows, cols;
+
+	if(tw->win == NULL)
+		goto not_moved;
+
+	win_dims(tw->win, &rows, &cols);
+	if( dest.start_col != 0 
+			|| dest.end_col != cols	
+			|| dest.start_row != 0
+			|| dest.end_row != rows-1 ) {
+		fprintf(stderr, "term_win: moverect invalid dest rect. wanted 0->%d, 0->%d\n", cols, rows-1);
+		goto not_moved;
+	}
+
+	if( src.start_col != 0
+			|| src.end_col != cols
+			|| src.start_row != 1
+			|| src.end_row != rows ) {
+		fprintf(stderr, "term_win: moverect invalid dest rect\n");
+		goto not_moved;
+	}
+
+	term_win_flush_damage(tw, color_on);
+
+	if(aug_pre_scroll(1) != 0)
+		goto not_moved;
+
+	scrollok(tw->win, true);
+	idlok(tw->win, true);
+	scroll(tw->win);
+	idlok(tw->win, false);
+	scrollok(tw->win, false);
+
+	aug_post_scroll(1);
+
+	return 1;
+
+not_moved:
+	return 0;
+}
+
+int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos, int color_on) {
 	int maxy, maxx;
 
 	if(tw->win == NULL)
@@ -150,7 +234,7 @@ int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) 
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
-	 if(!win_contained(tw->win, pos.row, pos.col) ) {
+	if(!win_contained(tw->win, pos.row, pos.col) ) {
 		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos.row, pos.col);
 		goto done;
 	}
@@ -159,6 +243,7 @@ int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos) 
 	if(aug_cursor_move(maxy, maxx, oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
 		goto done;
 
+	term_win_flush_damage(tw, color_on);
 	if(wmove(tw->win, pos.row, pos.col) == ERR)
 		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
 
@@ -171,6 +256,11 @@ done:
  */
 void term_win_resize(struct aug_term_win *tw, WINDOW *win) {
 	tw->win = win;
+	/* if we are changing windows then the deferred
+	 * damage was never relevant, so we can trash it here */
+	rect_set_free(&tw->deferred_damage);
+	init_deferred_damage(tw);
+
 	resize_terminal(tw);
 }
 

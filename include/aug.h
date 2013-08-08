@@ -94,6 +94,33 @@ struct aug_plugin_cb {
 		void *user
 	);
 
+	/* called when the terminal lines are about to
+	 * be scrolled. if @direction is positive,
+	 * the screen is being scrolled up by that amount; 
+	 * that is, the lines are moving up the screen by
+	 * @direction lines. setting @*action to AUG_ACT_CANCEL
+	 * will prevent the use of ncurses scrolling functions
+	 * and the parts of the screen which would be scrolled
+	 * will instead be re-rendered (thus, the cell_update
+	 * callback will be invoked for each cell in the scrolled
+	 * area of the screen). */
+	void (*pre_scroll)(
+		int direction,
+		aug_action *action, 
+		void *user
+	);
+
+	/* called after terminal lines have been scrolled.
+	 * @direction follows the same behaviour as in the
+	 * pre_scroll callback. if @action is set to AUG_ACT_CANCEL
+	 * the post_scroll callback will not be invoked for
+	 * plugins after this one. */
+	void (*post_scroll)(
+		int direction,
+		aug_action *action, 
+		void *user
+	);
+
 	/* called when the cursor is about to be
 	 * moved to some location in the terminal window.
 	 * the plugin can change (or not) the 
@@ -334,6 +361,9 @@ struct aug_api {
 
 	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
+
+	/* TODO: add callback safe API call to mark areas of the
+	 * screen for redrawing */
 
 	/* fork a child process according to @argv and allocate 
 	 * a terminal attached to the child. @twin must point to

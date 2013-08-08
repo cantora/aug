@@ -19,6 +19,7 @@
 #define AUG_AUG_PLUGIN_H
 
 #include "aug.h"
+#include <string.h>
 
 int aug_plugin_api_version_major() {
 	return AUG_API_VERSION_MAJOR;
@@ -31,5 +32,9 @@ int aug_plugin_api_version_minor() {
 const char const aug_plugin_name[];
 int aug_plugin_init( AUG_API_INIT_ARG_PROTO );
 void aug_plugin_free( AUG_API_FREE_ARG_PROTO );
+
+static inline void aug_callbacks_init(struct aug_plugin_cb *cbs) {
+	memset(cbs, 0, sizeof(*cbs));
+}
 
 #endif /* AUG_AUG_PLUGIN_H */

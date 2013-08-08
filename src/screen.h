@@ -46,6 +46,7 @@ int screen_damage(VTermRect rect, void *user);
 void screen_damage_win();
 void screen_redraw();
 void screen_refresh();
+int screen_moverect(VTermRect dest, VTermRect src, void *user);
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user);
 int screen_bell(void *user);
 int screen_settermprop(VTermProp prop, VTermValue *val, void *user);
