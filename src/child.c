@@ -27,9 +27,10 @@
 #ifdef AUG_DEBUG_IO
 #	define AUG_DEBUG_IO_LOG(...) \
 		fprintf(stderr, __VA_ARGS__)
+
+#	define AUG_DEBUG_IO_TIME_MIN 10000
 #else
-#	define AUG_DEBUG_IO_LOG(...) \
-		(void)
+#	define AUG_DEBUG_IO_LOG(...)
 #endif
 
 static int process_master_output(struct aug_child *);
@@ -83,7 +84,7 @@ void child_process_term_output(struct aug_child *child) {
 	}
 
 #ifdef AUG_DEBUG_IO
-	AUG_TIMER_IF_EXCEEDED(0, 100000) {
+	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
 		AUG_TIMER_DISPLAY(stderr, "writing to child->term->master took %d,%d secs\n");
 	}
 #endif
@@ -103,12 +104,12 @@ static int process_master_output(struct aug_child *child) {
 	 * to get as close to filling up the buffer as possible */
 	do {
 		/*fprintf(stderr, "child: read master pty\n");*/
-		n_read = read(child->term->master, child->buf + total_read, 512);
+		n_read = read(child->term->master, child->buf + total_read, AUG_CHILD_READ_SIZE);
 		/*fprintf(stderr, "child: done reading master pty\n");*/
-	} while(n_read > 0 && ( (total_read += n_read) + 512 <= AUG_CHILD_BUF_SIZE) );
+	} while(n_read > 0 && ( (total_read += n_read) + AUG_CHILD_READ_SIZE <= AUG_CHILD_BUF_SIZE) );
 
 #ifdef AUG_DEBUG_IO
-	AUG_TIMER_IF_EXCEEDED(0, 100000) {
+	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
 		AUG_TIMER_DISPLAY(stderr, "reading from child->term->master took %d,%d secs\n");
 	}
 #endif
@@ -133,7 +134,7 @@ static int process_master_output(struct aug_child *child) {
 #endif
 		vterm_push_bytes(child->term->vt, child->buf, total_read);
 #ifdef AUG_DEBUG_IO
-		AUG_TIMER_IF_EXCEEDED(0, 100000) {
+		AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
 			AUG_TIMER_DISPLAY(stderr, "vterm_push_bytes took %d,%d secs\n");
 		}
 #endif
@@ -197,7 +198,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 			if(errno == EINTR) {
 				AUG_DEBUG_IO_LOG("child: select interupted\n");
 #ifdef AUG_DEBUG_IO
-				AUG_TIMER_IF_EXCEEDED(0, 100000) {
+				AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
 					AUG_TIMER_DISPLAY(stderr, "select took %d,%d secs\n");
 				}
 #endif				
@@ -209,7 +210,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		}
 		AUG_DEBUG_IO_LOG("child: select end\n");
 #ifdef AUG_DEBUG_IO
-		AUG_TIMER_IF_EXCEEDED(0, 100000) {
+		AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
 			AUG_TIMER_DISPLAY(stderr, "select took %d,%d secs\n");
 		}
 #endif				
@@ -242,7 +243,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		 * refreshing the screen with stuff that just gets scrolled off
 		 */
 		if(child->force_refresh != 0 
-				|| (status = timer_thresh(&child->inter_io_timer, 0, 700) ) == 1 ) {
+				|| (status = timer_thresh(&child->inter_io_timer, 0, 5000) ) == 1 ) {
 			child_refresh(child);
 		}
 		else if(status < 0)
@@ -277,10 +278,42 @@ void child_unlock(struct aug_child *child) {
 }
 
 void child_refresh(struct aug_child *child) {
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_ALLOC();
+#endif
+
+	AUG_DEBUG_IO_LOG("child: refresh\n");
+
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_START();
+#endif
+	vterm_screen_flush_damage(vterm_obtain_screen(child->term->vt) );
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
+		AUG_TIMER_DISPLAY(stderr, "vterm_screen_flush_damage took %d,%d secs\n");
+	}
+#endif
+
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_START();
+#endif
 	if(child->term->io_callbacks.refresh != NULL)
 		(*child->term->io_callbacks.refresh)(child->term->user); /* call the term refresh callback */
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
+		AUG_TIMER_DISPLAY(stderr, "child->term->io_callbacks.refresh took %d,%d secs\n");
+	}
+#endif
 
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_START();
+#endif
 	(*child->to_refresh)(child->user);
+#ifdef AUG_DEBUG_IO
+	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
+		AUG_TIMER_DISPLAY(stderr, "child->to_refresh took %d,%d secs\n");
+	}
+#endif
 	
 	timer_init(&child->inter_io_timer);
 	timer_init(&child->refresh_expire);

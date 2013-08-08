@@ -304,11 +304,11 @@ int screen_redraw_term_win() {
 int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 	(void)(user);
 	
-	fprintf(
+	/*fprintf(
 		stderr, "screen: moverect dest={%d->%d,%d->%d}, src={%d->%d,%d->%d}\n",
 		dest.start_col, dest.end_col, dest.start_row, dest.end_row, 
 		src.start_col, src.end_col, src.start_row, src.end_row
-	);
+	);*/
 
 	return term_win_moverect(&g.term_win, dest, src, g.color_on);
 }
