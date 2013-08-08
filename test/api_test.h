@@ -78,9 +78,14 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		nct_printf("echo 'blah'\r");
 		nct_printf("echo 'asdfasdfasdf'\r");
 		nct_printf("echo 'wertwertwert'\r");
+
 		for(i = 0; i < 5; i++) {
 			nct_printf("echo valgrind is sloooow...\r");
 			sleep(1);
+		}
+
+		for(i = 0; i < 8; i++) {
+			nct_printf("need to make enough lines to cause a scroll\r");
 		}
 
 		nct_printf("exit\r");
@@ -91,7 +96,10 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		/* api_test + unload */
 		tap_set_output_file(output);
 		tap_set_err_output_file(output);
-		plan_tests(131 + 4); 
+		plan_tests(
+			131 + 4 + 
+			4*2 /* pre_scroll and post_scroll */
+		); 
 		diag("test the plugin api");
 		diag("parent: start");
 		fflush(output);

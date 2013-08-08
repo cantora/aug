@@ -56,6 +56,8 @@ static uint32_t g_callback_key;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
 static bool g_got_cell_update = false;
+static bool g_got_pre_scroll = false;
+static bool g_got_post_scroll = false;
 static bool g_got_cursor_move = false;
 static bool g_on_r_interaction = false;
 pthread_mutex_t g_on_r_interaction_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -199,6 +201,40 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 		test_sigs("cell_update");
 		checked_winch_and_screen_lock = true;
 		diag("----cell_update----\n#");
+	}
+}
+
+void pre_scroll(int rows, int cols, int direction, aug_action *action, void *user) {
+	(void)(rows);
+	(void)(cols);
+	(void)(action);
+	static bool checked_winch_and_screen_lock = false;
+
+	g_got_pre_scroll = true;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++pre_scroll++++");
+		ok(user == g_user_data, "(pre_scroll) check that user ptr is correct");
+		test_sigs("pre_scroll"); /* +2 tests */
+		checked_winch_and_screen_lock = true;
+		diag("----pre_scroll----\n#");
+	}
+}
+
+void post_scroll(int rows, int cols, int direction, aug_action *action, void *user) {
+	(void)(rows);
+	(void)(cols);
+	(void)(action);
+	static bool checked_winch_and_screen_lock = false;
+
+	g_got_post_scroll = true;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++pre_scroll++++");
+		ok(user == g_user_data, "(pre_scroll) check that user ptr is correct");
+		test_sigs("pre_scroll"); /* +2 tests */
+		checked_winch_and_screen_lock = true;
+		diag("----pre_scroll----\n#");
 	}
 }
 
@@ -882,6 +918,8 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	g_callbacks.user = g_user_data;
 	g_callbacks.input_char = input_char;
 	g_callbacks.cell_update = cell_update;
+	g_callbacks.pre_scroll = pre_scroll;
+	g_callbacks.post_scroll = post_scroll;
 	g_callbacks.cursor_move = cursor_move;
 	g_callbacks.screen_dims_change = screen_dims_change;
 
@@ -1061,6 +1099,8 @@ void aug_plugin_free() {
 	
 	ok( (g_got_expected_input == true), "check to see if input callback got expected user input");
 	ok( (g_got_cell_update == true), "check to see if cell_update callback got called");
+	ok( (g_got_pre_scroll == true), "check to see if pre_scroll callback got called");
+	ok( (g_got_post_scroll == true), "check to see if post_scroll callback got called");
 	ok( (g_got_cursor_move == true), "check to see if cursor_move callback got called");
 
 	diag("dealloc windows");
