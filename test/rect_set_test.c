@@ -212,6 +212,231 @@ void test3() {
 	rect_set_free(&rs);
 }
 
+void test4() {
+	struct aug_rect_set rs;
+	size_t i, j, k;
+	int one_on;
+	struct aug_rect_set_rect badrects[] = {
+		{341, 341, 10, 34},
+		{834, 835, 0, 1},
+		{10, 9, 0, 1},
+		{74, 81, 43, 43},
+		{0, 10, 66, 70},
+		{0, 10, 45, 31}
+	};
+	struct aug_rect_set_rect rect;
+
+	diag("++++test4++++");	
+	diag("test basic rect_set of dims 0x0");
+
+	ok1(rect_set_init(&rs, 0, 0) == 0);
+
+	one_on = 0;
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set off");
+	rect_set_off(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("clear");
+	rect_set_clear(&rs);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+		
+	diag("test bad rects");
+	one_on = 0;
+	for(k = 0; k < ARRAY_SIZE(badrects); k++)
+		rect_set_add(&rs, 
+			badrects[k].col_start, badrects[k].row_start,
+			badrects[k].col_end, badrects[k].row_end
+		);
+
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_pop(&rs, &rect) != 0);
+
+#define TEST4AMT 9
+	diag("----test4----\n#");
+	rect_set_free(&rs);
+}
+
+void test5() {
+	struct aug_rect_set rs;
+	size_t i, j, k;
+	int one_on;
+	struct aug_rect_set_rect badrects[] = {
+		{341, 341, 10, 34},
+		{834, 835, 0, 1},
+		{10, 9, 0, 1},
+		{74, 81, 43, 43},
+		{0, 10, 66, 70},
+		{0, 10, 45, 31}
+	};
+	struct aug_rect_set_rect rect;
+
+	diag("++++test5++++");	
+	diag("test basic rect_set of dims 0x80");
+
+	ok1(rect_set_init(&rs, 0, 80) == 0);
+
+	one_on = 0;
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set off");
+	rect_set_off(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("clear");
+	rect_set_clear(&rs);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+		
+	diag("test bad rects");
+	one_on = 0;
+	for(k = 0; k < ARRAY_SIZE(badrects); k++)
+		rect_set_add(&rs, 
+			badrects[k].col_start, badrects[k].row_start,
+			badrects[k].col_end, badrects[k].row_end
+		);
+
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_pop(&rs, &rect) != 0);
+
+#define TEST5AMT 9
+	diag("----test5----\n#");
+	rect_set_free(&rs);
+}
+
+void test6() {
+	struct aug_rect_set rs;
+	size_t i, j, k;
+	int one_on;
+	struct aug_rect_set_rect badrects[] = {
+		{341, 341, 10, 34},
+		{834, 835, 0, 1},
+		{10, 9, 0, 1},
+		{74, 81, 43, 43},
+		{0, 10, 66, 70},
+		{0, 10, 45, 31}
+	};
+	struct aug_rect_set_rect rect;
+
+	diag("++++test6++++");	
+	diag("test basic rect_set of dims 73x0");
+
+	ok1(rect_set_init(&rs, 73, 0) == 0);
+
+	one_on = 0;
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("set off");
+	rect_set_off(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+
+	diag("set on");
+	rect_set_on(&rs, 734, 39);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);
+
+	diag("clear");
+	rect_set_clear(&rs);
+	ok1(rect_set_is_on(&rs, 734, 39) == 0);	
+		
+	diag("test bad rects");
+	one_on = 0;
+	for(k = 0; k < ARRAY_SIZE(badrects); k++)
+		rect_set_add(&rs, 
+			badrects[k].col_start, badrects[k].row_start,
+			badrects[k].col_end, badrects[k].row_end
+		);
+
+	for(i = 0; i < 65; i++) {
+		for(j = 0; j < 834;	j++) 
+			if(rect_set_is_on(&rs, j, i)) {
+				one_on = 1;
+				break;
+			}
+		if(one_on != 0)
+			break;
+	}
+	ok1(one_on == 0);
+
+	ok1(rect_set_pop(&rs, &rect) != 0);
+
+#define TEST6AMT 9
+	diag("----test6----\n#");
+	rect_set_free(&rs);
+}
+
 int main()
 {
 	int i, len, total_tests;
@@ -220,6 +445,9 @@ int main()
 		TESTN(1),
 		TESTN(2),
 		TESTN(3),
+		TESTN(4),
+		TESTN(5),
+		TESTN(6),
 	};
 
 	total_tests = 0;

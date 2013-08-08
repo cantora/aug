@@ -29,33 +29,44 @@ static inline size_t rect_set_index(const struct aug_rect_set *rs, size_t col, s
 }
 
 void rect_set_on(struct aug_rect_set *rs, size_t col, size_t row) {
-	rs->map[rect_set_index(rs, col, row)] = 1;
+	if(rs->map != NULL)
+		rs->map[rect_set_index(rs, col, row)] = 1;
 }
 
 void rect_set_off(struct aug_rect_set *rs, size_t col, size_t row) {
-	rs->map[rect_set_index(rs, col, row)] = 0;
+	if(rs->map != NULL)
+		rs->map[rect_set_index(rs, col, row)] = 0;
 }
 
 int rect_set_is_on(const struct aug_rect_set *rs, size_t col, size_t row) {
-	return rs->map[rect_set_index(rs, col, row)] != 0;
+	if(rs->map != NULL)
+		return rs->map[rect_set_index(rs, col, row)] != 0;
+	else
+		return 0;
 }
 
 int rect_set_init(struct aug_rect_set *rs, size_t cols, size_t rows) {
 	rs->cols = cols;
 	rs->rows = rows;
 
-	rs->map = malloc( rect_set_size(rs) * sizeof(uint8_t) );
-	if(rs->map == NULL)
-		return -1;
-		
+	if(rect_set_size(rs) > 0) {
+		rs->map = malloc( rect_set_size(rs) * sizeof(uint8_t) );
+		if(rs->map == NULL)
+			return -1;
+	}
+	else
+		rs->map = NULL;
+
 	rect_set_clear(rs);
 
 	return 0;
 }
 
 void rect_set_free(struct aug_rect_set *rs) {
-	free(rs->map);
-	rs->map = NULL;
+	if(rs->map != NULL) {
+		free(rs->map);
+		rs->map = NULL;
+	}
 }
 
 void rect_set_clear(struct aug_rect_set *rs) {
