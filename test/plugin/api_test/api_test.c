@@ -51,12 +51,7 @@ static struct aug_plugin *g_plugin;
 	} while(0)
 
 static char *g_user_data = "on_r secret stuff...";
-static struct aug_plugin_cb g_callbacks = {
-	.input_char = input_char,
-	.cell_update = cell_update,
-	.cursor_move = cursor_move,
-	.screen_dims_change = screen_dims_change
-};
+static struct aug_plugin_cb g_callbacks;
 static uint32_t g_callback_key;
 static bool g_got_callback = false;
 static bool g_got_expected_input = false;
@@ -883,7 +878,13 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	check_screen_lock();
 	test_sigs("plugin_init");
 
+	aug_callbacks_init(&g_callbacks);
 	g_callbacks.user = g_user_data;
+	g_callbacks.input_char = input_char;
+	g_callbacks.cell_update = cell_update;
+	g_callbacks.cursor_move = cursor_move;
+	g_callbacks.screen_dims_change = screen_dims_change;
+
 	api->callbacks(g_plugin, &g_callbacks, NULL);
 
 	diag("test for the value of testkey in the ini file");	
