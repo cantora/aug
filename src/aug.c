@@ -645,6 +645,7 @@ static void api_terminal_delete(struct aug_plugin *plugin, void *terminal) {
 	}
 	
 	child_free(&tchild->child);	
+	term_win_free(&tchild->term_win);
 	term_free(&tchild->term);
 	free(tchild);
 
