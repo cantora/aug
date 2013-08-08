@@ -16,8 +16,6 @@ void cursor_move(
 
 struct aug_plugin_cb g_callbacks = {
 	.input_char = NULL,
-	.cell_update = cell_update,
-	.cursor_move = cursor_move,
 	.screen_dims_change = NULL
 };
 
@@ -55,7 +53,9 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 
 	aug_log("init\n");
 
-	g_callbacks.user = NULL;
+	aug_callbacks_init(&g_callbacks);
+	g_callbacks.cell_update = cell_update;
+	g_callbacks.cursor_move = cursor_move;
 	aug_callbacks(&g_callbacks, NULL);
 
 	return 0;

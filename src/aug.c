@@ -495,6 +495,12 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 	screen_doupdate();
 }
 
+static void api_primary_term_damage(const struct aug_plugin *plugin, 
+			size_t col_start, size_t col_end, size_t row_start, size_t row_end) {
+	(void)(plugin);
+	screen_defer_damage(col_start, col_end, row_start, row_end);
+}
+
 static int terminal_cb_damage(VTermRect rect, void *user) {
 	struct aug_term_child *tchild;
 
@@ -823,7 +829,7 @@ int aug_cell_update(int rows, int cols, int *row, int *col,
 	return 0;
 }
 
-int aug_pre_scroll(int direction) {
+int aug_pre_scroll(int rows, int cols, int direction) {
 	struct aug_plugin_item *i;
 	aug_action action;
 
@@ -836,7 +842,7 @@ int aug_pre_scroll(int direction) {
 
 		action = AUG_ACT_OK;
 		(*(i->plugin.callbacks->pre_scroll))(
-			direction,
+			rows, cols, direction,
 			&action, i->plugin.callbacks->user
 		);
 
@@ -848,7 +854,7 @@ int aug_pre_scroll(int direction) {
 	return 0;
 }
 
-int aug_post_scroll(int direction) {
+int aug_post_scroll(int rows, int cols, int direction) {
 	struct aug_plugin_item *i;
 	aug_action action;
 
@@ -861,7 +867,7 @@ int aug_post_scroll(int direction) {
 
 		action = AUG_ACT_OK;
 		(*(i->plugin.callbacks->post_scroll))(
-			direction,
+			rows, cols, direction,
 			&action, i->plugin.callbacks->user
 		);
 
@@ -967,7 +973,7 @@ static void handler_winch() {
 	 * resizes all its windows, then tells the terminal window
 	 * manager and plugins about the resize */
 	screen_resize();
-	screen_dims(&rows, &cols);	
+	screen_dims(&rows, &cols);
 	/* plugin callbacks */
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
@@ -1440,6 +1446,7 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_size = api_screen_panel_size;
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
+	api->primary_term_damage = api_primary_term_damage;
 	api->terminal_new = api_terminal_new;
 	api->terminal_delete = api_terminal_delete;
 	api->terminal_run = api_terminal_run;

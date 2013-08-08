@@ -10,12 +10,7 @@ void cell_update(
 	attr_t *attr, int *color_pair, aug_action *action, void *user
 );
 
-struct aug_plugin_cb g_callbacks = {
-	.input_char = NULL,
-	.cell_update = cell_update,
-	.cursor_move = NULL,
-	.screen_dims_change = NULL
-};
+struct aug_plugin_cb g_callbacks;
 
 void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, 
 		attr_t *attr, int *color_pair, aug_action *action, void *user) {
@@ -36,7 +31,8 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 
 	aug_log("init\n");
 
-	g_callbacks.user = NULL;
+	aug_callbacks_init(&g_callbacks);
+	g_callbacks.cell_update = cell_update;
 	aug_callbacks(&g_callbacks, NULL);
 
 	return 0;

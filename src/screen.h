@@ -43,6 +43,8 @@ int screen_getch(uint32_t *ch);
 /*void screen_err_msg(int error, char **msg);*/
 int screen_color_start();
 int screen_damage(VTermRect rect, void *user);
+void screen_defer_damage(size_t col_start, size_t col_end, size_t row_start, 
+		size_t row_end);
 void screen_damage_win();
 void screen_redraw();
 void screen_refresh();

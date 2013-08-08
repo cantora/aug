@@ -281,6 +281,11 @@ int screen_damage(VTermRect rect, void *user) {
 	return term_win_damage(&g.term_win, rect, g.color_on);
 }
 
+void screen_defer_damage(size_t col_start, size_t col_end, size_t row_start, 
+		size_t row_end) {
+	term_win_defer_damage(&g.term_win, col_start, col_end, row_start, row_end);
+}
+
 int screen_redraw_term_win() {
 	VTermRect rect;
 	int rows, cols;

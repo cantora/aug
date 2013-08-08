@@ -105,7 +105,7 @@ struct aug_plugin_cb {
 	 * callback will be invoked for each cell in the scrolled
 	 * area of the screen). */
 	void (*pre_scroll)(
-		int direction,
+		int rows, int cols, int direction,
 		aug_action *action, 
 		void *user
 	);
@@ -116,7 +116,7 @@ struct aug_plugin_cb {
 	 * the post_scroll callback will not be invoked for
 	 * plugins after this one. */
 	void (*post_scroll)(
-		int direction,
+		int rows, int cols, int direction,
 		aug_action *action, 
 		void *user
 	);
@@ -364,6 +364,8 @@ struct aug_api {
 
 	/* TODO: add callback safe API call to mark areas of the
 	 * screen for redrawing */
+	void (*primary_term_damage)(const struct aug_plugin *plugin, 
+			size_t col_start, size_t col_end, size_t row_start, size_t row_end);
 
 	/* fork a child process according to @argv and allocate 
 	 * a terminal attached to the child. @twin must point to

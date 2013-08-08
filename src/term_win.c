@@ -32,8 +32,8 @@ extern int aug_cell_update(
 	int rows, int cols, int *row, int *col, 
 	wchar_t *wch, attr_t *attr, int *color_pair
 );
-extern int aug_pre_scroll(int direction);
-extern int aug_post_scroll(int direction);
+extern int aug_pre_scroll(int rows, int cols, int direction);
+extern int aug_post_scroll(int rows, int cols, int direction);
 extern int aug_cursor_move(
 	int rows, int cols, int old_row, 
 	int old_col, int *new_row, int *new_col
@@ -209,7 +209,7 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 
 	term_win_flush_damage(tw, color_on);
 
-	if(aug_pre_scroll(1) != 0)
+	if(aug_pre_scroll(rows, cols, 1) != 0)
 		goto not_moved;
 
 	scrollok(tw->win, true);
@@ -218,7 +218,7 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 	idlok(tw->win, false);
 	scrollok(tw->win, false);
 
-	aug_post_scroll(1);
+	aug_post_scroll(rows, cols, 1);
 
 	return 1;
 

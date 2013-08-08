@@ -67,6 +67,8 @@
 	AUG_API_CALL(screen_panel_update, (AUG_PLUGIN_HANDLE))
 #define aug_screen_doupdate() \
 	AUG_API_CALL(screen_doupdate, (AUG_PLUGIN_HANDLE) )
+#define aug_primary_term_damage(...) \
+	AUG_API_CALL(primary_term_damage, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_terminal_new(...) \
 	AUG_API_CALL(terminal_new, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_terminal_delete(...) \
