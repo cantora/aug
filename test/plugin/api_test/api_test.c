@@ -207,6 +207,7 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *a
 void pre_scroll(int rows, int cols, int direction, aug_action *action, void *user) {
 	(void)(rows);
 	(void)(cols);
+	(void)(direction);
 	(void)(action);
 	static bool checked_winch_and_screen_lock = false;
 
@@ -224,6 +225,7 @@ void pre_scroll(int rows, int cols, int direction, aug_action *action, void *use
 void post_scroll(int rows, int cols, int direction, aug_action *action, void *user) {
 	(void)(rows);
 	(void)(cols);
+	(void)(direction);
 	(void)(action);
 	static bool checked_winch_and_screen_lock = false;
 
@@ -234,6 +236,10 @@ void post_scroll(int rows, int cols, int direction, aug_action *action, void *us
 		ok(user == g_user_data, "(pre_scroll) check that user ptr is correct");
 		test_sigs("pre_scroll"); /* +2 tests */
 		checked_winch_and_screen_lock = true;
+		
+		/* nothing to test with this, but if we do it maybe *grind will 
+		 * catch an issue. */
+		(*g_api->primary_term_damage)(g_plugin, 0, 10, 0, 4);
 		diag("----pre_scroll----\n#");
 	}
 }

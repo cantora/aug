@@ -185,40 +185,56 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 }
 
 int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, int color_on) {
-	int rows, cols;
+	int rows, cols, offset;
 
 	if(tw->win == NULL)
 		goto not_moved;
 
 	win_dims(tw->win, &rows, &cols);
-	if( dest.start_col != 0 
-			|| dest.end_col != cols	
-			|| dest.start_row != 0
-			|| dest.end_row != rows-1 ) {
-		fprintf(stderr, "term_win: moverect invalid dest rect. wanted 0->%d, 0->%d\n", cols, rows-1);
+	if( src.start_col != 0 || src.end_col != cols) {
+		fprintf(stderr, "term_win: moverect invalid src rect "
+						"%d->%d, %d->%d. wanted columns 0->%d\n",
+						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
+						cols);
 		goto not_moved;
 	}
 
-	if( src.start_col != 0
-			|| src.end_col != cols
-			|| src.start_row != 1
-			|| src.end_row != rows ) {
-		fprintf(stderr, "term_win: moverect invalid dest rect\n");
+	if(src.start_row == 0 && src.end_row < rows) {
+		offset = src.end_row - rows;
+	}
+	else if(src.end_row == rows) {
+		offset = src.start_row;
+	}
+	else {
+		fprintf(stderr, "term_win: moverect invalid src rect "
+						"%d->%d, %d->%d. wanted rows x->%d or 0->%d-x\n",
+						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
+						rows, rows);
+		goto not_moved;
+	}
+
+	if( dest.start_col != 0 || dest.end_col != cols 
+			|| dest.start_row != src.start_row - offset
+			|| dest.end_row != src.end_row - offset ) {
+		fprintf(stderr, "term_win: moverect invalid dest rect "
+						"%d->%d, %d->%d. wanted 0->%d, %d->%d\n", 
+						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
+						cols, src.start_row-offset, src.end_row-offset);
 		goto not_moved;
 	}
 
 	term_win_flush_damage(tw, color_on);
 
-	if(aug_pre_scroll(rows, cols, 1) != 0)
+	if(aug_pre_scroll(rows, cols, offset) != 0)
 		goto not_moved;
 
 	scrollok(tw->win, true);
 	idlok(tw->win, true);
-	scroll(tw->win);
+	wscrl(tw->win, offset);
 	idlok(tw->win, false);
 	scrollok(tw->win, false);
 
-	aug_post_scroll(rows, cols, 1);
+	aug_post_scroll(rows, cols, offset);
 
 	return 1;
 
