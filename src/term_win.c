@@ -194,7 +194,7 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 	if( src.start_col != 0 || src.end_col != cols) {
 		fprintf(stderr, "term_win: moverect invalid src rect "
 						"%d->%d, %d->%d. wanted columns 0->%d\n",
-						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
+						src.start_col, src.end_col, src.start_row, src.end_row,
 						cols);
 		goto not_moved;
 	}
@@ -208,7 +208,7 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 	else {
 		fprintf(stderr, "term_win: moverect invalid src rect "
 						"%d->%d, %d->%d. wanted rows x->%d or 0->%d-x\n",
-						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
+						src.start_col, src.end_col, src.start_row, src.end_row,
 						rows, rows);
 		goto not_moved;
 	}
