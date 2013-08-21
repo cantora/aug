@@ -3,9 +3,10 @@ aug is an extra terminal emulation layer to augment
 terminal functionality.
 
 ##project status
-April 2013: 
+August 2013: 
 	aug is currently beta software and is under active development.
-	I'm currently focusing on improving documentation for the project.
+	Drastically improved I/O performance by using ncurses scrolling
+	and libvterm's scroll damage mode.
 
 ##overview
 Similar to screen or tmux, aug facilitates transparent control of a terminal
