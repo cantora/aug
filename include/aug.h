@@ -161,7 +161,7 @@ struct aug_plugin {
 	
 	/* init and free symbols.
 	 * if non-zero is returned the plugin will not
-     * be loaded into the plugin stack (the free
+	 * be loaded into the plugin stack (the free
 	 * function will not be called).
 	 */
 #define AUG_API_INIT_ARG_PROTO struct aug_plugin *plugin, const struct aug_api *api
@@ -349,7 +349,7 @@ struct aug_api {
 	 */
 	void (*screen_panel_size)(struct aug_plugin *plugin, int *size);
 
-	/* neither of the following two api calls engage any locks
+	/* neither of the following three api calls engage any locks
 	 * so lock_screen and unlock_screen should be used
 	 * to ensure these calls are made safely. in the case of
 	 * api callbacks, these can be called without using the
@@ -362,10 +362,12 @@ struct aug_api {
 	/* call this instead of calling doupdate() */
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
-	/* TODO: add callback safe API call to mark areas of the
-	 * screen for redrawing */
+	/* mark for redrawing the areas of the screen described by the rectangle
+	 * given by @col_start, @col_end, @row_start and @row_end. */
 	void (*primary_term_damage)(const struct aug_plugin *plugin, 
 			size_t col_start, size_t col_end, size_t row_start, size_t row_end);
+
+
 
 	/* fork a child process according to @argv and allocate 
 	 * a terminal attached to the child. @twin must point to

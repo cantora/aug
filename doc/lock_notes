@@ -3,11 +3,14 @@ callbacks:
 	cell_update
 	cursor_move
 	screen_dims_change
+	pre_scroll
+	post_scroll
 
 all resources except for tchild_table are locked, so no api 
-calls aside from screen_doupdate, screen_panel_update, log,
-conf_val, terminal_pid, terminal_terminated, terminal_input,
-and terminal_input_chars. do not call unlock_screen.
+calls aside from screen_doupdate, screen_panel_update, 
+primary_term_damage, log, conf_val, terminal_pid, 
+terminal_terminated, terminal_input, and terminal_input_chars.
+do not call unlock_screen.
 
 init, free:
 	'free_plugin_lock' is locked. do not call unload in these functions.

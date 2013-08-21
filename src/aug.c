@@ -495,6 +495,9 @@ static void api_screen_doupdate(struct aug_plugin *plugin) {
 	screen_doupdate();
 }
 
+/* no locks engaged here because this API call is meant to be used
+ * inside a callback our within calls to api_screen_lock and 
+ * api_screen_unlock */
 static void api_primary_term_damage(const struct aug_plugin *plugin, 
 			size_t col_start, size_t col_end, size_t row_start, size_t row_end) {
 	(void)(plugin);
