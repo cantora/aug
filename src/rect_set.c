@@ -109,8 +109,8 @@ static void cut_out_rect(struct aug_rect_set *rs, size_t col, size_t row,
 	for(row += 1; row < rs->rows; row++) {
 		/* check if this row has a different width or is shifted. if so
 		 * then it would be a start of a differect rect, so break. */
-		if(rect->col_start > 0 && rect_set_is_on(rs, col-1, row))
-			break; 
+		if(rect->col_start > 0 && rect_set_is_on(rs, rect->col_start-1, row))
+			break;
 
 		/* check if this row has the same width as our rect */
 		tmp_col_width = 0;
@@ -121,10 +121,14 @@ static void cut_out_rect(struct aug_rect_set *rs, size_t col, size_t row,
 			if(tmp_col_width > col_width)
 				goto done;
 
-			rect_set_off(rs, col, row);			
 			tmp_col_width++;
-		}		
+		}
 
+		if(tmp_col_width != col_width) 
+			goto done;
+
+		for(col = rect->col_start; col < rect->col_start + col_width; col++)
+			rect_set_off(rs, col, row);
 		row_width++;
 	}
 

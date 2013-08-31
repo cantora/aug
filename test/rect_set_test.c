@@ -437,6 +437,37 @@ void test6() {
 	rect_set_free(&rs);
 }
 
+void test7() {
+	struct aug_rect_set rs;
+	struct aug_rect_set_rect r;
+	int amt;
+
+	diag("++++test7++++");	
+	ok1(rect_set_init(&rs, 143, 47) == 0);
+
+	rect_set_add(&rs, 110, 0, 142, 15);
+
+	amt = 0;
+	while(rect_set_pop(&rs, &r) == 0) {
+		amt++;
+		diag("got rect: %d->%d, %d->%d", 
+				r.col_start, r.col_end,
+				r.row_start, r.row_end);
+	}
+
+	ok1(amt > 0);
+	ok1(amt == 1);
+
+	ok1(r.col_start == 110);
+	ok1(r.col_end == 142);
+	ok1(r.row_start == 0);
+	ok1(r.row_end == 15);
+
+#define TEST7AMT 1 + 2 + 4
+	diag("----test7----\n#");
+	rect_set_free(&rs);
+}
+
 int main()
 {
 	int i, len, total_tests;
@@ -448,6 +479,7 @@ int main()
 		TESTN(4),
 		TESTN(5),
 		TESTN(6),
+		TESTN(7)
 	};
 
 	total_tests = 0;
