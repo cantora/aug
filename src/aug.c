@@ -907,6 +907,22 @@ int aug_cursor_move(int rows, int cols, int old_row, int old_col,
 
 	return 0;
 }
+
+/* this function isnt used outside this file, unlike the other callbacks */
+static void aug_screen_dims_change(int rows, int cols) {
+	struct aug_plugin_item *i;
+
+	if(g_plugins_initialized != true)
+		return;
+	
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->screen_dims_change))(rows, cols, i->plugin.callbacks->user);
+	}
+}
+
 /* == end callbacks == */
 
 static void resize_and_redraw_screen() {
@@ -956,7 +972,6 @@ static inline void unblock_sigs() {
  */
 static void handler_winch() {
 	int rows, cols;
-	struct aug_plugin_item *i;
 
 	fprintf(stderr, "handler_winch: enter\n");
 	AUG_LOCK(&g_region_map);
@@ -979,12 +994,7 @@ static void handler_winch() {
 	screen_resize();
 	screen_dims(&rows, &cols);
 	/* plugin callbacks */
-	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
-		if(i->plugin.callbacks == NULL || i->plugin.callbacks->screen_dims_change == NULL)
-			continue;
-		
-		(*(i->plugin.callbacks->screen_dims_change))(rows, cols, i->plugin.callbacks->user);
-	}
+	aug_screen_dims_change(rows, cols);
 
 	unlock_all();
 	AUG_UNLOCK(&g_region_map);
@@ -1507,6 +1517,7 @@ static void to_refresh_after_io(void *user) {
 int aug_main(int argc, char *argv[]) {
 	struct termios child_termios;
 	struct aug_api api;
+	int rows, cols;
 
 	switch(init_conf(argc, argv)) { /* 1 */
 	case 0:
@@ -1591,13 +1602,22 @@ int aug_main(int argc, char *argv[]) {
 	child_unlock(&g_child);
 	/* now that plugins have been initialized, callbacks can
 	 * start happening. */
+	
+	/* make initial callback to plugins so they
+	 * know what the screen dims are right now, as the
+	 * only other way they will get this callback is from
+	 * a sigwinch, which may never happen. */
+	screen_dims(&rows, &cols);
+	lock_all();
+	aug_screen_dims_change(rows, cols);
+	unlock_all();
 
 	fprintf(stderr, "lock screen\n");
 	/* this calls main_to_lock_for_io. resources will be 
 	 * unlocked in child_io_loop by calling main_to_unlock_for_io.
 	 * this will block signals a second time, but that shouldnt
 	 * be a problem. */
-	child_lock(&g_child); 
+	child_lock(&g_child);
 
 	/* get ncurses SIGWINCH handler */
 	if(sigaction(SIGWINCH, NULL, &g_prev_winch_act) != 0)
