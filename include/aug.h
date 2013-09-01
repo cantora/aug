@@ -138,6 +138,9 @@ struct aug_plugin_cb {
 	 * note that the dimensions are for the entire screen, not
 	 * the size of the main window. */
 	void (*screen_dims_change)(int rows, int cols, void *user);
+	
+	/* called when the primary terminal dimensions change. */
+	void (*primary_term_dims_change)(int rows, int cols, void *user);
 
 	void *user;
 };

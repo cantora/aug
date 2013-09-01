@@ -280,6 +280,18 @@ void screen_dims_change(int rows, int cols, void *user) {
 	}
 }
 
+void primary_term_dims_change(int rows, int cols, void *user) {
+	static bool checked_winch_and_screen_lock = false;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++primary_term_dims_change++++");
+		diag("change to %d,%d", rows, cols);
+		ok(user == g_user_data, "(primary_term_dims_change) check that user ptr is correct");
+		test_sigs("primary_term_dims_change");
+		checked_winch_and_screen_lock = true;
+		diag("----primary_term_dims_change----\n#");
+	}
+}
 
 static int box_and_print(WINDOW *win, const char *str) {
 	if(box(win, 0, 0) == ERR) {
@@ -933,6 +945,7 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 	g_callbacks.post_scroll = post_scroll;
 	g_callbacks.cursor_move = cursor_move;
 	g_callbacks.screen_dims_change = screen_dims_change;
+	g_callbacks.primary_term_dims_change = primary_term_dims_change;
 
 	api->callbacks(g_plugin, &g_callbacks, NULL);
 

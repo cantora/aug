@@ -68,6 +68,7 @@ int screen_keyname_to_key(const char *str, uint32_t *ch);
 void screen_doupdate();
 void screen_clear();
 int screen_redraw_term_win();
+void screen_term_win_dims(int *rows, int *cols);
 const char *screen_err_msg(int err);
 
 #endif /* AUG_SCREEN_H */

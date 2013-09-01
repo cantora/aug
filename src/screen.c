@@ -305,6 +305,9 @@ int screen_redraw_term_win() {
 	return 0;
 }
 
+void screen_term_win_dims(int *rows, int *cols) {
+	getmaxyx(g.term_win.win, *rows, *cols);
+}
 
 int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 	(void)(user);

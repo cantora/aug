@@ -924,6 +924,22 @@ static void aug_screen_dims_change(int rows, int cols) {
 	}
 }
 
+void aug_primary_term_dims_change(int rows, int cols) {
+	struct aug_plugin_item *i;
+
+	if(g_plugins_initialized != true) {
+		fprintf(stderr, "primary dims change cb: plugins not initialized\n");
+		return;
+	}
+	
+	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
+		if(i->plugin.callbacks == NULL || i->plugin.callbacks->primary_term_dims_change == NULL)
+			continue;
+		
+		(*(i->plugin.callbacks->primary_term_dims_change))(rows, cols, i->plugin.callbacks->user);
+	}
+}
+
 /* == end callbacks == */
 
 static void resize_and_redraw_screen() {
@@ -1609,9 +1625,11 @@ int aug_main(int argc, char *argv[]) {
 	 * know what the screen dims are right now, as the
 	 * only other way they will get this callback is from
 	 * a sigwinch, which may never happen. */
-	screen_dims(&rows, &cols);
 	lock_all();
+	screen_dims(&rows, &cols);
 	aug_screen_dims_change(rows, cols);
+	screen_term_win_dims(&rows, &cols);
+	aug_primary_term_dims_change(rows, cols);
 	unlock_all();
 
 	fprintf(stderr, "lock screen\n");

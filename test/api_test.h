@@ -98,7 +98,8 @@ static int api_test_main(FILE *output, int argc, char *argv[]) {
 		tap_set_err_output_file(output);
 		plan_tests(
 			131 + 4 + 
-			4*2 /* pre_scroll and post_scroll */
+			4*2 + /* pre_scroll and post_scroll */
+			3 /* primary_term_dims_change */
 		); 
 		diag("test the plugin api");
 		diag("parent: start");

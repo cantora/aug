@@ -38,6 +38,7 @@ extern int aug_cursor_move(
 	int rows, int cols, int old_row, 
 	int old_col, int *new_row, int *new_col
 );
+extern void aug_primary_term_dims_change(int rows, int cols);
 
 static void resize_terminal(struct aug_term_win *);
 
@@ -298,4 +299,6 @@ static void resize_terminal(struct aug_term_win *tw) {
 	if(tw->term != NULL)
 		if(term_resize(tw->term, rows, cols) != 0)
 			err_exit(errno, "error resizing terminal!");
+
+	aug_primary_term_dims_change(rows, cols);
 }
