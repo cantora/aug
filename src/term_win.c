@@ -135,17 +135,6 @@ void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
 
 }
 
-void term_win_refresh(struct aug_term_win *tw) {
-	if(tw->win == NULL)
-		return;
-
-	wsyncup(tw->win);
-	wcursyncup(tw->win);
-	if(wnoutrefresh(tw->win) == ERR)
-		err_exit(0, "wnoutrefresh failed!");
-
-}
-
 static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	VTermPos pos;
 
@@ -165,7 +154,7 @@ static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) 
 
 }
 
-void term_win_flush_damage(struct aug_term_win *tw, int color_on) {
+static void term_win_flush_damage(struct aug_term_win *tw, int color_on) {
 	struct aug_rect_set_rect rect;
 	VTermRect vtrect;
 
@@ -182,6 +171,19 @@ int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
 	term_win_defer_damage(tw, rect.start_col, rect.end_col, rect.start_row, rect.end_row);
 	term_win_flush_damage(tw, color_on);
 	return 1;
+}
+
+void term_win_refresh(struct aug_term_win *tw, int color_on) {
+	if(tw->win == NULL)
+		return;
+
+	term_win_flush_damage(tw, color_on);
+
+	wsyncup(tw->win);
+	wcursyncup(tw->win);
+	if(wnoutrefresh(tw->win) == ERR)
+		err_exit(0, "wnoutrefresh failed!");
+
 }
 
 int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, int color_on) {

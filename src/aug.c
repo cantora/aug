@@ -524,7 +524,7 @@ static void terminal_cb_refresh(void *user) {
 	struct aug_term_child *tchild;
 
 	tchild = (struct aug_term_child *) user;
-	term_win_refresh(&tchild->term_win);
+	term_win_refresh(&tchild->term_win, screen_color_on());
 }
 
 static void terminal_run_lock(void *user) {

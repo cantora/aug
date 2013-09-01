@@ -173,7 +173,7 @@ void screen_free() {
 static void vterm_cb_refresh(void *user) {
 	(void)user;
 
-	term_win_refresh(&g.term_win);
+	term_win_refresh(&g.term_win, g.color_on);
 }
 
 void screen_set_term(struct aug_term *term) {
@@ -300,7 +300,7 @@ int screen_redraw_term_win() {
 	rect.end_col = cols;
 
 	term_win_damage(&g.term_win, rect, g.color_on);
-	term_win_refresh(&g.term_win);
+	term_win_refresh(&g.term_win, g.color_on);
 
 	return 0;
 }

@@ -37,7 +37,7 @@ void term_win_defer_damage(struct aug_term_win *tw, size_t col_start,
 void term_win_set_term(struct aug_term_win *tw, struct aug_term *term);
 void term_win_dims(const struct aug_term_win *tw, int *rows, int *cols);
 void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on);
-void term_win_refresh(struct aug_term_win *tw);
+void term_win_refresh(struct aug_term_win *tw, int color_on);
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on);
 int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, int color_on);
 int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos, int color_on);
