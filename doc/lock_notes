@@ -1,3 +1,14 @@
+lock order: 
+	{
+		region_map
+		free_plugin_lock
+		tchild_table
+	}
+	keymap
+	plugin_list
+	term
+	screen
+
 callbacks:
 	input_char
 	cell_update

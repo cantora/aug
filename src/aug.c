@@ -1068,6 +1068,7 @@ static void *sig_thread(void *user) {
 		AUG_LOCK(desc);
 		desc->waiting = 0;
 		AUG_UNLOCK(desc);
+		pthread_testcancel();
 
 		if(s != 0) {
 			if(s != EAGAIN)
@@ -1109,7 +1110,6 @@ static void start_sig_threads() {
 		while(1) { \
 			AUG_LOCK(desc_ptr); \
 			if((desc_ptr)->waiting != 0) { \
-				AUG_UNLOCK(desc_ptr); \
 				break; \
 			} \
 			AUG_UNLOCK(desc_ptr); \
@@ -1117,6 +1117,7 @@ static void start_sig_threads() {
 		} \
 		if((s = pthread_cancel((desc_ptr)->tid)) != 0) \
 			err_exit(s, "failed to cancel signal thread"); \
+		AUG_UNLOCK(desc_ptr); \
 		if((s = pthread_join((desc_ptr)->tid, NULL)) != 0) \
 			err_warn(s, "failed to join signal thread"); \
 		AUG_LOCK_FREE(desc_ptr); \

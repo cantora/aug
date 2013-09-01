@@ -3,6 +3,7 @@
 .backup
 libccan
 log
+logs
 scratch
 aug
 build
