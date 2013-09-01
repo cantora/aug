@@ -43,9 +43,8 @@ struct aug_child {
 	void (*to_refresh)(void *);
 	void (*to_lock)(void *);
 	void (*to_unlock)(void *);
-	struct aug_timer inter_io_timer, refresh_expire;
-	int force_refresh;
-	int just_refreshed;
+	struct aug_timer refresh_min;
+	int got_input;
 	void *user;
 };
 
@@ -55,6 +54,7 @@ void child_init(struct aug_child *child, struct aug_term *term,
 		void (*to_unlock)(void *), struct termios *child_termios,
 		void *user);
 void child_free(struct aug_child *child);
+void child_got_input(struct aug_child *child);
 void child_io_loop(struct aug_child *child, int fd_input, 
 		int (*to_process_input)(struct aug_term *term, int fd_input, void *) );
 void child_process_term_output(struct aug_child *child);

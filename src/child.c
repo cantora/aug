@@ -60,8 +60,7 @@ void child_init(struct aug_child *child, struct aug_term *term,
 	child->to_refresh = to_refresh;
 	child->to_lock = to_lock;
 	child->to_unlock = to_unlock;
-	child->force_refresh = 1;
-	child->just_refreshed = 1;
+	child->got_input = 0;
 	child->user = user;
 	AUG_LOCK_INIT(child);
 }
@@ -143,6 +142,10 @@ static int process_master_output(struct aug_child *child) {
 	return 0;
 }
 
+void child_got_input(struct aug_child *child) {
+	child->got_input = 1;
+}
+
 /* this function calls the -to_unlock- callback first, thus it 
  * expects all resources to be in a locked state when entering
  * this function.
@@ -150,7 +153,7 @@ static int process_master_output(struct aug_child *child) {
 void child_io_loop(struct aug_child *child, int fd_input, 
 		int (*to_process_input)(struct aug_term *term, int fd_input, void *) ) {
 	fd_set in_fds;
-	int status, high_fd, locked;
+	int status, high_fd, force_refresh, just_refreshed;
 	struct timeval tv_select;
 	struct timeval *tv_select_p;
 #ifdef AUG_DEBUG_IO
@@ -160,16 +163,37 @@ void child_io_loop(struct aug_child *child, int fd_input,
 	if(child->term->master < 0) 
 		err_exit(0, "invalid master fd: %d", child->term->master);
 
-	timer_init(&child->inter_io_timer);
-	timer_init(&child->refresh_expire);
-	/* dont initially need to worry about inter_io_timer's need to timeout */
-	child->just_refreshed = 1;
-	child->force_refresh = 1;
+	timer_init(&child->refresh_min);
+
+	/* when we have just refreshed we can use a blocking select
+	 * call (and ignore refresh_max) because we have no need to
+	 * refresh unless some I/O happens. */
+	just_refreshed = 0;
+	child->got_input = 0;
+	force_refresh = 1;
 
 	fprintf(stderr, "fd_input = %d\n", fd_input);	
 	high_fd = (child->term->master > fd_input)? child->term->master : fd_input;
-	locked = 1;
+
 	while(1) {
+		/* if master pty is 'bursting' with I/O at a quick rate
+		 * we want to let the burst finish 
+		 * and then refresh the screen, otherwise we waste a bunch of time
+		 * refreshing the screen with stuff that just gets scrolled off
+		 */
+		if(force_refresh != 0
+				|| (status = timer_thresh(&child->refresh_min, 0, 71400) ) == 1 ) {
+			/* refresh at most 14 times per second (assuming there
+			 * is anything at all to refresh). */
+			child_refresh(child);
+			just_refreshed = 1;
+			force_refresh = 0;
+		}
+		else if(status < 0)
+			err_exit(errno, "timer error");
+		else
+			just_refreshed = 0; /* didnt refresh the screen on this iteration */
+
 		FD_ZERO(&in_fds);
 		if(fd_input >= 0)
 			FD_SET(fd_input, &in_fds);
@@ -182,13 +206,10 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		 * is given a chance to timeout and cause a refresh.
 		 */
 		tv_select.tv_sec = 0;
-		tv_select.tv_usec = (child->force_refresh != 0)? 1 : 1000;
-		tv_select_p = (child->just_refreshed == 0)? &tv_select : NULL;
+		tv_select.tv_usec = 15000;
+		tv_select_p = (just_refreshed == 0)? &tv_select : NULL;
 
-		if(locked != 0) {
-			child_unlock(child);
-			locked = 0;
-		}
+		child_unlock(child);
 	
 		AUG_DEBUG_IO_LOG("child: select begin\n");
 #ifdef AUG_DEBUG_IO
@@ -202,7 +223,7 @@ void child_io_loop(struct aug_child *child, int fd_input,
 					AUG_TIMER_DISPLAY(stderr, "select took %d,%d secs\n");
 				}
 #endif				
-				/* locked == 0 */
+				child_lock(child);
 				continue;
 			}
 			else
@@ -215,54 +236,35 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		}
 #endif				
 		child_lock(child);
-		locked = 1;
 
 		if(FD_ISSET(child->term->master, &in_fds) ) {
 			AUG_DEBUG_IO_LOG("child: process_master_output\n");
 			if(process_master_output(child) != 0) {
-				goto done;
+				break;
 			}
-
 			child_process_term_output(child);
-			timer_init(&child->inter_io_timer);
+
+			/* if we just got input, we might get a character
+			 * echoed back by a shell, so we want to force a
+			 * refresh so that the echo comes out as fast as
+			 * possible */
+			if(child->got_input != 0)
+				force_refresh = 1;
 		}
 
-		/* this is here to make sure really long bursts dont 
-		 * look like frozen I/O. the user should see characters
-		 * whizzing by if there is that much output.
-		 */
-		if( (status = timer_thresh(&child->refresh_expire, 0, 50000)) ) { 
-			child->force_refresh = 1; /* must refresh at least 20 times per second */
-		}
-		else if(status < 0)
-			err_exit(errno, "timer error");
-		
-		/* if master pty is 'bursting' with I/O at a quick rate
-		 * we want to let the burst finish (up to a point: see refresh_expire)
-		 * and then refresh the screen, otherwise we waste a bunch of time
-		 * refreshing the screen with stuff that just gets scrolled off
-		 */
-		if(child->force_refresh != 0 
-				|| (status = timer_thresh(&child->inter_io_timer, 0, 5000) ) == 1 ) {
-			child_refresh(child);
-		}
-		else if(status < 0)
-			err_exit(errno, "timer error");
-		else
-			child->just_refreshed = 0; /* didnt refresh the screen on this iteration */
-
-		if( fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
+		child->got_input = 0;
+		if(fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
 			AUG_DEBUG_IO_LOG("child: process input\n");
 			if( (*to_process_input)(child->term, fd_input, child->user) != 0 ) {
 				/* fd_input is closed or bad in some way */
-				goto done;
+				break;
 			}			
 			child_process_term_output(child);
-			child->force_refresh = 1;
-		} /* if stdin set */
+			force_refresh = 1;
+			child_got_input(child);
+		} /* if input fd set */
 	} /* while(1) */
 
-done:
 	child_unlock(child);
 	return;
 }
@@ -315,8 +317,5 @@ void child_refresh(struct aug_child *child) {
 	}
 #endif
 	
-	timer_init(&child->inter_io_timer);
-	timer_init(&child->refresh_expire);
-	child->force_refresh = 0;
-	child->just_refreshed = 1;
+	timer_init(&child->refresh_min);
 }

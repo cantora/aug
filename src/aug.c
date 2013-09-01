@@ -750,6 +750,7 @@ static size_t terminal_input(struct aug_plugin *plugin, void *terminal,
 	if(amt > 0) {
 		child_process_term_output(&tchild->child);
 		child_refresh(&tchild->child);
+		child_got_input(&tchild->child);
 	}
 
 	child_unlock(&tchild->child);
