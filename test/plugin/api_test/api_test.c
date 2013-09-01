@@ -232,15 +232,15 @@ void post_scroll(int rows, int cols, int direction, aug_action *action, void *us
 	g_got_post_scroll = true;
 
 	if(checked_winch_and_screen_lock == false) {
-		diag("++++pre_scroll++++");
-		ok(user == g_user_data, "(pre_scroll) check that user ptr is correct");
-		test_sigs("pre_scroll"); /* +2 tests */
+		diag("++++post_scroll++++");
+		ok(user == g_user_data, "(post_scroll) check that user ptr is correct");
+		test_sigs("post_scroll"); /* +2 tests */
 		checked_winch_and_screen_lock = true;
 		
 		/* nothing to test with this, but if we do it maybe *grind will 
 		 * catch an issue. */
 		(*g_api->primary_term_damage)(g_plugin, 0, 10, 0, 4);
-		diag("----pre_scroll----\n#");
+		diag("----post_scroll----\n#");
 	}
 }
 
@@ -268,11 +268,16 @@ void cursor_move(int rows, int cols, int old_row, int old_col, int *new_row, int
 }
 
 void screen_dims_change(int rows, int cols, void *user) {
-	diag("++++screen_dims_change++++");
-	diag("change to %d,%d", rows, cols);
-	ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
-	test_sigs("screen_dims_change");
-	diag("----screen_dims_change----\n#");
+	static bool checked_winch_and_screen_lock = false;
+
+	if(checked_winch_and_screen_lock == false) {
+		diag("++++screen_dims_change++++");
+		diag("change to %d,%d", rows, cols);
+		ok(user == g_user_data, "(screen_dims_change) check that user ptr is correct");
+		test_sigs("screen_dims_change");
+		checked_winch_and_screen_lock = true;
+		diag("----screen_dims_change----\n#");
+	}
 }
 
 
