@@ -97,15 +97,12 @@ static int process_master_output(struct aug_child *child) {
 #endif
 
 	total_read = 0;
-	/* as far as i have seen, linux will not generally 
-	 * return more than 512 bytes from a read, even if more
-	 * than 512 is available, so by looping here, we try
-	 * to get as close to filling up the buffer as possible */
+	/*fprintf(stderr, "child: read master pty\n");*/
 	do {
-		/*fprintf(stderr, "child: read master pty\n");*/
 		n_read = read(child->term->master, child->buf + total_read, AUG_CHILD_READ_SIZE);
-		/*fprintf(stderr, "child: done reading master pty\n");*/
+		/*fprintf(stderr, "child: read %zd from master pty\n", n_read);*/
 	} while(n_read > 0 && ( (total_read += n_read) + AUG_CHILD_READ_SIZE <= AUG_CHILD_BUF_SIZE) );
+	/*fprintf(stderr, "child: done reading master pty\n");*/
 
 #ifdef AUG_DEBUG_IO
 	AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {

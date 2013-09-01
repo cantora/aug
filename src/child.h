@@ -32,8 +32,8 @@
 #include "lock.h"
 #include "timer.h"
 
-#define AUG_CHILD_READ_SIZE 256
-#define AUG_CHILD_BUF_SIZE AUG_CHILD_READ_SIZE
+#define AUG_CHILD_READ_SIZE 4096
+#define AUG_CHILD_BUF_SIZE (AUG_CHILD_READ_SIZE*4)
 
 struct aug_child {
 	char buf[AUG_CHILD_BUF_SIZE];
