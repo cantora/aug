@@ -719,45 +719,55 @@ static size_t terminal_push_char_data(struct aug_term *term,
 	return i;
 }
 
+#define DO_IF_TCHILD_EXISTS_VAR() \
+	pid_t pid
+
+#define DO_IF_TCHILD_EXISTS_PRE(tchild_ptr) \
+	child_lock(&(tchild_ptr)->child); \
+	pid = (tchild_ptr)->child.pid; \
+	child_unlock(&(tchild_ptr)->child); \
+	/* lock the table to prevent this child from \
+	 * being deleted while we are using it */ \
+	AUG_LOCK(&g_tchild_table); \
+	/* its possible this child got deleted while we  \
+	 * were waiting for tchild_table to unlock. test whether \
+	 * we can find the child in the table */ \
+	if(avl_lookup(g_tchild_table.tree, (void *) pid) == NULL) \
+		goto table_unlock; \
+	child_lock(&(tchild_ptr)->child)
+
+
+#define DO_IF_TCHILD_EXISTS_SUF(tchild_ptr, result) \
+	child_unlock(&(tchild_ptr)->child); \
+table_unlock: \
+	AUG_UNLOCK(&g_tchild_table); \
+	return result
+
 static size_t terminal_input(struct aug_plugin *plugin, void *terminal, 
 		const void *data, int is_char_data, int n) {
-	size_t amt;
-	pid_t pid;
+	size_t amt;	
 	struct aug_term_child *tchild;
+	DO_IF_TCHILD_EXISTS_VAR();
+
 	(void)(plugin);
 
-	amt = 0;
 	tchild = (struct aug_term_child *) terminal;
-	child_lock(&tchild->child);
-	pid = tchild->child.pid;
-	child_unlock(&tchild->child);
+	amt = 0;
 
-	/* lock the table to prevent this child from
-	 * being deleted while we are writing to it */
-	AUG_LOCK(&g_tchild_table);
-	/* its possible this child got deleted while we 
-	 * were waiting for tchild_table to unlock. test whether
-	 * we can find the child in the table */
-	if(avl_lookup(g_tchild_table.tree, (void *) pid) == NULL)
-		goto table_unlock;
-	child_lock(&tchild->child);
-
-	if(is_char_data != 0)
-		amt = terminal_push_char_data(tchild->child.term, data, n);
-	else
-		amt = terminal_push_data(tchild->child.term, data, n);
-
-	if(amt > 0) {
-		child_process_term_output(&tchild->child);
-		child_refresh(&tchild->child);
-		child_got_input(&tchild->child);
-	}
-
-	child_unlock(&tchild->child);
-table_unlock:
-	AUG_UNLOCK(&g_tchild_table);
-
-	return amt;
+	DO_IF_TCHILD_EXISTS_PRE(tchild);
+	/* only if tchild still exists after locking */
+		if(is_char_data != 0)
+			amt = terminal_push_char_data(tchild->child.term, data, n);
+		else
+			amt = terminal_push_data(tchild->child.term, data, n);
+	
+		if(amt > 0) {
+			child_process_term_output(&tchild->child);
+			child_refresh(&tchild->child);
+			child_got_input(&tchild->child);
+		}
+	/* end */
+	DO_IF_TCHILD_EXISTS_SUF(tchild, amt); /* returns amt */
 }
 
 static size_t api_terminal_input(struct aug_plugin *plugin, void *terminal, 
@@ -768,6 +778,20 @@ static size_t api_terminal_input(struct aug_plugin *plugin, void *terminal,
 static size_t api_terminal_input_chars(struct aug_plugin *plugin, void *terminal, 
 		const char *data, int n) {
 	return terminal_input(plugin, terminal, data, 1, n);
+}
+
+static void api_terminal_refresh(struct aug_plugin *plugin, void *terminal) {
+	struct aug_term_child *tchild;
+	DO_IF_TCHILD_EXISTS_VAR();
+	(void)(plugin);
+
+	tchild = (struct aug_term_child *) terminal;
+
+	DO_IF_TCHILD_EXISTS_PRE(tchild);
+	/* only executes if tchild still exists after locking */
+		child_refresh(&tchild->child);
+	/* end */
+	DO_IF_TCHILD_EXISTS_SUF(tchild,); /* returns nothing */
 }
 
 static size_t primary_input(struct aug_plugin *plugin, const void *data, 
@@ -803,6 +827,14 @@ static size_t api_primary_input(struct aug_plugin *plugin,
 static size_t api_primary_input_chars(struct aug_plugin *plugin,
 		const char *data, int n) {
 	return primary_input(plugin, data, 1, n);
+}
+
+static void api_primary_refresh(struct aug_plugin *plugin) {
+	(void)(plugin);
+
+	child_lock(&g_child);
+	child_refresh(&g_child);
+	child_unlock(&g_child);
 }
 
 /* =================== end API functions ==================== */
@@ -1487,8 +1519,10 @@ static void init_plugins(struct aug_api *api) {
 	api->terminal_terminated = api_terminal_terminated;
 	api->terminal_input = api_terminal_input;
 	api->terminal_input_chars = api_terminal_input_chars;
+	api->terminal_refresh = api_terminal_refresh;
 	api->primary_input = api_primary_input;
 	api->primary_input_chars = api_primary_input_chars;
+	api->primary_refresh = api_primary_refresh;
 
 	PLUGIN_LIST_FOREACH_SAFE(&g_plugin_list, i, next) {
 		fprintf(stderr, "initialize %s...\n", i->plugin.name);

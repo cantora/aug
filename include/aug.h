@@ -424,6 +424,11 @@ struct aug_api {
 	size_t (*terminal_input_chars)(struct aug_plugin *plugin, void *terminal, 
 								const char *data, int n);
 
+	/* refreshes (and flushes the damage) of the terminal to cause output
+	 * to the screen. you probably want to run screen_panel_update and
+	 * screen_doupdate after calling this function. */
+	void (*terminal_refresh)(struct aug_plugin *plugin, void *terminal);
+
 	/* similar to the terminal input api calls, these allow
 	 * a plugin to write input keys/data to the primary terminal. 
 	 * this will be very useful to automate input into the primary
@@ -433,6 +438,10 @@ struct aug_api {
 	size_t (*primary_input_chars)(struct aug_plugin *plugin,
 									const char *data, int n);
 
+	/* refreshes (and flushes the damage) of the primary terminal to 
+	 * cause output to the screen. you probably want to run 
+	 * screen_doupdate after calling this function. */
+	void (*primary_refresh)(struct aug_plugin *plugin);
 };
 
 #endif /* AUG_AUG_H */

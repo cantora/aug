@@ -671,6 +671,8 @@ static void *thread1(void *user) {
 		usleep(50000);
 	}
 	pass("wrote message into vi");
+	diag("now cause terminal to refresh (not necessary, just for code coverage).");
+	(*g_api->terminal_refresh)(g_plugin, g_pan_term);
 
 	sleep(1);
 	diag("close vi");
@@ -734,6 +736,8 @@ static void *thread1(void *user) {
 		echoed += (*g_api->primary_input)(g_plugin, (uint32_t *) primary_echo32+echoed, 1);
 		usleep(20000);
 	}
+	diag("now cause the primary terminal to refresh (not necessary, just for code coverage).");
+	(*g_api->primary_refresh)(g_plugin);
 	
 	diag("sleep for a while and then hide bottom panel");
 	sleep(3);
