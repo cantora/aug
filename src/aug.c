@@ -788,6 +788,7 @@ static size_t primary_input(struct aug_plugin *plugin, const void *data,
 	if(amt > 0) {
 		child_process_term_output(&g_child);
 		child_refresh(&g_child);
+		child_got_input(&g_child);
 	}
 
 	child_unlock(&g_child);
