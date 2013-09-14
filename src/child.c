@@ -252,10 +252,18 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		child->got_input = 0;
 		if(fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
 			AUG_DEBUG_IO_LOG("child: process input\n");
+#ifdef AUG_DEBUG_IO
+			AUG_TIMER_START();
+#endif
 			if( (*to_process_input)(child->term, fd_input, child->user) != 0 ) {
 				/* fd_input is closed or bad in some way */
 				break;
-			}			
+			}
+#ifdef AUG_DEBUG_IO
+			AUG_TIMER_IF_EXCEEDED(0, AUG_DEBUG_IO_TIME_MIN) {
+				AUG_TIMER_DISPLAY(stderr, "to_process_input took %d,%d secs\n");
+			}
+#endif				
 			child_process_term_output(child);
 			force_refresh = 1;
 			child_got_input(child);
