@@ -47,7 +47,7 @@ static void init_deferred_damage(struct aug_term_win *tw) {
 
 	term_win_dims(tw, &rows, &cols);
 	if(rect_set_init(&tw->deferred_damage, cols, rows) != 0)
-		err_exit(0, "memory error allocating rect set of size %dx%d\n", cols, rows);
+		err_exit(0, "memory error allocating rect set of size %dx%d\n", rows, cols);
 }
 
 void term_win_init(struct aug_term_win *tw, WINDOW *win) {
@@ -142,6 +142,10 @@ static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) 
 	if(tw->win == NULL)
 		return;
 
+	/*fprintf(
+		stderr, "term_win: flush_damage %d->%d, %d->%d\n", 
+		rect.start_row, rect.end_row, rect.start_col, rect.end_col
+	);*/
 	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
 		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
 			term_win_update_cell(tw, pos, color_on);
@@ -150,8 +154,9 @@ static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) 
 
 	vterm_state_get_cursorpos(vterm_obtain_state(tw->term->vt), &pos);
 	/* restore cursor (repainting shouldnt modify cursor) */
-	if(wmove(tw->win, pos.row, pos.col) == ERR) 
-		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
+	if(win_contained(tw->win, pos.row, pos.col) )
+		if(wmove(tw->win, pos.row, pos.col) == ERR) 
+			err_exit(0, "move failed: %d, %d", pos.row, pos.col);
 
 }
 
@@ -169,6 +174,10 @@ static void term_win_flush_damage(struct aug_term_win *tw, int color_on) {
 }
 
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
+	/*fprintf(
+		stderr, "term_win: damage %d->%d, %d->%d\n", 
+		rect.start_row, rect.end_row, rect.start_col, rect.end_col
+	);*/
 	term_win_defer_damage(tw, rect.start_col, rect.end_col, rect.start_row, rect.end_row);
 	term_win_flush_damage(tw, color_on);
 	return 1;
@@ -196,9 +205,9 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 	win_dims(tw->win, &rows, &cols);
 	if( src.start_col != 0 || src.end_col != cols) {
 		fprintf(stderr, "term_win: moverect invalid src rect "
-						"%d->%d, %d->%d. wanted columns 0->%d\n",
-						src.start_col, src.end_col, src.start_row, src.end_row,
-						cols);
+						"%d->%d, %d->%d. wanted columns 0->%d (dims=%dx%d)\n",
+						src.start_row, src.end_row, src.start_col, src.end_col,
+						cols, rows, cols);
 		goto not_moved;
 	}
 
@@ -210,9 +219,9 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 	}
 	else {
 		fprintf(stderr, "term_win: moverect invalid src rect "
-						"%d->%d, %d->%d. wanted rows x->%d or 0->%d-x\n",
-						src.start_col, src.end_col, src.start_row, src.end_row,
-						rows, rows);
+						"%d->%d, %d->%d. wanted rows x->%d or 0->%d-x (dims=%dx%d)\n",
+						src.start_row, src.end_row, src.start_col, src.end_col,
+						rows, rows, rows, cols);
 		goto not_moved;
 	}
 
@@ -220,9 +229,9 @@ int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, in
 			|| dest.start_row != src.start_row - offset
 			|| dest.end_row != src.end_row - offset ) {
 		fprintf(stderr, "term_win: moverect invalid dest rect "
-						"%d->%d, %d->%d. wanted 0->%d, %d->%d\n", 
-						dest.start_col, dest.end_col, dest.start_row, dest.end_row,
-						cols, src.start_row-offset, src.end_row-offset);
+						"%d->%d, %d->%d. wanted %d->%d, 0->%d (dims=%dx%d)\n", 
+						dest.start_row, dest.end_row, dest.start_col, dest.end_col,
+						src.start_row-offset, src.end_row-offset, cols, rows, cols);
 		goto not_moved;
 	}
 

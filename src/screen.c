@@ -173,6 +173,7 @@ void screen_free() {
 static void vterm_cb_refresh(void *user) {
 	(void)user;
 
+	/*fprintf(stderr, "screen: vterm_cb_refresh\n");*/
 	term_win_refresh(&g.term_win, g.color_on);
 }
 
@@ -277,7 +278,10 @@ void screen_refresh() {
 int screen_damage(VTermRect rect, void *user) {
 	(void)(user);
 
-	/*fprintf(stderr, "screen: damage %d->%d,%d->%d\n", rect.start_col, rect.end_col, rect.start_row, rect.end_row);*/
+	/*fprintf(
+		stderr, "screen: damage %d->%d,%d->%d\n", 
+		rect.start_row, rect.end_row, rect.start_col, rect.end_col
+	);*/
 	return term_win_damage(&g.term_win, rect, g.color_on);
 }
 
@@ -314,8 +318,8 @@ int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 	
 	/*fprintf(
 		stderr, "screen: moverect dest={%d->%d,%d->%d}, src={%d->%d,%d->%d}\n",
-		dest.start_col, dest.end_col, dest.start_row, dest.end_row, 
-		src.start_col, src.end_col, src.start_row, src.end_row
+		dest.start_row, dest.end_row, dest.start_col, dest.end_col, 
+		src.start_row, src.end_row, src.start_col, src.end_col
 	);*/
 
 	return term_win_moverect(&g.term_win, dest, src, g.color_on);
@@ -325,6 +329,10 @@ int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
 	(void)(visible);
 	(void)(user);
 
+	/*fprintf(
+		stderr, "screen: movecursor %d, %d => %d, %d\n",
+		oldpos.row, oldpos.col, pos.row, pos.col
+	);*/
 	return term_win_movecursor(&g.term_win, pos, oldpos, g.color_on);
 }
 
