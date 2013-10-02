@@ -64,6 +64,8 @@ DRDGRIND		= $(VALGRIND) --tool=drd --suppressions=./.aug.supp \
 					--free-is-write=yes --segment-merging=no
 #SGCGRIND		= $(VALGRIND) --tool=exp-sgcheck --suppressions=./.aug.supp
 
+ALLTESTS		= tests screen_api_test memgrind-tests memgrind-screen_api_test \
+					helgrind-screen_api_test drdgrind-screen_api_test
 
 ifeq ($(OS_NAME), Darwin)
 	CCAN_COMMENT_LIBRT		= $(CCAN_DIR)/tools/Makefile
@@ -284,6 +286,9 @@ endif
 
 .PHONY: $(SANDBOX_PGMS) 
 $(foreach thing, $(filter-out screen_api_test, $(SANDBOX_PGMS) ), $(eval $(call aux-program-template,$(thing)) ) )
+
+.PHONY: alltests
+alltests: $(ALLTESTS)
 
 .PHONY: wiki
 wiki: doc/wiki

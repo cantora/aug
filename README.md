@@ -64,6 +64,17 @@ installed, simply running the `make` command in the root of the source tree shou
 do the trick. The compilation process generates a single binary called `aug`, so 
 to install you can simply copy the binary to some location that is in your PATH.
 
+##tests
+To run various testing procedures:  
+ * module tests: `make tests`  
+ * screen test: `make screen_api_test`  
+(valgrind must be installed for the following tests to run)  
+ * memgrind module tests: `make memgrind-tests`  
+ * memgrind screen test: `make memgrind-screen_api_test`  
+ * helgrind screen test: `make helgrind-screen_api_test`  
+ * drdgrind screen test: `make drdgrind-screen_api_test`  
+ * all of the above: `make alltests`  
+
 ##contribution
 Contributions are of course welcome and greatly appreciated. If you have trouble
 building the software and find that you have to do something special in order to compile
