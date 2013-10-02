@@ -12,4 +12,6 @@ build system:
   -switch to a build system that is better for cross platform compatibility
    (maybe autotools?)
 
+documentation:
+  -make an ascii.io screencast to demo aug features (feature aug-db)
 
