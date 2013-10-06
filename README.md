@@ -82,5 +82,10 @@ correctly, please submit information about what you did so I can incorporate it 
 the makefile.
 
 ##license
-[GPLv3](http://www.gnu.org/licenses/gpl-3.0.html). See LICENSE or the given url for
-details.
+ * main source code: [GPLv3](http://www.gnu.org/licenses/gpl-3.0.html). See LICENSE or the given URL
+   for details.  
+
+ * plugin headers: [MIT](http://opensource.org/licenses/MIT). See the given URL or the source code 
+   of the files in the `include` directory. (These are licensed permissively so that plugin authors
+   may choose to distribute the aug headers with the plugin source code without being forced into
+   GPL licensing).
