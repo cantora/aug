@@ -35,7 +35,13 @@
 struct aug_api;
 struct aug_plugin;
 
-typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
+typedef enum {
+	/* the default action in the context of the callback */
+	AUG_ACT_OK = 0,
+	/* cancel whatever would normally take place after this callback.
+	 * for example, filter an input character */
+	AUG_ACT_CANCEL
+} aug_action;
 
 /* callbacks which a plugin can register
  * interest in. unless otherwise specified
@@ -69,6 +75,12 @@ typedef enum { AUG_ACT_OK = 0, AUG_ACT_CANCEL } aug_action;
  *       and unlocks mtx1, but thread1 is blocked on the api call because 
  *       the api is locked.
  */
+
+struct aug_inject {
+	const uint32_t *chars;
+	size_t len;
+};
+
 struct aug_plugin_cb {
 	/* called when a character of input
 	 * is received from stdin. the plugin can
@@ -78,7 +90,7 @@ struct aug_plugin_cb {
 	 * the plugin can set action to 
 	 * AUG_ACT_CANCEL to cause the input
 	 * to be filtered from the terminal. */
-	void (*input_char)(uint32_t *ch, aug_action *action, void *user);
+	void (*input_char)(uint32_t *ch, aug_action *action, struct aug_inject *inject, void *user);
 
 	/* called when a cell in the terminal window is
 	 * about to be updated. the plugin can

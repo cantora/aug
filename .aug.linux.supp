@@ -1,4 +1,15 @@
 {
+   i cant figure out what the conflicting access is
+   drd:ConflictingAccess
+   fun:read
+   fun:process_master_output
+   fun:child_io_loop
+   fun:api_terminal_run
+   fun:thread3
+   obj:*
+   fun:start_thread
+}
+{
    i have no idea why pthread_create conflicts with waitpid
    drd:ConflictingAccess
    fun:waitpid

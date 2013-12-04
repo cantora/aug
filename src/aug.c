@@ -1186,17 +1186,25 @@ void stop_winch_thread() {
 static void push_key(struct aug_term *term, uint32_t ch) {
 	struct aug_plugin_item *i;
 	aug_action action;
-	
+	struct aug_inject inject;
+
 	/*fprintf(stderr, "push_key: 0x%04x\n", ch);*/
 	PLUGIN_LIST_FOREACH(&g_plugin_list, i) {
 		if(i->plugin.callbacks == NULL || i->plugin.callbacks->input_char == NULL)
 			continue;
 		
 		action = AUG_ACT_OK;
-		(*(i->plugin.callbacks->input_char))(&ch, &action, i->plugin.callbacks->user);
+		inject.chars = NULL;
+		inject.len = 0;
+		(*(i->plugin.callbacks->input_char))(&ch, &action, &inject, i->plugin.callbacks->user);
 
-		if(action == AUG_ACT_CANCEL) /* plugin wants to filter this character */
+		/* plugin wants to filter this character. if inject is not
+		 * empty, it will be handled in process_keys */
+		if(action == AUG_ACT_CANCEL) {
+			if(inject.len > 0 && inject.chars != NULL)
+				term_inject_set(term, inject.chars, inject.len);
 			return;
+		}
 	}
 
 	term_push_char(term, ch);
@@ -1204,6 +1212,7 @@ static void push_key(struct aug_term *term, uint32_t ch) {
 
 static int process_keys(struct aug_term *term, int fd_input, void *user) {
 	uint32_t ch;
+	int space;
 	static bool command_key = false;
 	aug_on_key_fn command_fn;
 	void *key_user;
@@ -1211,28 +1220,40 @@ static int process_keys(struct aug_term *term, int fd_input, void *user) {
 	(void)(fd_input);
 	(void)(user);
 
-	/* we need at least two spots in the buffer because in 'pass through' 
-	 * command prefix mode we will send both the command key and the following
-	 * key at the same time after finding a non-command */
-	while(term_can_push_chars(term) > 1 && screen_getch(&ch) == 0 ) {
-		if(command_key == true) { /* treat *ch* as a command extension */
-			fprintf(stderr, "check for command extension 0x%02x\n", ch);
-			keymap_binding(&g_keymap, ch, &command_fn, &key_user);
-			if(command_fn == NULL) { /* this is not a bound key */
-				push_key(term, g_conf.cmd_key);
+	while( (space = term_can_push_chars(term)) > 0) {
+
+		if(!term_inject_empty(term)) {
+			term_inject_push(term);
+		}
+		else if(space > 1 && screen_getch(&ch) == 0 ) {
+			/* we need at least two spots in the buffer because in 'pass through' 
+			 * command prefix mode we will send both the command key and the following
+			 * key at the same time after finding a non-command */
+
+			if(command_key == true) { /* treat *ch* as a command extension */
+				fprintf(stderr, "check for command extension 0x%02x\n", ch);
+				keymap_binding(&g_keymap, ch, &command_fn, &key_user);
+				if(command_fn == NULL) { /* this is not a bound key */
+					push_key(term, g_conf.cmd_key);
+					push_key(term, ch);
+				}
+				else { /* invoke the command */
+					/* note: sigs should still be blocked */
+					(*command_fn)(ch, key_user);
+				}
+				command_key = false;
+			}
+			else if(ch == g_conf.cmd_key) {
+				command_key = true;	
+			}
+			else {
 				push_key(term, ch);
 			}
-			else { /* invoke the command */
-				/* note: sigs should still be blocked */
-				(*command_fn)(ch, key_user);
-			}
-			command_key = false;
 		}
-		else if(ch == g_conf.cmd_key) {
-			command_key = true;	
-		}
-		else {
-			push_key(term, ch);
+		else { 
+			/* inject is empty, but we can only push one character 
+			 * or screen_getch has no data to return */
+			break;
 		}
 	}
 

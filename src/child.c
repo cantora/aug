@@ -250,7 +250,8 @@ void child_io_loop(struct aug_child *child, int fd_input,
 		}
 
 		child->got_input = 0;
-		if(fd_input >= 0 && FD_ISSET(fd_input, &in_fds) ) {
+		if( (fd_input >= 0 && FD_ISSET(fd_input, &in_fds))
+				|| !term_inject_empty(child->term) ) {
 			AUG_DEBUG_IO_LOG("child: process input\n");
 #ifdef AUG_DEBUG_IO
 			AUG_TIMER_START();

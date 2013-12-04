@@ -29,12 +29,21 @@ struct aug_term {
 	VTerm *vt;
 	int master;
 	struct aug_term_io_callbacks io_callbacks;
+	struct {
+		const uint32_t *chars;
+		size_t len;
+		size_t pushed;
+	} inject;
 	AUG_LOCK_MEMBERS;
 	void *user;
 };
 
 void term_init(struct aug_term *term, int rows, int cols);
 void term_free(struct aug_term *term);
+void term_inject_set(struct aug_term *term, const uint32_t *chars, size_t len);
+int term_inject_empty(const struct aug_term *term);
+void term_inject_push(struct aug_term *term);
+void term_inject_clear(struct aug_term *term);
 int term_can_push_chars(const struct aug_term *term);
 int term_push_char(const struct aug_term *term, uint32_t ch);
 void term_dims(const struct aug_term *term, int *rows, int *cols);

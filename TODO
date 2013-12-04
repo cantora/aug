@@ -7,7 +7,8 @@ features:
    more than the color pair limit (usually 64) we can allocate the needed
    pairs. in the event that more than 64 are being used it seems reasonable
    to default to default foreground on default background.
-
+  -implement non-passthrough mode for command extensions. right now passthrough
+   is hardcoded.
 build system:
   -switch to a build system that is better for cross platform compatibility
    (maybe autotools?)

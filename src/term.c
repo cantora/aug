@@ -48,7 +48,8 @@ void term_init(struct aug_term *term, int rows, int cols) {
 	vterm_screen_enable_altscreen(vts, 1);
 	vterm_screen_set_damage_merge(vts, VTERM_DAMAGE_SCROLL);
 	vterm_screen_reset(vts, 1);
-	
+
+	term_inject_clear(term);
 	term->user = NULL;
 	term->io_callbacks.refresh = NULL;
 
@@ -58,6 +59,34 @@ void term_init(struct aug_term *term, int rows, int cols) {
 void term_free(struct aug_term *term) {
 	vterm_free(term->vt);
 	AUG_LOCK_FREE(term);
+}
+
+void term_inject_set(struct aug_term *term, const uint32_t *chars, size_t len) {
+	term->inject.chars = chars;
+	term->inject.len = len;
+	term->inject.pushed = 0;
+}
+
+int term_inject_empty(const struct aug_term *term) {
+	return (term->inject.len < 1);
+}
+
+void term_inject_push(struct aug_term *term) {
+	int status;
+
+	while(term->inject.pushed < term->inject.len) {
+		status = term_push_char(term, term->inject.chars[term->inject.pushed]);
+		if(status != 0)
+			return;
+
+		term->inject.pushed++;
+	}
+	/* if we get here then term->inject.pushed == term->inject.len */
+	term_inject_clear(term);
+}
+
+void term_inject_clear(struct aug_term *term) {
+	term_inject_set(term, NULL, 0);
 }
 
 void term_dims(const struct aug_term *term, int *rows, int *cols) {

@@ -29,7 +29,7 @@
 
 const char aug_plugin_name[] = "api_test";
 
-void input_char(uint32_t *ch, aug_action *action, void *user);
+void input_char(uint32_t *ch, aug_action *action, struct aug_inject *inject, void *user);
 void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, 
 					attr_t *attr, int *color_pair, aug_action *action, void *user);
 void cursor_move(int rows, int cols, int old_row, int old_col, 
@@ -118,13 +118,17 @@ static int test_sigs(const char *caller) {
 	return 0;
 }
 
-void input_char(uint32_t *ch, aug_action *action, void *user) {
+void input_char(uint32_t *ch, aug_action *action, struct aug_inject *inject, void *user) {
 	static unsigned int total_chars = 0;
 #	define CUTOFF (ARRAY_SIZE(api_test_user_input) - 1 )
 	static char firstn[CUTOFF+1];
 #	define CUTOFF_INTERN ( ARRAY_SIZE(api_test_on_r_response) - 1 - 1)
 	static char intern[CUTOFF_INTERN];
 	static unsigned int total_inter_chars = 0;
+#	define HLEN 8
+	static uint32_t history[HLEN];
+	static size_t h_sz = 0;
+	static size_t h_idx = 0;
 	(void)(action);
 
 	/*diag("========> %d/%d: '%c' (0x%02x)", total_chars+1, CUTOFF, (*ch > 0x20 && *ch <= 0x7e)? *ch : ' ', *ch);*/
@@ -177,6 +181,24 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 	}
 	API_TEST_UNLOCK(&g_on_r_interaction_mtx);
 
+	if(*action != AUG_ACT_CANCEL) {
+		const uint32_t *to_match = (uint32_t *) L"scroll";
+
+		history[h_idx] = *ch;
+		h_idx = (h_idx+1) % HLEN;
+		if(h_sz < HLEN)
+			h_sz++;
+
+		int i;
+		for(i = 0; i < 6; i++) {
+			if(history[(h_idx + HLEN - 1 - i) % HLEN] != to_match[5-i])
+				return;
+		}
+
+		*action = AUG_ACT_CANCEL;
+		inject->len = 6;
+		inject->chars = (uint32_t *) L"ltroll";
+	}
 #undef CUTOFF	
 }
 

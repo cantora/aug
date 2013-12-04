@@ -9,10 +9,14 @@ DEFINES			= -D_XOPEN_SOURCE=700 -D_XOPEN_SOURCE_EXTENDED=1 -D_BSD_SOURCE
 DEFINES			+= -DAUG_DEFAULT_TERM=$(DEFAULT_TERM)
 DEFINES			+= -DAUG_DEFAULT_ARGV=$(DEFAULT_CMD)
 DEFINES			+= -DAUG_DEBUG 
+#turning on lock debugging messages causes drdgrind-screen_api_test
+#and helgrind-screen_api_test to report errors because of the timers the
+#lock code uses to test for locks being held too long. (also, these 
+#errors are not easily suppressable because of the nature of CPP macros).
 #DEFINES			+= -DAUG_LOCK_DEBUG
 #DEFINES			+= -DAUG_ERR_COREDUMP
-#DEFINES			+= -DAUG_LOCK_DEBUG_PRINT
-#DEFINES			+= -DAUG_DEBUG_IO
+DEFINES			+= -DAUG_LOCK_DEBUG_PRINT
+DEFINES			+= -DAUG_DEBUG_IO
 
 OUTPUT			= aug
 BUILD			= ./build
