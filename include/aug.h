@@ -77,19 +77,31 @@ typedef enum {
  */
 
 struct aug_inject {
+	/* the characters to inject into the terminal input. 
+	 * aug does not take 'ownership' of the memory pointed to
+	 * by @chars (it wont free it or anything like that),
+	 * but the plugin must assure that the memory remains
+	 * valid until the next callback to 'input_char'. */
 	const uint32_t *chars;
+	/* the number of characters to inject */
 	size_t len;
 };
 
 struct aug_plugin_cb {
-	/* called when a character of input
-	 * is received from stdin. the plugin can
-	 * update the ch variable and set action
-	 * to AUG_ACT_OK in order to change the
-	 * data being sent to the terminal. or 
-	 * the plugin can set action to 
-	 * AUG_ACT_CANCEL to cause the input
-	 * to be filtered from the terminal. */
+	/* called when a character of input is received from stdin. the
+	 * plugin can update the ch variable and set action to
+	 * AUG_ACT_OK in order to change the data being sent to the
+	 * terminal. or the plugin can set action to AUG_ACT_CANCEL to
+	 * cause the input to be filtered from the terminal.
+	 *
+	 * if the plugin would like to replace the current character
+	 * with multiple characters, it can set action to AUG_ACT_CANCEL
+	 * and set inject->chars to an array of characters to send to
+	 * the terminal input (inject->len must also be set accordingly,
+	 * see the aug_inject struct definition). the plugin must ensure
+	 * that the data pointed to by inject->chars remains valid until
+	 * the next invocation of this callback, at which point the plugin
+	 * may free the array or reuse/overwrite it as it sees fit. */
 	void (*input_char)(uint32_t *ch, aug_action *action, struct aug_inject *inject, void *user);
 
 	/* called when a cell in the terminal window is
