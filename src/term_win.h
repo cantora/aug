@@ -18,7 +18,7 @@
 #ifndef AUG_TERM_WIN
 #define AUG_TERM_WIN
 
-#include "ncurses.h"
+#include "aug_types.h"
 
 #include "term.h"
 #include "rect_set.h"
@@ -27,6 +27,10 @@ struct aug_term_win {
 	WINDOW *win;
 	struct aug_term *term;
 	struct aug_rect_set deferred_damage;
+	struct {
+		int row;
+		int col;
+	} cursor;
 };
 
 void term_win_init(struct aug_term_win *tw, WINDOW *win);
@@ -36,11 +40,15 @@ void term_win_defer_damage(struct aug_term_win *tw, size_t col_start,
 		size_t col_end, size_t row_start, size_t row_end);
 void term_win_set_term(struct aug_term_win *tw, struct aug_term *term);
 void term_win_dims(const struct aug_term_win *tw, int *rows, int *cols);
-void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on);
+int term_win_cell(const struct aug_term_win *tw, int row, int col,
+					int color_on, struct aug_cell *cell);
+void term_win_update_cell(struct aug_term_win *tw, int row, int col, int color_on);
 void term_win_refresh(struct aug_term_win *tw, int color_on);
 int term_win_damage(struct aug_term_win *tw, VTermRect rect, int color_on);
-int term_win_moverect(struct aug_term_win *tw, VTermRect dest, VTermRect src, int color_on);
-int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos, int color_on);
+int term_win_moverect(struct aug_term_win *tw, VTermRect dest,
+						VTermRect src, int color_on);
+int term_win_movecursor(struct aug_term_win *tw, int pos_row, int pos_col,
+							int color_on, int do_callbacks);
 void term_win_resize(struct aug_term_win *tw, WINDOW *win);
 
 #endif /* AUG_TERM_WIN */

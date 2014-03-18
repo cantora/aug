@@ -24,8 +24,8 @@
 
 #include "aug.h"
 
-extern const struct aug_api *aug_api;
-extern struct aug_plugin *aug_plugin;
+extern const struct aug_api *aug_api_handle;
+extern struct aug_plugin *aug_plugin_handle;
 
 #define AUG_API_HANDLE aug_api_handle
 #define AUG_PLUGIN_HANDLE aug_plugin_handle

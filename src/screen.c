@@ -49,8 +49,8 @@ static const VTermScreenCallbacks CB_SCREEN = {
 	.settermprop = screen_settermprop,
 	.setmousefunc = NULL,
 	.resize = NULL,
-	.sb_pushline = NULL, /*screen_pushline,*/
-	.sb_popline = NULL /*screen_popline*/
+	.sb_pushline = screen_sb_pushline,
+	.sb_popline = screen_sb_popline
 };
 
 static const struct aug_term_io_callbacks CB_TERM_IO = {
@@ -62,7 +62,7 @@ static struct {
 	int color_on;
 	struct aug_term_win term_win;
 	AVL *windows;
-} g;	
+} g;
 
 static AVL *init_window_table() {
 	return avl_new( (AvlCompare) void_compare);
@@ -72,11 +72,11 @@ int screen_init(struct aug_term *term) {
 	g.color_on = 0;
 
 	g.windows = init_window_table();
-	
+
 	initscr();
 	screen_clear();
 	screen_refresh();
-	
+
 	if(raw() == ERR) 
 		goto fail;
 	if(noecho() == ERR) 
@@ -310,7 +310,15 @@ int screen_redraw_term_win() {
 }
 
 void screen_term_win_dims(int *rows, int *cols) {
-	getmaxyx(g.term_win.win, *rows, *cols);
+	term_win_dims(&g.term_win, rows, cols);
+}
+
+int screen_term_win_cell(int row, int col, struct aug_cell *cell) {
+	return term_win_cell(&g.term_win, row, col, g.color_on, cell);
+}
+
+void screen_term_win_cursor(int row, int col) {
+	term_win_movecursor(&g.term_win, row, col, g.color_on, 0);
 }
 
 int screen_moverect(VTermRect dest, VTermRect src, void *user) {
@@ -326,6 +334,7 @@ int screen_moverect(VTermRect dest, VTermRect src, void *user) {
 }
 
 int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
+	(void)(oldpos);
 	(void)(visible);
 	(void)(user);
 
@@ -333,7 +342,8 @@ int screen_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
 		stderr, "screen: movecursor %d, %d => %d, %d\n",
 		oldpos.row, oldpos.col, pos.row, pos.col
 	);*/
-	return term_win_movecursor(&g.term_win, pos, oldpos, g.color_on);
+	return term_win_movecursor(&g.term_win, pos.row, pos.col,
+								g.color_on, 1);
 }
 
 int screen_bell(void *user) {
@@ -425,7 +435,7 @@ static WINDOW *derwin_from_region(struct aug_region *region) {
 		err_exit(0, "y: %d != %d", y, region->y);
 	if(x != region->x)
 		err_exit(0, "x: %d != %d", x, region->x);
-#endif		
+#endif
 
 	return win;
 }

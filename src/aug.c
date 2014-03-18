@@ -315,6 +315,40 @@ static int api_key_unbind(const struct aug_plugin *plugin, uint32_t ch) {
 	return result;
 }
 
+/* the scrollback is the current primary terminal plus
+ * a scrollback buffer, where the first N rows of the
+ * scrollback are the N rows of the primary terminal
+ * and the next M rows are the M rows of the scrollback
+ * buffer. the scrollback buffer isnt supported yet so
+ * right now its just the primary terminal rows */
+static int api_scrollback_rows(const struct aug_plugin *plugin) {
+	int rows, cols;
+	(void)(plugin);
+
+	screen_term_win_dims(&rows, &cols);
+	return rows;
+}
+
+/* row 0 is the bottom row of the screen, row N-1 is the top row of
+ * the screen and row >= N is a row from the scrollback buffer. at
+ * the moment the scrollback buffer is not supported. */
+static int api_scrollback_cols(const struct aug_plugin *plugin, int row) {
+	int rows, cols;
+	(void)(plugin);
+
+	screen_term_win_dims(&rows, &cols);
+	if(row >= rows)
+		cols = 0;
+
+	return cols;
+}
+
+static int api_scrollback_cell(const struct aug_plugin *plugin, int row,
+								int col, struct aug_cell *cell) {
+	(void)(plugin);
+	return screen_term_win_cell(row, col, cell);
+}
+
 static void api_lock_screen(const struct aug_plugin *plugin) {
 	(void)(plugin);
 	lock_screen();
@@ -504,6 +538,13 @@ static void api_primary_term_damage(const struct aug_plugin *plugin,
 	screen_defer_damage(col_start, col_end, row_start, row_end);
 }
 
+static void api_primary_term_cursor(const struct aug_plugin *plugin,
+								size_t col, size_t row) {
+	(void)(plugin);
+
+	screen_term_win_cursor(row, col);
+}
+
 static int terminal_cb_damage(VTermRect rect, void *user) {
 	struct aug_term_child *tchild;
 
@@ -513,11 +554,12 @@ static int terminal_cb_damage(VTermRect rect, void *user) {
 
 static int terminal_cb_movecursor(VTermPos pos, VTermPos oldpos, int visible, void *user) {
 	struct aug_term_child *tchild;
+	(void)(oldpos);
 	(void)(visible);
 
 	tchild = (struct aug_term_child *) user;
 
-	return term_win_movecursor(&tchild->term_win, pos, oldpos, screen_color_on());
+	return term_win_movecursor(&tchild->term_win, pos.row, pos.col, screen_color_on(), 0);
 }
 
 static void terminal_cb_refresh(void *user) {
@@ -842,7 +884,7 @@ static void api_primary_refresh(struct aug_plugin *plugin) {
 /* ================= term callbacks for API =========================== */
 
 int aug_cell_update(int rows, int cols, int *row, int *col,
-		wchar_t *wch, attr_t *attr, int *color_pair) {
+						struct aug_cell *cell) {
 	struct aug_plugin_item *i;
 	aug_action action;
 
@@ -855,8 +897,7 @@ int aug_cell_update(int rows, int cols, int *row, int *col,
 
 		action = AUG_ACT_OK;
 		(*(i->plugin.callbacks->cell_update))(
-			rows, cols, row, col, 
-			wch, attr, color_pair,
+			rows, cols, row, col, cell,
 			&action, i->plugin.callbacks->user
 		);
 
@@ -1497,6 +1538,10 @@ static void init_plugins(struct aug_api *api) {
 	api->key_bind = api_key_bind;
 	api->key_unbind = api_key_unbind;
 
+	api->scrollback_rows = api_scrollback_rows;
+	api->scrollback_cols = api_scrollback_cols;
+	api->scrollback_cell = api_scrollback_cell;
+
 	api->lock_screen = api_lock_screen;
 	api->unlock_screen = api_unlock_screen;
 
@@ -1512,6 +1557,7 @@ static void init_plugins(struct aug_api *api) {
 	api->screen_panel_update = api_screen_panel_update;
 	api->screen_doupdate = api_screen_doupdate;
 	api->primary_term_damage = api_primary_term_damage;
+	api->primary_term_cursor = api_primary_term_cursor;
 	api->terminal_new = api_terminal_new;
 	api->terminal_delete = api_terminal_delete;
 	api->terminal_run = api_terminal_run;

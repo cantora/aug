@@ -19,10 +19,13 @@
 #include "api_test_vars.h"
 #include <string.h>
 #include <stdbool.h>
-#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
+#if defined(__APPLE__)
+/* needed for SIGWINCH definition */
+#	define _DARWIN_C_SOURCE 
+#endif
 #include <signal.h>
 #include <ccan/tap/tap.h>
 #include <ccan/array_size/array_size.h>
@@ -30,8 +33,8 @@
 const char aug_plugin_name[] = "api_test";
 
 void input_char(uint32_t *ch, aug_action *action, void *user);
-void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, 
-					attr_t *attr, int *color_pair, aug_action *action, void *user);
+void cell_update(int rows, int cols, int *row, int *col, struct aug_cell *cell,
+					aug_action *action, void *user);
 void cursor_move(int rows, int cols, int old_row, int old_col, 
 					int *new_row, int *new_col, aug_action *action, void *user);
 void screen_dims_change(int rows, int cols, void *user);
@@ -105,7 +108,7 @@ static int test_sigs(const char *caller) {
 		fail("expected to be able test current sigset.");
 		return -1;
 	}
-	
+
 	ok( (winch_is_blocked != 0), "(%s) confirm that SIGWINCH is blocked", caller);
 
 	if( (chld_is_blocked = sigismember(&sigset, SIGCHLD) ) == -1 ) {
@@ -180,15 +183,13 @@ void input_char(uint32_t *ch, aug_action *action, void *user) {
 #undef CUTOFF	
 }
 
-void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch, attr_t *attr, 
-					int *color_pair, aug_action *action, void *user) {
+void cell_update(int rows, int cols, int *row, int *col, struct aug_cell *cell,
+					aug_action *action, void *user) {
 	(void)(rows);
 	(void)(cols);
 	(void)(row);
 	(void)(col);
-	(void)(wch);
-	(void)(attr);
-	(void)(color_pair);
+	(void)(cell);
 	(void)(action);
 	static bool checked_winch_and_screen_lock = false;
 

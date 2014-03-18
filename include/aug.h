@@ -23,8 +23,7 @@
 #define AUG_AUG_H
 
 #include <stdint.h>
-#include <wchar.h>
-#include "ncurses.h"
+#include "aug_types.h"
 #include <panel.h>
 #include <unistd.h>
 
@@ -91,10 +90,9 @@ struct aug_plugin_cb {
 	 * updated. */
 	void (*cell_update)(
 		int rows, int cols,
-		int *row, int *col, 
-		wchar_t *wch, attr_t *attr,
-		int *color_pair, 
-		aug_action *action, 
+		int *row, int *col,
+		struct aug_cell *cell,
+		aug_action *action,
 		void *user
 	);
 
@@ -260,7 +258,8 @@ struct aug_api {
 	 * needs to use the binding or when aug_plugin_free
 	 * function is called.
 	 */
-	int (*key_bind)(const struct aug_plugin *plugin, uint32_t ch, aug_on_key_fn on_key, void *user );
+	int (*key_bind)(const struct aug_plugin *plugin, uint32_t ch,
+					aug_on_key_fn on_key, void *user );
 	int (*key_unbind)(const struct aug_plugin *plugin, uint32_t ch);
 
 	/* ======== screen windows/panels ======================== 
@@ -290,6 +289,24 @@ struct aug_api {
 	 */
 	void (*lock_screen)(const struct aug_plugin *plugin);
 	void (*unlock_screen)(const struct aug_plugin *plugin);
+
+	/* the API calls below should be enclosed by calls to
+	 * lock_screen and unlock_screen. alternatively they
+	 * can be called during an API callback without
+	 * calling {lock|unlock}_screen */
+
+	/* return the number of available rows in the scrollback
+	 * buffer. */
+	int (*scrollback_rows)(const struct aug_plugin *plugin);
+
+	/* return the number of scrollback columns for the given row */
+	int (*scrollback_cols)(const struct aug_plugin *plugin, int row);
+
+	/* get the character, attributes and color pair of the scrollback
+	 * cell at (row, col). returns non-zero if the cell does not
+	 * exist. */
+	int (*scrollback_cell)(const struct aug_plugin *plugin, int row, int col,
+							struct aug_cell *cell);
 
 	/* as described above, this allocates an ncurses window object
 	 * with a height of *nlines* on the top, bottom, or with a width 
@@ -370,11 +387,15 @@ struct aug_api {
 	void (*screen_doupdate)(struct aug_plugin *plugin);
 
 	/* mark for redrawing the areas of the screen described by the rectangle
-	 * given by @col_start, @col_end, @row_start and @row_end. */
+	 * given by @col_start, @col_end, @row_start and @row_end.
+	 * @col_end and @row_end are NOT inclusive. e.g. to mark the whole
+	 * terminal window for damage:
+	 *    aug_primary_term_damage(0, <TOTAL_COLS>, 0, <TOTAL_ROWS>) */
 	void (*primary_term_damage)(const struct aug_plugin *plugin, 
 			size_t col_start, size_t col_end, size_t row_start, size_t row_end);
 
-
+	void (*primary_term_cursor)(const struct aug_plugin *plugin,
+								size_t col, size_t row);
 
 	/* fork a child process according to @argv and allocate 
 	 * a terminal attached to the child. @twin must point to
@@ -447,5 +468,13 @@ struct aug_api {
 	 * screen_doupdate after calling this function. */
 	void (*primary_refresh)(struct aug_plugin *plugin);
 };
+
+/*
+ * utility functions
+ */
+
+static inline int aug_cell_is_blank(const struct aug_cell *cell) {
+	return (cell->chs[0] == AUG_NCURSES_ERASECH);
+}
 
 #endif /* AUG_AUG_H */

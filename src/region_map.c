@@ -68,7 +68,7 @@ static inline void edgewin_list_push(struct list_head *head, const void *key, in
 	struct edgewin *item;
 
 	if(size < 1)
-		err_exit(0, "size is less than 1");
+		err_exit(0, "size is less than 1: %d", size);
 
 	item = aug_malloc( sizeof(struct edgewin) );
 	item->key = key;

@@ -36,4 +36,6 @@
 #	include <ncursesw/curses.h>
 #endif
 
+static const uint32_t AUG_NCURSES_ERASECH = (uint32_t) L' ';
+
 #endif /* AUG_NCURSES_H */

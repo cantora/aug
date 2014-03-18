@@ -21,6 +21,7 @@
 
 #include "vterm.h"
 #include "term.h"
+#include "aug_types.h"
 
 enum screen_err {
 	SCN_ERR_NONE = 0,
@@ -69,6 +70,8 @@ void screen_doupdate();
 void screen_clear();
 int screen_redraw_term_win();
 void screen_term_win_dims(int *rows, int *cols);
+int screen_term_win_cell(int row, int col, struct aug_cell *cell);
+void screen_term_win_cursor(int row, int col);
 const char *screen_err_msg(int err);
 
 #endif /* AUG_SCREEN_H */

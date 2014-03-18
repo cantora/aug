@@ -51,6 +51,12 @@
 	AUG_API_CALL(lock_screen, (AUG_PLUGIN_HANDLE))
 #define aug_unlock_screen() \
 	AUG_API_CALL(unlock_screen, (AUG_PLUGIN_HANDLE))
+#define aug_scrollback_rows() \
+	AUG_API_CALL(scrollback_rows, (AUG_PLUGIN_HANDLE))
+#define aug_scrollback_cols(...) \
+	AUG_API_CALL(scrollback_cols, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
+#define aug_scrollback_cell(...) \
+	AUG_API_CALL(scrollback_cell, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_screen_win_alloc_top(...) \
 	AUG_API_CALL(screen_win_alloc_top, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_screen_win_alloc_bot(...) \
@@ -73,6 +79,8 @@
 	AUG_API_CALL(screen_doupdate, (AUG_PLUGIN_HANDLE) )
 #define aug_primary_term_damage(...) \
 	AUG_API_CALL(primary_term_damage, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
+#define aug_primary_term_cursor(...) \
+	AUG_API_CALL(primary_term_cursor, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_terminal_new(...) \
 	AUG_API_CALL(terminal_new, (AUG_PLUGIN_HANDLE), __VA_ARGS__ )
 #define aug_terminal_delete(...) \

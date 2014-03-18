@@ -20,8 +20,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "ncurses.h"
-
 #include "util.h"
 #include "err.h"
 #include "attr.h"
@@ -29,8 +27,8 @@
 #include "rect_set.h"
 
 extern int aug_cell_update(
-	int rows, int cols, int *row, int *col, 
-	wchar_t *wch, attr_t *attr, int *color_pair
+	int rows, int cols, int *row, int *col,
+	struct aug_cell *cell
 );
 extern int aug_pre_scroll(int rows, int cols, int direction);
 extern int aug_post_scroll(int rows, int cols, int direction);
@@ -53,6 +51,8 @@ static void init_deferred_damage(struct aug_term_win *tw) {
 void term_win_init(struct aug_term_win *tw, WINDOW *win) {
 	tw->term = NULL;
 	tw->win = win;
+	tw->cursor.row = 0;
+	tw->cursor.col = 0;
 	init_deferred_damage(tw);
 }
 
@@ -85,55 +85,79 @@ void term_win_dims(const struct aug_term_win *tw, int *rows, int *cols) {
 	}
 }
 
-void term_win_update_cell(struct aug_term_win *tw, VTermPos pos, int color_on) {
+int term_win_cell(const struct aug_term_win *tw, int row, int col,
+					int color_on, struct aug_cell *cell) {
+	VTermScreenCell vterm_cell;
 	VTermScreen *vts;
-	VTermScreenCell cell;
-	attr_t attr;
-	int pair;
+	VTermPos pos = { row, col };
+	const void *src;
+	size_t sz;
+
+	if(tw->term == NULL)
+		return -1;
+
+	vts = vterm_obtain_screen(tw->term->vt);
+	if( !vterm_screen_get_cell(vts, pos, &vterm_cell) )
+		return -1;
+
+	/* convert vterm attributes into ncurses attributes (not colors) */
+	attr_vterm_attr_to_curses_attr(&vterm_cell, &cell->screen_attrs);
+	if(color_on) /* convert vterm colors into ncurses colors */
+		attr_vterm_pair_to_curses_pair(vterm_cell.fg, vterm_cell.bg,
+										&cell->screen_attrs,
+										&cell->color_pair);
+	else
+		cell->color_pair = 0;
+
+	if(vterm_cell.chars[0] == 0) {
+		src = &AUG_NCURSES_ERASECH;
+		sz = sizeof(AUG_NCURSES_ERASECH);
+		BUILD_ASSERT(sizeof(AUG_NCURSES_ERASECH) <= sizeof(cell->chs));
+	}
+	else {
+		src = vterm_cell.chars;
+		sz = sizeof(vterm_cell.chars);
+		BUILD_ASSERT(sizeof(vterm_cell.chars) <= sizeof(cell->chs));
+	}
+
+	memcpy(cell->chs, src, sz);
+	return 0;
+}
+
+void term_win_update_cell(struct aug_term_win *tw, int row, int col,
+							int color_on) {
+	struct aug_cell cell;
 	cchar_t cch;
-	wchar_t *wch;
-	wchar_t erasech = L' ';
 	int maxx, maxy;
 
-	memset(&cch, 0, sizeof(cch));
 	if(tw->term == NULL || tw->win == NULL)
 		return;
 
-	vts = vterm_obtain_screen(tw->term->vt);
+	memset(&cch, 0, sizeof(cch));
 	getmaxyx(tw->win, maxy, maxx);
-
 	/* sometimes this happens when
 	 * a window resize recently happened
 	 */
-	if(!win_contained(tw->win, pos.row, pos.col) ) {
-		fprintf(stderr, "tried to update out of bounds cell at %d/%d %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
+	if(!win_contained(tw->win, row, col) ) {
+		fprintf(stderr, "tried to update out of bounds cell at %d/%d %d/%d\n",
+					row, maxy-1, col, maxx-1);
 		return;
 	}
 
-	if( !vterm_screen_get_cell(vts, pos, &cell) )
-		err_exit(0, "get_cell returned false status\n");
+	if(term_win_cell(tw, row, col, color_on, &cell) != 0)
+		err_exit(0, "term_win_cell failed\n");
 
-	/* convert vterm attributes into ncurses attributes (not colors) */
-	attr_vterm_attr_to_curses_attr(&cell, &attr);
-	if(color_on) /* convert vterm colors into ncurses colors */
-		attr_vterm_pair_to_curses_pair(cell.fg, cell.bg, &attr, &pair);
-	else
-		pair = 0;
-
-	
-	wch = (cell.chars[0] == 0)? &erasech : (wchar_t *) &cell.chars[0];
-
-	if(aug_cell_update(maxy, maxx, &pos.row, &pos.col, wch, &attr, &pair) != 0) /* run API callbacks */
+	/* run API callback */
+	if(aug_cell_update(maxy, maxx, &row, &col, &cell) != 0)
 		return;
-	if(setcchar(&cch, wch, attr, pair, NULL) == ERR)
+	if(setcchar(&cch, (const wchar_t *) cell.chs, cell.screen_attrs, cell.color_pair, NULL) == ERR)
 		err_exit(0, "setcchar failed");
-	if(wmove(tw->win, pos.row, pos.col) == ERR)
-		err_exit(0, "move failed: %d/%d, %d/%d\n", pos.row, maxy-1, pos.col, maxx-1);
+	if(wmove(tw->win, row, col) == ERR)
+		err_exit(0, "move failed: %d/%d, %d/%d\n", row, maxy-1, col, maxx-1);
 
 	/* sometimes writing to the last cell fails... but it doesnt matter? */
-	if(wadd_wch(tw->win, &cch) == ERR && (pos.row) != (maxy-1) && (pos.col) != (maxx-1) )
-		err_exit(0, "add_wch failed at %d/%d, %d/%d: ", pos.row, maxy-1, pos.col, maxx-1);
-
+	if(wadd_wch(tw->win, &cch) == ERR && (row) != (maxy-1) && (col) != (maxx-1) )
+		err_exit(0, "add_wch failed at %d/%d, %d/%d: ", row, maxy-1, col, maxx-1);
 }
 
 static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) {
@@ -148,16 +172,14 @@ static void flush_damage(struct aug_term_win *tw, VTermRect rect, int color_on) 
 	);*/
 	for(pos.row = rect.start_row; pos.row < rect.end_row; pos.row++) {
 		for(pos.col = rect.start_col; pos.col < rect.end_col; pos.col++) {
-			term_win_update_cell(tw, pos, color_on);
+			term_win_update_cell(tw, pos.row, pos.col, color_on);
 		}
 	}
 
-	vterm_state_get_cursorpos(vterm_obtain_state(tw->term->vt), &pos);
 	/* restore cursor (repainting shouldnt modify cursor) */
-	if(win_contained(tw->win, pos.row, pos.col) )
-		if(wmove(tw->win, pos.row, pos.col) == ERR) 
-			err_exit(0, "move failed: %d, %d", pos.row, pos.col);
-
+	if(win_contained(tw->win, tw->cursor.row, tw->cursor.col) )
+		if(wmove(tw->win, tw->cursor.row, tw->cursor.col) == ERR)
+			err_exit(0, "move failed: %d, %d", tw->cursor.row, tw->cursor.col);
 }
 
 static void term_win_flush_damage(struct aug_term_win *tw, int color_on) {
@@ -254,26 +276,35 @@ not_moved:
 	return 0;
 }
 
-int term_win_movecursor(struct aug_term_win *tw, VTermPos pos, VTermPos oldpos, int color_on) {
-	int maxy, maxx;
+int term_win_movecursor(struct aug_term_win *tw, int pos_row, int pos_col,
+							int color_on, int do_callbacks) {
+	int maxy, maxx, status;
 
 	if(tw->win == NULL)
 		goto done;
 
 	/* sometimes this happens when
 	 * a window resize recently happened. */
-	if(!win_contained(tw->win, pos.row, pos.col) ) {
-		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos.row, pos.col);
+	if(!win_contained(tw->win, pos_row, pos_col) ) {
+		fprintf(stderr, "tried to move cursor out of bounds to %d, %d\n", pos_row, pos_col);
 		goto done;
 	}
 
 	getmaxyx(tw->win, maxy, maxx);
-	if(aug_cursor_move(maxy, maxx, oldpos.row, oldpos.col, &pos.row, &pos.col) != 0) /* run API callbacks */
-		goto done;
+	/* run API callbacks */
+	if(do_callbacks) {
+		status = aug_cursor_move(maxy, maxx,
+									tw->cursor.row, tw->cursor.col,
+									&pos_row, &pos_col);
+		if(status != 0)
+			goto done;
+	}
 
 	term_win_flush_damage(tw, color_on);
-	if(wmove(tw->win, pos.row, pos.col) == ERR)
-		err_exit(0, "move failed: %d, %d", pos.row, pos.col);
+	if(wmove(tw->win, pos_row, pos_col) == ERR)
+		err_exit(0, "move failed: %d, %d", pos_row, pos_col);
+	tw->cursor.row = pos_row;
+	tw->cursor.col = pos_col;
 
 done:
 	return 1;
