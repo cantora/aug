@@ -32,7 +32,7 @@ ifeq ($(OS_NAME), Darwin)
 else
 	LIBNCURSES	= -lncursesw 
 endif
-LIB 			= -pthread -lutil -lpanel $(LIBNCURSES) $(LIBVTERM) $(LIBCCAN)
+LIB 			= -pthread -ldl -lutil -lpanel $(LIBNCURSES) $(LIBVTERM) $(LIBCCAN)
 
 INCLUDES		= -iquote"./libvterm/include" -I$(CCAN_DIR)
 INCLUDES		+= -iquote"./src" -iquote"./include"

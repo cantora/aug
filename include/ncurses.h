@@ -33,7 +33,7 @@
 #if defined(__APPLE__)
 #	include <ncurses.h>
 #else
-#	include <ncursesw/curses.h>
+#	include <ncurses.h>
 #endif
 
 #endif /* AUG_NCURSES_H */
