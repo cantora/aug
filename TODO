@@ -15,3 +15,7 @@ build system:
 documentation:
   -make an ascii.io screencast to demo aug features (feature aug-db)
 
+review:
+  -review plugin api, can we make the header includes simpler?
+   maybe put AUG_GLOBAL_API_OBJECTS and #include "aug_api.h"
+   in aug_plugin.h.
