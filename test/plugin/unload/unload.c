@@ -28,9 +28,6 @@
 
 const char aug_plugin_name[] = "unload";
 
-static const struct aug_api *g_api;
-static struct aug_plugin *g_plugin;
-
 static pthread_t g_tid1;
 
 static void *thread1(void *user) {
@@ -38,17 +35,15 @@ static void *thread1(void *user) {
 
 	diag("++++thread1 (unload)++++");
 	pass("thread1(unload) running");
-	(*g_api->unload)(g_plugin);
+	aug_unload();
 	diag("----thread1 (unload)----\n#");
 	return NULL;
 }
 
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
+int aug_plugin_start() {
 	diag("++++plugin_init (unload)++++");
-	g_plugin = plugin;	
-	g_api = api;
 
-	(*g_api->log)(g_plugin, "init\n");
+	aug_log("start\n");
 
 	diag("create thread for unloading");
 	if(pthread_create(&g_tid1, NULL, thread1, NULL) != 0) {
@@ -66,7 +61,7 @@ void aug_plugin_free() {
 	int status;
 
 	diag("++++plugin_free (unload)++++");
-	(*g_api->log)(g_plugin, "free\n");
+	aug_log("free\n");
 
 	ok1(pthread_equal(pthread_self(), g_tid1) == 0);
 	status = pthread_join(g_tid1, NULL);

@@ -1,11 +1,7 @@
 #include "aug_plugin.h"
-#include "aug_api.h"
-
 #include <stdlib.h>
 
 const char aug_plugin_name[] = "inject";
-
-AUG_GLOBAL_API_OBJECTS
 
 struct aug_plugin_cb g_callbacks;
 
@@ -30,10 +26,8 @@ void input_char(uint32_t *ch, aug_action *action, struct aug_inject *inject, voi
 
 }
 
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_INIT(plugin, api);
-
-	aug_log("inject\n");
+int aug_plugin_start() {
+	aug_log("start\n");
 
 	g_hend = 0;
 

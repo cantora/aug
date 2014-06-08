@@ -31,11 +31,11 @@ extern struct aug_plugin * AUG_PLUGIN_HANDLE;
 
 #include "aug_api_macros.h"
 
-#define AUG_GLOBAL_API_OBJECTS \
+#define AUG_API_GLOBAL_OBJECTS \
 	const struct aug_api * AUG_API_HANDLE; \
 	struct aug_plugin * AUG_PLUGIN_HANDLE;
 
-#define AUG_API_INIT(plugin, api) \
+#define AUG_API_GLOBAL_OBJECTS_INIT(plugin, api) \
 	do { \
 		AUG_API_HANDLE = api; \
 		AUG_PLUGIN_HANDLE = plugin; \

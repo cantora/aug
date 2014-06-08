@@ -1,13 +1,8 @@
 #include "aug_plugin.h"
-#include "aug_api.h"
 
 const char aug_plugin_name[] = "hello";
 
-AUG_GLOBAL_API_OBJECTS
-
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_INIT(plugin, api);
-
+int aug_plugin_start() {
 	aug_log("hello world\n");
 
 	return 0;

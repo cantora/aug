@@ -19,19 +19,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef AUG_AUG_PLUGIN_H
-#define AUG_AUG_PLUGIN_H
+#ifndef AUG_AUG_PLUGIN_DEFINITIONS_H
+#define AUG_AUG_PLUGIN_DEFINITIONS_H
 
-#include "aug_plugin_definitions.h"
-#include "aug_api.h"
+#include "aug.h"
+#include <string.h>
 
-AUG_API_GLOBAL_OBJECTS
-
-int aug_plugin_start();
-
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_GLOBAL_OBJECTS_INIT(plugin, api);
-	return aug_plugin_start();
+int aug_plugin_api_version_major() {
+	return AUG_API_VERSION_MAJOR;
 }
 
-#endif /* AUG_AUG_PLUGIN_H */
+int aug_plugin_api_version_minor() {
+	return AUG_API_VERSION_MINOR;
+}
+
+const char const aug_plugin_name[];
+int aug_plugin_init( AUG_API_INIT_ARG_PROTO );
+void aug_plugin_free( AUG_API_FREE_ARG_PROTO );
+
+static inline void aug_callbacks_init(struct aug_plugin_cb *cbs) {
+	memset(cbs, 0, sizeof(*cbs));
+}
+
+#endif /* AUG_AUG_PLUGIN_DEFINITIONS_H */

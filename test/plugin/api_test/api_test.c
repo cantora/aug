@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with aug.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "aug_plugin.h"
+#include "aug_plugin_definitions.h"
 #include "api_test_vars.h"
 #include <string.h>
 #include <stdbool.h>
@@ -684,7 +684,7 @@ static void *thread1(void *user) {
 	}
 
 	diag("write into panel terminal");
-	while((*g_api->terminal_input_chars)(g_plugin, g_pan_term, "i", 1 ) != 1) 
+	while((*g_api->terminal_input_chars)(g_plugin, g_pan_term, "\ni", 2 ) != 2) 
 		usleep(10000);
 		
 	amt = 0;

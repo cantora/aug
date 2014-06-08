@@ -1,7 +1,4 @@
 #include "aug_plugin.h"
-#include "aug_api.h"
-
-AUG_GLOBAL_API_OBJECTS;
 
 const char aug_plugin_name[] = "bold";
 
@@ -26,10 +23,8 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch,
 	*attr = *attr | A_BOLD;
 }
 
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_INIT(plugin, api);
-
-	aug_log("init\n");
+int aug_plugin_start() {
+	aug_log("start\n");
 
 	aug_callbacks_init(&g_callbacks);
 	g_callbacks.cell_update = cell_update;

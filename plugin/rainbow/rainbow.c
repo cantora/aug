@@ -1,17 +1,8 @@
 #include <stdlib.h>
 #include <time.h>
-
 #include "aug_plugin.h"
-#include "aug_api.h"
 
 const char aug_plugin_name[] = "rainbow";
-
-void cell_update(
-	int rows, int cols, int *row, int *col, wchar_t *wch, 
-	attr_t *attr, int *color_pair, aug_action *action, void *user
-);
-
-AUG_GLOBAL_API_OBJECTS;
 
 struct aug_plugin_cb g_callbacks;
 
@@ -29,10 +20,8 @@ void cell_update(int rows, int cols, int *row, int *col, wchar_t *wch,
 	*attr = *attr | A_BOLD;
 }
 
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_INIT(plugin, api);
-
-	aug_log("init\n");
+int aug_plugin_start() {
+	aug_log("start\n");
 
 	aug_callbacks_init(&g_callbacks);
 	g_callbacks.cell_update = cell_update;
@@ -44,4 +33,3 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 }
 
 void aug_plugin_free() {}
-

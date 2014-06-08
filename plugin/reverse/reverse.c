@@ -1,23 +1,8 @@
 #include "aug_plugin.h"
-#include "aug_api.h"
-
-AUG_GLOBAL_API_OBJECTS;
 
 const char aug_plugin_name[] = "reverse";
 
-void cell_update(
-	int rows, int cols, int *row, int *col, wchar_t *wch, 
-	attr_t *attr, int *color_pair, aug_action *action, void *user
-);
-void cursor_move(
-	int rows, int cols, int old_row, int old_col, int *new_row, 
-	int *new_col, aug_action *action, void *user
-);
-
-struct aug_plugin_cb g_callbacks = {
-	.input_char = NULL,
-	.screen_dims_change = NULL
-};
+struct aug_plugin_cb g_callbacks;
 
 static void reverse_coord(int size, int *coord) {
 	*coord = (size-1) - *coord;
@@ -48,10 +33,8 @@ void cursor_move(int rows, int cols, int old_row, int old_col,
 	reverse_coord(cols, new_col);
 }
 
-int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
-	AUG_API_INIT(plugin, api);
-
-	aug_log("init\n");
+int aug_plugin_start() {
+	aug_log("start\n");
 
 	aug_callbacks_init(&g_callbacks);
 	g_callbacks.cell_update = cell_update;
@@ -62,4 +45,3 @@ int aug_plugin_init(struct aug_plugin *plugin, const struct aug_api *api) {
 }
 
 void aug_plugin_free() {}
-
