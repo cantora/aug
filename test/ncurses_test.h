@@ -29,7 +29,7 @@
 #if defined(__APPLE__)
 #	include <ncurses.h>
 #else
-#	include <ncursesw/curses.h>
+#	include <ncurses.h>
 #endif
 
 #include "util.h"
